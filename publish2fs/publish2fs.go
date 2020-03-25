@@ -16,12 +16,17 @@ package publish2fs
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/BrunoReboul/ram/helper"
+
 	"cloud.google.com/go/firestore"
+	"cloud.google.com/go/functions/metadata"
 )
 
 // Global structure for global variables to optimize the cloud function performances
@@ -58,7 +63,8 @@ type Asset struct {
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
-func Initialize(global *Global) {
+func Initialize(ctx context.Context, global *Global) {
+	global.ctx = ctx
 	global.initFailed = false
 	global.projectID = os.Getenv("GCP_PROJECT")
 	global.collectionID = os.Getenv("COLLECTION_ID")
@@ -71,10 +77,61 @@ func Initialize(global *Global) {
 		global.initFailed = true
 		return
 	}
-	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
+	global.firestoreClient, err = firestore.NewClient(ctx, global.projectID)
 	if err != nil {
 		log.Printf("ERROR - firestore.NewClient: %v", err)
 		global.initFailed = true
 		return
 	}
+}
+
+// EntryPoint is the function to be executed for each cloud function occurence
+func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+	// log.Println(string(PubSubMessage.Data))
+	if global.initFailed {
+		log.Println("ERROR - init function failed")
+		return nil // NO RETRY
+	}
+
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return fmt.Errorf("metadata.FromContext: %v", err) // RETRY
+	}
+
+	// Ignore events that are too old.
+	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
+	if time.Now().After(expiration) {
+		log.Printf("ERROR - too many retries for expired event '%q'", metadata.EventID)
+		return nil // NO MORE RETRY
+	}
+	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+
+	var feedMessage FeedMessage
+	err = json.Unmarshal(PubSubMessage.Data, &feedMessage)
+	if err != nil {
+		log.Printf("ERROR - json.Unmarshal: %v", err)
+		return nil // NO RETRY
+	}
+	if feedMessage.Origin == "" {
+		feedMessage.Origin = "real-time"
+	}
+	// log.Printf("%v", feedMessage)
+
+	documentID := helper.RevertSlash(feedMessage.Asset.Name)
+	documentPath := global.collectionID + "/" + documentID
+	if feedMessage.Deleted == true {
+		_, err = global.firestoreClient.Doc(documentPath).Delete(global.ctx)
+		if err != nil {
+			return fmt.Errorf("Error when deleting %s %v", documentPath, err) // RETRY
+		}
+		log.Printf("DELETED document: %s", documentPath)
+	} else {
+		_, err = global.firestoreClient.Doc(documentPath).Set(global.ctx, feedMessage)
+		if err != nil {
+			return fmt.Errorf("firestoreClient.Doc(documentPath).Set: %s %v", documentPath, err) // RETRY
+		}
+		log.Printf("SET document: %s", documentPath)
+	}
+	return nil
 }
