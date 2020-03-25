@@ -16,3 +16,10 @@ Audit Google Cloud resources (the assets) compliance against a set of rules when
 
 - It is all easier to fix when it is detected early
 - Value is delivered only when a detected non compliance is fixed
+
+## Release
+
+- Release candidates:
+  - are suffixed with -rc
+  - are volatile
+  - should be used only by their developer for testing purpose and can disapear without notice
