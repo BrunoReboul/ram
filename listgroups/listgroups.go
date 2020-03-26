@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/BrunoReboul/ram/helper"
@@ -290,8 +289,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, gl
 }
 
 func initiateQueries(global *Global) error {
-	figures := getByteSet('0', 10)
-	alphabetLower := getByteSet('a', 26)
+	figures := helper.GetByteSet('0', 10)
+	alphabetLower := helper.GetByteSet('a', 26)
 	// Query on directory group email is NOT case sensitive
 	// alphabetUpper := getByteSet('A', 26)
 
@@ -326,14 +325,6 @@ func initiateQueries(global *Global) error {
 	return nil
 }
 
-func getByteSet(start byte, length int) []byte {
-	byteSet := make([]byte, length)
-	for i := range byteSet {
-		byteSet[i] = start + byte(i)
-	}
-	return byteSet
-}
-
 func queryDirectory(domain string, emailPrefix string, global *Global) error {
 	log.Printf("Settings retrieved, launch query on domain '%s' and email prefix '%s'", domain, emailPrefix)
 	pubSubMsgNumber = 0
@@ -343,7 +334,11 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 	// pages function expect just the name of the callback function. Not an invocation of the function
 	err := global.dirAdminService.Groups.List().Customer(global.directoryCustomerID).Domain(domain).Query(query).MaxResults(global.maxResultsPerPage).OrderBy("email").Pages(global.ctx, browseGroups)
 	if err != nil {
-		return fmt.Errorf("dirAdminService.Groups.List: %v", err) // RETRY
+		if strings.Contains(err.Error(), "Domain not found") {
+			log.Printf("INFO - Domain not found %s query %s customer ID %s", domain, query, global.directoryCustomerID) // NO RETRY
+		} else {
+			return fmt.Errorf("dirAdminService.Groups.List: %v", err) // RETRY
+		}
 	}
 	if pubSubMsgNumber > 0 {
 		log.Printf("Finished - Directory %s domain '%s' emailPrefix '%s' Number of groups published %d to topic %s", directoryCustomerID, domain, emailPrefix, pubSubMsgNumber, outputTopicName)
@@ -383,24 +378,9 @@ func browseGroups(groups *admin.Groups) error {
 			}
 			publishResult := topic.Publish(ctx, pubSubMessage)
 			waitgroup.Add(1)
-			go getPublishCallResult(ctx, publishResult, &waitgroup, directoryCustomerID+"/"+group.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+			go helper.GetPublishCallResult(ctx, publishResult, &waitgroup, directoryCustomerID+"/"+group.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
 		}
 	}
 	waitgroup.Wait()
 	return nil
-}
-
-func getPublishCallResult(ctx context.Context, publishResult *pubsub.PublishResult, waitgroup *sync.WaitGroup, msgInfo string, pubSubErrNumber *uint64, pubSubMsgNumber *uint64, logEventEveryXPubSubMsg uint64) {
-	defer waitgroup.Done()
-	id, err := publishResult.Get(ctx)
-	if err != nil {
-		log.Printf("ERROR count %d on %s: %v", atomic.AddUint64(pubSubErrNumber, 1), msgInfo, err)
-		return
-	}
-	msgNumber := atomic.AddUint64(pubSubMsgNumber, 1)
-	if msgNumber%logEventEveryXPubSubMsg == 0 {
-		// No retry on pubsub publish as already implemented in the GO client
-		log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
-	}
-	// log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
 }

@@ -21,6 +21,8 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -133,6 +135,15 @@ func GetAssetContact(contactRole string, resourceJSON json.RawMessage) (string, 
 	return contact, nil
 }
 
+// GetByteSet return a set of lenght contiguous bytes starting at bytes
+func GetByteSet(start byte, length int) []byte {
+	byteSet := make([]byte, length)
+	for i := range byteSet {
+		byteSet[i] = start + byte(i)
+	}
+	return byteSet
+}
+
 // getDisplayName retrieive the friendly name of an ancestor
 func getDisplayName(ctx context.Context, name string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) string {
 	var displayName = "unknown"
@@ -205,6 +216,22 @@ func getDisplayName(ctx context.Context, name string, collectionID string, fires
 		}
 	}
 	return displayName
+}
+
+// GetPublishCallResult func to be used in go routine to scale pubsub event publish
+func GetPublishCallResult(ctx context.Context, publishResult *pubsub.PublishResult, waitgroup *sync.WaitGroup, msgInfo string, pubSubErrNumber *uint64, pubSubMsgNumber *uint64, logEventEveryXPubSubMsg uint64) {
+	defer waitgroup.Done()
+	id, err := publishResult.Get(ctx)
+	if err != nil {
+		log.Printf("ERROR count %d on %s: %v", atomic.AddUint64(pubSubErrNumber, 1), msgInfo, err)
+		return
+	}
+	msgNumber := atomic.AddUint64(pubSubMsgNumber, 1)
+	if msgNumber%logEventEveryXPubSubMsg == 0 {
+		// No retry on pubsub publish as already implemented in the GO client
+		log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
+	}
+	// log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
 }
 
 // GetTopicList retreive the list of existing pubsub topics
