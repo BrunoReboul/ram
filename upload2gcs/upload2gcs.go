@@ -53,15 +53,10 @@ type Global struct {
 
 // FeedMessage Cloud Asset Inventory feed message
 type FeedMessage struct {
-	Asset   Asset  `json:"asset"`
-	Window  Window `json:"window"`
-	Deleted bool   `json:"deleted"`
-	Origin  string `json:"origin"`
-}
-
-// Window Cloud Asset Inventory feed message time window
-type Window struct {
-	StartTime time.Time `json:"startTime"`
+	Asset   Asset         `json:"asset"`
+	Window  helper.Window `json:"window"`
+	Deleted bool          `json:"deleted"`
+	Origin  string        `json:"origin"`
 }
 
 // Asset Cloud Asset Metadata

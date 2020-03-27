@@ -148,16 +148,16 @@ type SpecBQ struct {
 
 // FeedMessage Cloud Asset Inventory feed message
 type FeedMessage struct {
-	Asset  Asset  `json:"asset"`
-	Window Window `json:"window"`
-	Origin string `json:"origin"`
+	Asset  Asset         `json:"asset"`
+	Window helper.Window `json:"window"`
+	Origin string        `json:"origin"`
 }
 
 // FeedMessageBQ format to persist in BQ
 type FeedMessageBQ struct {
-	Asset  AssetBQ `json:"asset"`
-	Window Window  `json:"window"`
-	Origin string  `json:"origin"`
+	Asset  AssetBQ       `json:"asset"`
+	Window helper.Window `json:"window"`
+	Origin string        `json:"origin"`
 }
 
 // Asset Cloud Asset Metadata
@@ -190,10 +190,10 @@ type AssetBQ struct {
 
 // AssetFeedMessageBQ Cloud Asset Inventory feed message for asset table
 type AssetFeedMessageBQ struct {
-	Asset   AssetAssetBQ `json:"asset"`
-	Window  Window       `json:"window"`
-	Deleted bool         `json:"deleted"`
-	Origin  string       `json:"origin"`
+	Asset   AssetAssetBQ  `json:"asset"`
+	Window  helper.Window `json:"window"`
+	Deleted bool          `json:"deleted"`
+	Origin  string        `json:"origin"`
 }
 
 // AssetAssetBQ format to persist asset in BQ assets table
@@ -208,11 +208,6 @@ type AssetAssetBQ struct {
 	AssetType               string    `json:"assetType"`
 	Deleted                 bool      `json:"deleted"`
 	Timestamp               time.Time `json:"timestamp"`
-}
-
-// Window Cloud Asset Inventory feed message time window
-type Window struct {
-	StartTime time.Time `json:"startTime"`
 }
 
 // Parameters Constraint's settings

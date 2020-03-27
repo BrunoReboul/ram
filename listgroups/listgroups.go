@@ -80,15 +80,10 @@ type Key struct {
 
 // FeedMessage Cloud Asset Inventory feed message
 type FeedMessage struct {
-	Asset   Asset  `json:"asset"`
-	Window  Window `json:"window"`
-	Deleted bool   `json:"deleted"`
-	Origin  string `json:"origin"`
-}
-
-// Window Cloud Asset Inventory feed message time window
-type Window struct {
-	StartTime time.Time `json:"startTime"`
+	Asset   Asset         `json:"asset"`
+	Window  helper.Window `json:"window"`
+	Deleted bool          `json:"deleted"`
+	Origin  string        `json:"origin"`
 }
 
 // Asset uses the new CAI feed format
@@ -99,11 +94,6 @@ type Asset struct {
 	AncestryPath string          `json:"ancestryPath"`
 	IamPolicy    json.RawMessage `json:"iamPolicy"`
 	Resource     *admin.Group    `json:"resource"`
-}
-
-// PublishRequest Pub/sub
-type PublishRequest struct {
-	Topic string `json:"topic"`
 }
 
 // Settings from PubSub triggering event
