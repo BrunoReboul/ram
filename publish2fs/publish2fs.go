@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/BrunoReboul/ram/helper"
 
@@ -32,7 +31,6 @@ type Global struct {
 	ctx                 context.Context
 	initFailed          bool
 	retryTimeOutSeconds int64
-	projectID           string
 	collectionID        string
 	firestoreClient     *firestore.Client
 }
@@ -59,18 +57,20 @@ type Asset struct {
 func Initialize(ctx context.Context, global *Global) {
 	global.ctx = ctx
 	global.initFailed = false
-	global.projectID = os.Getenv("GCP_PROJECT")
-	global.collectionID = os.Getenv("COLLECTION_ID")
-	log.Println("Function COLD START")
+
 	// err is pre-declared to avoid shadowing client.
 	var err error
-	global.retryTimeOutSeconds, err = strconv.ParseInt(os.Getenv("RETRYTIMEOUTSECONDS"), 10, 64)
-	if err != nil {
-		log.Printf("ERROR - Env variable RETRYTIMEOUTSECONDS cannot be converted to int64: %v", err)
-		global.initFailed = true
+	var ok bool
+	var projectID string
+
+	global.collectionID = os.Getenv("COLLECTION_ID")
+	projectID = os.Getenv("GCP_PROJECT")
+
+	log.Println("Function COLD START")
+	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	global.firestoreClient, err = firestore.NewClient(ctx, global.projectID)
+	global.firestoreClient, err = firestore.NewClient(ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - firestore.NewClient: %v", err)
 		global.initFailed = true

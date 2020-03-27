@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/BrunoReboul/ram/helper"
@@ -36,22 +35,15 @@ import (
 type Global struct {
 	ctx                           context.Context
 	assetsCollectionID            string
-	bigQueryClient                *bigquery.Client
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
-	dataset                       *bigquery.Dataset
-	datasetName                   string
 	firestoreClient               *firestore.Client
 	initFailed                    bool
 	inserter                      *bigquery.Inserter
 	ownerLabelKeyName             string
-	projectID                     string
 	retryTimeOutSeconds           int64
 	schema                        bigquery.Schema
-	schemaFileName                string
-	table                         *bigquery.Table
 	tableName                     string
-	tableNameList                 []string
 	violationResolverLabelKeyName string
 }
 
@@ -214,54 +206,59 @@ type Parameters map[string]json.RawMessage
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) {
-	var tableNameList = []string{"complianceStatus", "violations", "assets"}
 	global.ctx = ctx
 	global.initFailed = false
-	global.schemaFileName = "./schema.json"
-	global.tableNameList = tableNameList
+
+	var bigQueryClient *bigquery.Client
+	var dataset *bigquery.Dataset
+	var datasetName string
+	var ok bool
+	var projectID string
+	var schemaFileName string
+	var table *bigquery.Table
+	var tableNameList = []string{"complianceStatus", "violations", "assets"}
+
+	datasetName = os.Getenv("BQ_DATASET")
 	global.assetsCollectionID = os.Getenv("ASSETSCOLLECTIONID")
-	global.datasetName = os.Getenv("BQ_DATASET")
 	global.ownerLabelKeyName = os.Getenv("OWNERLABELKEYNAME")
-	global.projectID = os.Getenv("GCP_PROJECT")
 	global.tableName = os.Getenv("BQ_TABLE")
 	global.violationResolverLabelKeyName = os.Getenv("VIOLATIONRESOLVERLABELKEYNAME")
+	projectID = os.Getenv("GCP_PROJECT")
+	schemaFileName = "./schema.json"
 
 	log.Println("Function COLD START")
 	// err is pre-declared to avoid shadowing client.
 	var err error
-	global.retryTimeOutSeconds, err = strconv.ParseInt(os.Getenv("RETRYTIMEOUTSECONDS"), 10, 64)
-	if err != nil {
-		log.Printf("ERROR - Env variable RETRYTIMEOUTSECONDS cannot be converted to int64: %v", err)
-		global.initFailed = true
+	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
 	if !helper.Find(tableNameList, global.tableName) {
-		log.Printf("ERROR - Unsupported tablename %s supported are %v\n", global.tableName, global.tableNameList)
+		log.Printf("ERROR - Unsupported tablename %s supported are %v\n", global.tableName, tableNameList)
 		global.initFailed = true
 		return
 	}
-	global.bigQueryClient, err = bigquery.NewClient(global.ctx, global.projectID)
+	bigQueryClient, err = bigquery.NewClient(global.ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - bigquery.NewClient: %v", err)
 		global.initFailed = true
 		return
 	}
-	global.dataset = global.bigQueryClient.Dataset(global.datasetName)
-	_, err = global.dataset.Metadata(ctx)
+	dataset = bigQueryClient.Dataset(datasetName)
+	_, err = dataset.Metadata(ctx)
 	if err != nil {
 		log.Printf("ERROR - dataset.Metadata: %v", err)
 		global.initFailed = true
 		return
 	}
-	global.table = global.dataset.Table(global.tableName)
-	_, err = global.table.Metadata(ctx)
+	table = dataset.Table(global.tableName)
+	_, err = table.Metadata(ctx)
 	if err != nil {
 		log.Printf("ERROR - missing table %s %v", global.tableName, err)
 		global.initFailed = true
 		return
 	}
-	global.inserter = global.table.Inserter()
-	schemaFileContent, err := ioutil.ReadFile(global.schemaFileName)
+	global.inserter = table.Inserter()
+	schemaFileContent, err := ioutil.ReadFile(schemaFileName)
 	if err != nil {
 		log.Printf("ERROR - ioutil.ReadFile: %v", err)
 		global.initFailed = true
@@ -286,7 +283,7 @@ func Initialize(ctx context.Context, global *Global) {
 			global.initFailed = true
 			return
 		}
-		global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
+		global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
 		if err != nil {
 			log.Printf("ERROR - firestore.NewClient: %v", err)
 			global.initFailed = true

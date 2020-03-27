@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/BrunoReboul/ram/helper"
@@ -36,16 +35,13 @@ type Global struct {
 	ctx                           context.Context
 	assetsCollectionID            string
 	bucketFolderPath              string
-	bucketName                    string
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
 	firestoreClient               *firestore.Client
 	initFailed                    bool
 	ownerLabelKeyName             string
-	projectID                     string
 	retryTimeOutSeconds           int64
 	storageBucket                 *storage.BucketHandle
-	storageClient                 *storage.Client
 	violationResolverLabelKeyName string
 }
 
@@ -80,28 +76,30 @@ func Initialize(ctx context.Context, global *Global) {
 	global.ctx = ctx
 	global.initFailed = false
 
+	// err is pre-declared to avoid shadowing client.
+	var bucketName string
+	var err error
+	var ok bool
+	var projectID string
+	var storageClient *storage.Client
+
+	bucketName = os.Getenv("BUCKETNAME")
 	global.assetsCollectionID = os.Getenv("ASSETSCOLLECTIONID")
-	global.bucketName = os.Getenv("BUCKETNAME")
 	global.ownerLabelKeyName = os.Getenv("OWNERLABELKEYNAME")
-	global.projectID = os.Getenv("GCP_PROJECT")
 	global.violationResolverLabelKeyName = os.Getenv("VIOLATIONRESOLVERLABELKEYNAME")
+	projectID = os.Getenv("GCP_PROJECT")
 
 	log.Println("Function COLD START")
-	// err is pre-declared to avoid shadowing client.
-	var err error
-	global.retryTimeOutSeconds, err = strconv.ParseInt(os.Getenv("RETRYTIMEOUTSECONDS"), 10, 64)
-	if err != nil {
-		log.Printf("ERROR - Env variable RETRYTIMEOUTSECONDS cannot be converted to int64: %v", err)
-		global.initFailed = true
+	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	global.storageClient, err = storage.NewClient(ctx)
+	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
 		log.Printf("ERROR - storage.NewClient: %v", err)
 		global.initFailed = true
 		return
 	}
-	global.storageBucket = global.storageClient.Bucket(global.bucketName)
+	global.storageBucket = storageClient.Bucket(bucketName)
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
 		log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
@@ -114,7 +112,7 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	global.firestoreClient, err = firestore.NewClient(ctx, global.projectID)
+	global.firestoreClient, err = firestore.NewClient(ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - firestore.NewClient: %v", err)
 		global.initFailed = true
