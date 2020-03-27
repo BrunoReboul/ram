@@ -32,7 +32,6 @@ import (
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 
-	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
 	admin "google.golang.org/api/admin/directory/v1"
 )
@@ -62,20 +61,6 @@ type Global struct {
 	outputTopicName         string
 	pubSubClient            *pubsub.Client
 	retryTimeOutSeconds     int64
-}
-
-// Key Service account json key
-type Key struct {
-	Type                    string `json:"type"`
-	ProjectID               string `json:"project_id"`
-	PrivateKeyID            string `json:"private_key_id"`
-	PrivateKey              string `json:"private_key"`
-	ClientEmail             string `json:"client_email"`
-	ClientID                string `json:"client_id"`
-	AuthURI                 string `json:"auth_uri"`
-	TokenURI                string `json:"token_uri"`
-	AuthProviderX509CertURL string `json:"auth_provider_x509_cert_url"`
-	ClientX509CertURL       string `json:"client_x509_cert_url"`
 }
 
 // FeedMessage Cloud Asset Inventory feed message
@@ -163,7 +148,7 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	var key Key
+	var key helper.Key
 	err = json.Unmarshal(keyJSONdata, &key)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal(keyJSONdata, &key): %v", err)
@@ -230,22 +215,9 @@ func Initialize(ctx context.Context, global *Global) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if global.initFailed {
-		log.Println("ERROR - init function failed")
-		return nil // NO RETRY
-	}
-
-	metadata, err := metadata.FromContext(ctxEvent)
-	if err != nil {
-		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("metadata.FromContext: %v", err) // RETRY
-	}
-
-	// Ignore events that are too old.
-	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
-	if time.Now().After(expiration) {
-		log.Printf("ERROR - too many retries for expired event '%q'", metadata.EventID)
-		return nil // NO MORE RETRY
+	ok, metadata, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	if !ok {
+		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 

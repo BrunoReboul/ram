@@ -29,7 +29,6 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/firestore"
-	"cloud.google.com/go/functions/metadata"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 )
 
@@ -299,25 +298,12 @@ func Initialize(ctx context.Context, global *Global) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if global.initFailed {
-		log.Println("ERROR - init function failed")
-		return nil // NO RETRY
-	}
-
-	metadata, err := metadata.FromContext(ctxEvent)
-	if err != nil {
-		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("metadata.FromContext: %v", err) // RETRY
-	}
-
-	// Ignore events that are too old.
-	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
-	if time.Now().After(expiration) {
-		log.Printf("ERROR - too many retries for expired event '%q'", metadata.EventID)
-		return nil // NO MORE RETRY
+	if ok, _, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
+	var err error
 	switch global.tableName {
 	case "complianceStatus":
 		err = persistComplianceStatus(PubSubMessage.Data, global)
