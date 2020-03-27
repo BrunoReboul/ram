@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
@@ -40,6 +41,11 @@ type PublishRequest struct {
 // PubSubMessage is the payload of a Pub/Sub event.
 type PubSubMessage struct {
 	Data []byte `json:"data"`
+}
+
+// Window Cloud Asset Inventory feed message time window
+type Window struct {
+	StartTime time.Time `json:"startTime" firestore:"startTime"`
 }
 
 // BuildAncestorsDisplayName build a slice of Ancestor friendly name fron a slice of ancestors
@@ -249,6 +255,31 @@ func GetTopicList(ctx context.Context, pubSubClient *pubsub.Client) ([]string, e
 		topicList = append(topicList, topic.ID())
 	}
 	return topicList, nil
+}
+
+// IntialRetryCheck performs intitial controls
+// 1) return true and metadata when controls are passed
+// 2) return false when controls failed:
+// - 2a) with an error to retry the cloud function entry point function
+// - 2b) with nil to stop the cloud function entry point function
+func IntialRetryCheck(ctxEvent context.Context, initFailed bool, retryTimeOutSeconds int64) (bool, *metadata.Metadata, error) {
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return false, metadata, fmt.Errorf("metadata.FromContext: %v", err) // RETRY
+	}
+	if initFailed {
+		log.Println("ERROR - init function failed")
+		return false, metadata, nil // NO RETRY
+	}
+
+	// Ignore events that are too old.
+	expiration := metadata.Timestamp.Add(time.Duration(retryTimeOutSeconds) * time.Second)
+	if time.Now().After(expiration) {
+		log.Printf("ERROR - too many retries for expired event '%q'", metadata.EventID)
+		return false, metadata, nil // NO MORE RETRY
+	}
+	return true, metadata, nil
 }
 
 // makeCompatible update a GCP asset ancestryPath to make it compatible with former Policy Library REGO rules

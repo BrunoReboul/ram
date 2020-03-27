@@ -21,12 +21,10 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/BrunoReboul/ram/helper"
 
 	"cloud.google.com/go/firestore"
-	"cloud.google.com/go/functions/metadata"
 )
 
 // Global structure for global variables to optimize the cloud function performances
@@ -41,15 +39,10 @@ type Global struct {
 
 // FeedMessage Cloud Asset Inventory feed message
 type FeedMessage struct {
-	Asset   Asset  `json:"asset" firestore:"asset"`
-	Window  Window `json:"window" firestore:"window"`
-	Deleted bool   `json:"deleted" firestore:"deleted"`
-	Origin  string `json:"origin" firestore:"origin"`
-}
-
-// Window Cloud Asset Inventory feed message time window
-type Window struct {
-	StartTime time.Time `json:"startTime" firestore:"startTime"`
+	Asset   Asset         `json:"asset" firestore:"asset"`
+	Window  helper.Window `json:"window" firestore:"window"`
+	Deleted bool          `json:"deleted" firestore:"deleted"`
+	Origin  string        `json:"origin" firestore:"origin"`
 }
 
 // Asset Cloud Asset Metadata
@@ -88,27 +81,13 @@ func Initialize(ctx context.Context, global *Global) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if global.initFailed {
-		log.Println("ERROR - init function failed")
-		return nil // NO RETRY
-	}
-
-	metadata, err := metadata.FromContext(ctxEvent)
-	if err != nil {
-		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("metadata.FromContext: %v", err) // RETRY
-	}
-
-	// Ignore events that are too old.
-	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
-	if time.Now().After(expiration) {
-		log.Printf("ERROR - too many retries for expired event '%q'", metadata.EventID)
-		return nil // NO MORE RETRY
+	if ok, _, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
 	var feedMessage FeedMessage
-	err = json.Unmarshal(PubSubMessage.Data, &feedMessage)
+	err := json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal: %v", err)
 		return nil // NO RETRY
