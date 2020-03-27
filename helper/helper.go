@@ -33,7 +33,6 @@ import (
 	"cloud.google.com/go/pubsub"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
-	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/iam/v1"
@@ -173,7 +172,7 @@ func GetByteSet(start byte, length int) []byte {
 }
 
 // GetClientOptionAndCleanKeys build a clientOption object and manage the init state
-func GetClientOptionAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string) (option.ClientOption, bool) {
+func GetClientOptionAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string, scopes []string) (option.ClientOption, bool) {
 	var clientOption option.ClientOption
 	var currentKeyName string
 	var err error
@@ -226,7 +225,7 @@ func GetClientOptionAndCleanKeys(ctx context.Context, serviceAccountEmail string
 
 	var jwtConfig *jwt.Config
 	// scope constants: https://godoc.org/google.golang.org/api/admin/directory/v1#pkg-constants
-	jwtConfig, err = google.JWTConfigFromJSON(keyJSONdata, admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope)
+	jwtConfig, err = google.JWTConfigFromJSON(keyJSONdata, scopes...)
 	if err != nil {
 		log.Printf("google.JWTConfigFromJSON: %v", err)
 		return clientOption, false

@@ -114,7 +114,7 @@ func Initialize(ctx context.Context, global *Global) {
 	if global.maxResultsPerPage, ok = helper.GetEnvVarInt64("MAXRESULTSPERPAGE"); !ok {
 		return
 	}
-	if clientOption, ok = helper.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate); !ok {
+	if clientOption, ok = helper.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope}); !ok {
 		return
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
