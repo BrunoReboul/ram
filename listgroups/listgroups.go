@@ -18,18 +18,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/BrunoReboul/ram/helper"
-	"golang.org/x/oauth2/google"
-	"golang.org/x/oauth2/jwt"
-	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 
 	"cloud.google.com/go/pubsub"
@@ -93,11 +88,11 @@ func Initialize(ctx context.Context, global *Global) {
 	global.initFailed = false
 
 	// err is pre-declared to avoid shadowing client.
-	var currentKeyName string
+	var clientOption option.ClientOption
 	var err error
 	var gciAdminUserToImpersonate string
-	var iamService *iam.Service
 	var keyJSONFilePath string
+	var ok bool
 	var projectID string
 	var serviceAccountEmail string
 
@@ -110,93 +105,18 @@ func Initialize(ctx context.Context, global *Global) {
 	serviceAccountEmail = os.Getenv("SERVICEACCOUNTNAME")
 
 	log.Println("Function COLD START")
-	global.retryTimeOutSeconds, err = strconv.ParseInt(os.Getenv("RETRYTIMEOUTSECONDS"), 10, 64)
-	if err != nil {
-		log.Printf("ERROR - Env variable RETRYTIMEOUTSECONDS cannot be converted to int64: %v", err)
-		global.initFailed = true
+	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	global.logEventEveryXPubSubMsg, err = strconv.ParseUint(os.Getenv("LOGEVENTEVERYXPUBSUBMSG"), 10, 64)
-	if err != nil {
-		log.Printf("Env variable LOGEVENTEVERYXPUBSUBMSG cannot be converted to uint64: %v", err)
-		global.initFailed = true
+	if global.logEventEveryXPubSubMsg, ok = helper.GetEnvVarUint64("LOGEVENTEVERYXPUBSUBMSG"); !ok {
 		return
 	}
-	// log.Printf("logEventEveryXPubSubMsg %d", logEventEveryXPubSubMsg)
-	global.maxResultsPerPage, err = strconv.ParseInt(os.Getenv("MAXRESULTSPERPAGE"), 10, 64)
-	if err != nil {
-		log.Printf("Env variable MAXRESULTSPERPAGE cannot be converted to int: %v", err)
-		global.initFailed = true
+	if global.maxResultsPerPage, ok = helper.GetEnvVarInt64("MAXRESULTSPERPAGE"); !ok {
 		return
 	}
-	iamService, err = iam.NewService(ctx)
-	if err != nil {
-		log.Printf("ERROR - iam.NewService: %v", err)
-		global.initFailed = true
+	if clientOption, ok = helper.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate); !ok {
 		return
 	}
-	resource := "projects/-/serviceAccounts/" + serviceAccountEmail
-	response, err := iamService.Projects.ServiceAccounts.Keys.List(resource).Do()
-	if err != nil {
-		log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.List: %v", err)
-		global.initFailed = true
-		return
-	}
-	keyJSONdata, err := ioutil.ReadFile(keyJSONFilePath)
-	if err != nil {
-		log.Printf("ERROR - ioutil.ReadFile(keyJSONFilePath): %v", err)
-		global.initFailed = true
-		return
-	}
-	var key helper.Key
-	err = json.Unmarshal(keyJSONdata, &key)
-	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(keyJSONdata, &key): %v", err)
-		global.initFailed = true
-		return
-	}
-	currentKeyName = "projects/" + projectID + "/serviceAccounts/" + serviceAccountEmail + "/keys/" + key.PrivateKeyID
-
-	// Clean keys
-	for _, key := range response.Keys {
-		if key.Name == currentKeyName {
-			log.Printf("Keep key ValidAfterTime %s named %s", key.ValidAfterTime, key.Name)
-		} else {
-			if key.KeyType == "SYSTEM_MANAGED" {
-				log.Printf("Ignore SYSTEM_MANAGED key named %s", key.Name)
-			} else {
-				log.Printf("Delete KeyType %s ValidAfterTime %s key name %s", key.KeyType, key.ValidAfterTime, key.Name)
-				_, err = iamService.Projects.ServiceAccounts.Keys.Delete(key.Name).Do()
-				if err != nil {
-					log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.Delete: %v", err)
-					global.initFailed = true
-					return
-				}
-			}
-		}
-	}
-
-	// using Json Web joken a the method with cerdentials does not yet implement the subject impersonification
-	// https://github.com/googleapis/google-api-java-client/issues/1007
-
-	var jwtConfig *jwt.Config
-	// scope constants: https://godoc.org/google.golang.org/api/admin/directory/v1#pkg-constants
-	jwtConfig, err = google.JWTConfigFromJSON(keyJSONdata, admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope)
-	if err != nil {
-		log.Printf("google.JWTConfigFromJSON: %v", err)
-		global.initFailed = true
-		return
-	}
-	jwtConfig.Subject = gciAdminUserToImpersonate
-	// jwtConfigJSON, err := json.Marshal(jwtConfig)
-	// log.Printf("jwt %s", string(jwtConfigJSON))
-
-	httpClient := jwtConfig.Client(ctx)
-
-	// Use client option as admin.New(httpClient) is deprecated https://godoc.org/google.golang.org/api/admin/directory/v1#New
-	var clientOption option.ClientOption
-	clientOption = option.WithHTTPClient(httpClient)
-
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
 		log.Printf("ERROR - admin.NewService: %v", err)

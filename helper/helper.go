@@ -18,8 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,13 +31,18 @@ import (
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
+	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/jwt"
+	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
+	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
-// Key Service account json key
-type Key struct {
+// key Service account json key
+type key struct {
 	Type                    string `json:"type"`
 	ProjectID               string `json:"project_id"`
 	PrivateKeyID            string `json:"private_key_id"`
@@ -164,6 +172,77 @@ func GetByteSet(start byte, length int) []byte {
 	return byteSet
 }
 
+// GetClientOptionAndCleanKeys build a clientOption object and manage the init state
+func GetClientOptionAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string) (option.ClientOption, bool) {
+	var clientOption option.ClientOption
+	var currentKeyName string
+	var err error
+	var iamService *iam.Service
+
+	iamService, err = iam.NewService(ctx)
+	if err != nil {
+		log.Printf("ERROR - iam.NewService: %v", err)
+		return clientOption, false
+	}
+	resource := "projects/-/serviceAccounts/" + serviceAccountEmail
+	response, err := iamService.Projects.ServiceAccounts.Keys.List(resource).Do()
+	if err != nil {
+		log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.List: %v", err)
+		return clientOption, false
+	}
+	keyJSONdata, err := ioutil.ReadFile(keyJSONFilePath)
+	if err != nil {
+		log.Printf("ERROR - ioutil.ReadFile(keyJSONFilePath): %v", err)
+		return clientOption, false
+	}
+	var key key
+	err = json.Unmarshal(keyJSONdata, &key)
+	if err != nil {
+		log.Printf("ERROR - json.Unmarshal(keyJSONdata, &key): %v", err)
+		return clientOption, false
+	}
+	currentKeyName = "projects/" + projectID + "/serviceAccounts/" + serviceAccountEmail + "/keys/" + key.PrivateKeyID
+
+	// Clean keys
+	for _, key := range response.Keys {
+		if key.Name == currentKeyName {
+			log.Printf("Keep key ValidAfterTime %s named %s", key.ValidAfterTime, key.Name)
+		} else {
+			if key.KeyType == "SYSTEM_MANAGED" {
+				log.Printf("Ignore SYSTEM_MANAGED key named %s", key.Name)
+			} else {
+				log.Printf("Delete KeyType %s ValidAfterTime %s key name %s", key.KeyType, key.ValidAfterTime, key.Name)
+				_, err = iamService.Projects.ServiceAccounts.Keys.Delete(key.Name).Do()
+				if err != nil {
+					log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.Delete: %v", err)
+					return clientOption, false
+				}
+			}
+		}
+	}
+
+	// using Json Web joken a the method with cerdentials does not yet implement the subject impersonification
+	// https://github.com/googleapis/google-api-java-client/issues/1007
+
+	var jwtConfig *jwt.Config
+	// scope constants: https://godoc.org/google.golang.org/api/admin/directory/v1#pkg-constants
+	jwtConfig, err = google.JWTConfigFromJSON(keyJSONdata, admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope)
+	if err != nil {
+		log.Printf("google.JWTConfigFromJSON: %v", err)
+		return clientOption, false
+	}
+	jwtConfig.Subject = gciAdminUserToImpersonate
+	// jwtConfigJSON, err := json.Marshal(jwtConfig)
+	// log.Printf("jwt %s", string(jwtConfigJSON))
+
+	httpClient := jwtConfig.Client(ctx)
+
+	// Use client option as admin.New(httpClient) is deprecated https://godoc.org/google.golang.org/api/admin/directory/v1#New
+	clientOption = option.WithHTTPClient(httpClient)
+
+	return clientOption, true
+}
+
 // getDisplayName retrieive the friendly name of an ancestor
 func getDisplayName(ctx context.Context, name string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) string {
 	var displayName = "unknown"
@@ -236,6 +315,28 @@ func getDisplayName(ctx context.Context, name string, collectionID string, fires
 		}
 	}
 	return displayName
+}
+
+// GetEnvVarInt64 retreive an os var, convert it and manage the init state
+func GetEnvVarInt64(envVarName string) (int64, bool) {
+	var value int64
+	value, err := strconv.ParseInt(os.Getenv(envVarName), 10, 64)
+	if err != nil {
+		log.Printf("ERROR - Env variable %s cannot be converted to int64: %v", envVarName, err)
+		return value, false
+	}
+	return value, true
+}
+
+// GetEnvVarUint64 retreive an os var, convert it and manage the init state
+func GetEnvVarUint64(envVarName string) (uint64, bool) {
+	var value uint64
+	value, err := strconv.ParseUint(os.Getenv(envVarName), 10, 64)
+	if err != nil {
+		log.Printf("ERROR - Env variable %s cannot be converted to uint64: %v", envVarName, err)
+		return value, false
+	}
+	return value, true
 }
 
 // GetPublishCallResult func to be used in go routine to scale pubsub event publish
