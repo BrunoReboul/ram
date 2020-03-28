@@ -58,24 +58,6 @@ type Global struct {
 	retryTimeOutSeconds     int64
 }
 
-// FeedMessage Cloud Asset Inventory feed message
-type FeedMessage struct {
-	Asset   Asset         `json:"asset"`
-	Window  helper.Window `json:"window"`
-	Deleted bool          `json:"deleted"`
-	Origin  string        `json:"origin"`
-}
-
-// Asset uses the new CAI feed format
-type Asset struct {
-	Name         string          `json:"name"`
-	AssetType    string          `json:"assetType"`
-	Ancestors    []string        `json:"ancestors"`
-	AncestryPath string          `json:"ancestryPath"`
-	IamPolicy    json.RawMessage `json:"iamPolicy"`
-	Resource     *admin.Group    `json:"resource"`
-}
-
 // Settings from PubSub triggering event
 type Settings struct {
 	Domain      string `json:"domain"`
@@ -123,7 +105,6 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-
 	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - pubsub.NewClient: %v", err)
@@ -241,7 +222,7 @@ func browseGroups(groups *admin.Groups) error {
 	var waitgroup sync.WaitGroup
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, group := range groups.Groups {
-		var feedMessage FeedMessage
+		var feedMessage helper.FeedMessageGroup
 		feedMessage.Window.StartTime = timestamp
 		feedMessage.Origin = "batch-listgroups"
 		feedMessage.Deleted = false

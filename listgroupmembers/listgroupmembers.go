@@ -49,57 +49,11 @@ type Global struct {
 	ctx                     context.Context
 	dirAdminService         *admin.Service
 	initFailed              bool
-	inputTopicName          string
 	logEventEveryXPubSubMsg uint64
 	maxResultsPerPage       int64 // API Max = 200
 	outputTopicName         string
 	pubSubClient            *pubsub.Client
 	retryTimeOutSeconds     int64
-}
-
-// FeedMessageGroup CAI like format
-type FeedMessageGroup struct {
-	Asset   AssetGroup    `json:"asset"`
-	Window  helper.Window `json:"window"`
-	Deleted bool          `json:"deleted"`
-	Origin  string        `json:"origin"`
-}
-
-// AssetGroup CAI like format
-type AssetGroup struct {
-	Name      string          `json:"name"`
-	AssetType string          `json:"assetType"`
-	Ancestors []string        `json:"ancestors"`
-	IamPolicy json.RawMessage `json:"iamPolicy"`
-	Resource  admin.Group     `json:"resource"`
-}
-
-// FeedMessageMember CAI like format
-type FeedMessageMember struct {
-	Asset   AssetMember   `json:"asset"`
-	Window  helper.Window `json:"window"`
-	Deleted bool          `json:"deleted"`
-	Origin  string        `json:"origin"`
-}
-
-// AssetMember CAI like format
-type AssetMember struct {
-	Name         string          `json:"name"`
-	AssetType    string          `json:"assetType"`
-	Ancestors    []string        `json:"ancestors"`
-	AncestryPath string          `json:"ancestryPath"`
-	IamPolicy    json.RawMessage `json:"iamPolicy"`
-	Resource     Member          `json:"resource"`
-}
-
-// Member is sligthly different from admim.Member to have both group email and member email
-type Member struct {
-	MemberEmail string `json:"memberEmail"`
-	GroupEmail  string `json:"groupEmail"`
-	ID          string `json:"id"`
-	Kind        string `json:"kind"`
-	Role        string `json:"role"`
-	Type        string `json:"type"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -166,7 +120,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, gl
 	outputTopicName = global.outputTopicName
 	timestamp = metadata.Timestamp
 
-	var feedMessageGroup FeedMessageGroup
+	var feedMessageGroup helper.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
 		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
@@ -200,7 +154,7 @@ func browseMembers(members *admin.Members) error {
 	var waitgroup sync.WaitGroup
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, member := range members.Members {
-		var feedMessageMember FeedMessageMember
+		var feedMessageMember helper.FeedMessageMember
 		feedMessageMember.Window.StartTime = timestamp
 		feedMessageMember.Origin = origin
 		feedMessageMember.Asset.Ancestors = ancestors

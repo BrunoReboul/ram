@@ -33,12 +33,67 @@ import (
 	"cloud.google.com/go/pubsub"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
+	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
+	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
+
+// AssetGroup CAI like format
+type AssetGroup struct {
+	Name         string          `json:"name"`
+	AssetType    string          `json:"assetType"`
+	Ancestors    []string        `json:"ancestors"`
+	AncestryPath string          `json:"ancestryPath"`
+	IamPolicy    json.RawMessage `json:"iamPolicy"`
+	Resource     *admin.Group    `json:"resource"`
+}
+
+// AssetGroupSettings CAI like format
+type AssetGroupSettings struct {
+	Name      string                 `json:"name"`
+	AssetType string                 `json:"assetType"`
+	Ancestors []string               `json:"ancestors"`
+	IamPolicy json.RawMessage        `json:"iamPolicy"`
+	Resource  *groupssettings.Groups `json:"resource"`
+}
+
+// AssetMember CAI like format
+type AssetMember struct {
+	Name         string          `json:"name"`
+	AssetType    string          `json:"assetType"`
+	Ancestors    []string        `json:"ancestors"`
+	AncestryPath string          `json:"ancestryPath"`
+	IamPolicy    json.RawMessage `json:"iamPolicy"`
+	Resource     Member          `json:"resource"`
+}
+
+// FeedMessageGroup CAI like format
+type FeedMessageGroup struct {
+	Asset   AssetGroup `json:"asset"`
+	Window  Window     `json:"window"`
+	Deleted bool       `json:"deleted"`
+	Origin  string     `json:"origin"`
+}
+
+// FeedMessageGroupSettings CAI like format
+type FeedMessageGroupSettings struct {
+	Asset   AssetGroupSettings `json:"asset"`
+	Window  Window             `json:"window"`
+	Deleted bool               `json:"deleted"`
+	Origin  string             `json:"origin"`
+}
+
+// FeedMessageMember CAI like format
+type FeedMessageMember struct {
+	Asset   AssetMember `json:"asset"`
+	Window  Window      `json:"window"`
+	Deleted bool        `json:"deleted"`
+	Origin  string      `json:"origin"`
+}
 
 // key Service account json key
 type key struct {
@@ -52,6 +107,16 @@ type key struct {
 	TokenURI                string `json:"token_uri"`
 	AuthProviderX509CertURL string `json:"auth_provider_x509_cert_url"`
 	ClientX509CertURL       string `json:"client_x509_cert_url"`
+}
+
+// Member is sligthly different from admim.Member to have both group email and member email
+type Member struct {
+	MemberEmail string `json:"memberEmail"`
+	GroupEmail  string `json:"groupEmail"`
+	ID          string `json:"id"`
+	Kind        string `json:"kind"`
+	Role        string `json:"role"`
+	Type        string `json:"type"`
 }
 
 // PublishRequest Pub/sub
