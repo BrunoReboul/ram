@@ -21,7 +21,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/alpha"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
 
@@ -59,10 +59,10 @@ func Initialize(ctx context.Context, global *Global) {
 	serviceAccountEmail = os.Getenv("SERVICEACCOUNTNAME")
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	if global.retryTimeOutSeconds, ok = alpha.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	if clientOption, ok = helper.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
+	if clientOption, ok = alpha.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
 		return
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
@@ -80,23 +80,23 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage alpha.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := alpha.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
 	// Pass data to global variables to deal with func browseGroup
-	var feedMessageGroup helper.FeedMessageGroup
+	var feedMessageGroup alpha.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
 		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
 		return nil // NO RETRY
 	}
 
-	var feedMessageGroupSettings helper.FeedMessageGroupSettings
+	var feedMessageGroupSettings alpha.FeedMessageGroupSettings
 	feedMessageGroupSettings.Window.StartTime = metadata.Timestamp
 	feedMessageGroupSettings.Origin = feedMessageGroup.Origin
 	feedMessageGroupSettings.Asset.Ancestors = feedMessageGroup.Asset.Ancestors
@@ -111,7 +111,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, gl
 		feedMessageGroupSettings.Asset.Resource = groupSettings
 	}
 
-	publishRequest := helper.PublishRequest{Topic: global.outputTopicName}
+	publishRequest := alpha.PublishRequest{Topic: global.outputTopicName}
 	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
 	if err != nil {
 		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
