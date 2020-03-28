@@ -427,6 +427,17 @@ func GetEnvVarInt64(envVarName string) (int64, bool) {
 	return value, true
 }
 
+// GetEnvVarTime retreive an os var, convert it and manage the init state
+func GetEnvVarTime(envVarName string) (time.Time, bool) {
+	var value time.Time
+	value, err := time.Parse(time.RFC3339, os.Getenv(envVarName))
+	if err != nil {
+		log.Printf("ERROR - Env variable %s cannot be converted to time: %v", envVarName, err)
+		return value, false
+	}
+	return value, true
+}
+
 // GetEnvVarUint64 retreive an os var, convert it and manage the init state
 func GetEnvVarUint64(envVarName string) (uint64, bool) {
 	var value uint64
