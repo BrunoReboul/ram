@@ -26,7 +26,6 @@ import (
 	"google.golang.org/api/option"
 
 	"cloud.google.com/go/pubsub"
-	admin "google.golang.org/api/admin/directory/v1"
 )
 
 // Global structure for global variables to optimize the cloud function performances
@@ -63,7 +62,7 @@ func Initialize(ctx context.Context, global *Global) {
 	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	if clientOption, ok = helper.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
+	if clientOption, ok = helper.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
 		return
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
