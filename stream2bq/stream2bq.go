@@ -23,7 +23,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
 	"cloud.google.com/go/bigquery"
@@ -139,16 +139,16 @@ type SpecBQ struct {
 
 // FeedMessage Cloud Asset Inventory feed message
 type FeedMessage struct {
-	Asset  Asset         `json:"asset"`
-	Window helper.Window `json:"window"`
-	Origin string        `json:"origin"`
+	Asset  Asset      `json:"asset"`
+	Window ram.Window `json:"window"`
+	Origin string     `json:"origin"`
 }
 
 // FeedMessageBQ format to persist in BQ
 type FeedMessageBQ struct {
-	Asset  AssetBQ       `json:"asset"`
-	Window helper.Window `json:"window"`
-	Origin string        `json:"origin"`
+	Asset  AssetBQ    `json:"asset"`
+	Window ram.Window `json:"window"`
+	Origin string     `json:"origin"`
 }
 
 // Asset Cloud Asset Metadata
@@ -181,10 +181,10 @@ type AssetBQ struct {
 
 // AssetFeedMessageBQ Cloud Asset Inventory feed message for asset table
 type AssetFeedMessageBQ struct {
-	Asset   AssetAssetBQ  `json:"asset"`
-	Window  helper.Window `json:"window"`
-	Deleted bool          `json:"deleted"`
-	Origin  string        `json:"origin"`
+	Asset   AssetAssetBQ `json:"asset"`
+	Window  ram.Window   `json:"window"`
+	Deleted bool         `json:"deleted"`
+	Origin  string       `json:"origin"`
 }
 
 // AssetAssetBQ format to persist asset in BQ assets table
@@ -229,10 +229,10 @@ func Initialize(ctx context.Context, global *Global) {
 	log.Println("Function COLD START")
 	// err is pre-declared to avoid shadowing client.
 	var err error
-	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	if !helper.Find(tableNameList, global.tableName) {
+	if !ram.Find(tableNameList, global.tableName) {
 		log.Printf("ERROR - Unsupported tablename %s supported are %v\n", global.tableName, tableNameList)
 		global.initFailed = true
 		return
@@ -293,9 +293,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
@@ -400,11 +400,11 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	}
 	assetFeedMessageBQ.Asset.Timestamp = feedMessage.Window.StartTime
 	assetFeedMessageBQ.Asset.Deleted = assetFeedMessageBQ.Deleted
-	assetFeedMessageBQ.Asset.AncestryPath = helper.BuildAncestryPath(assetFeedMessageBQ.Asset.Ancestors)
-	assetFeedMessageBQ.Asset.AncestorsDisplayName = helper.BuildAncestorsDisplayName(global.ctx, assetFeedMessageBQ.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
-	assetFeedMessageBQ.Asset.AncestryPathDisplayName = helper.BuildAncestryPath(assetFeedMessageBQ.Asset.AncestorsDisplayName)
-	assetFeedMessageBQ.Asset.Owner, _ = helper.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
-	assetFeedMessageBQ.Asset.ViolationResolver, _ = helper.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+	assetFeedMessageBQ.Asset.AncestryPath = ram.BuildAncestryPath(assetFeedMessageBQ.Asset.Ancestors)
+	assetFeedMessageBQ.Asset.AncestorsDisplayName = ram.BuildAncestorsDisplayName(global.ctx, assetFeedMessageBQ.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
+	assetFeedMessageBQ.Asset.AncestryPathDisplayName = ram.BuildAncestryPath(assetFeedMessageBQ.Asset.AncestorsDisplayName)
+	assetFeedMessageBQ.Asset.Owner, _ = ram.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
+	assetFeedMessageBQ.Asset.ViolationResolver, _ = ram.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 
 	insertID := fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
 	savers := []*bigquery.StructSaver{

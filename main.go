@@ -17,9 +17,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/ram"
 )
 
 func main() {
-	fmt.Println(helper.RevertSlash("hello/World"))
+	fmt.Println(ram.RevertSlash("hello/World"))
 }

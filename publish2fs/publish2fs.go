@@ -21,7 +21,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/ram"
 
 	"cloud.google.com/go/firestore"
 )
@@ -37,10 +37,10 @@ type Global struct {
 
 // FeedMessage Cloud Asset Inventory feed message
 type FeedMessage struct {
-	Asset   Asset         `json:"asset" firestore:"asset"`
-	Window  helper.Window `json:"window" firestore:"window"`
-	Deleted bool          `json:"deleted" firestore:"deleted"`
-	Origin  string        `json:"origin" firestore:"origin"`
+	Asset   Asset      `json:"asset" firestore:"asset"`
+	Window  ram.Window `json:"window" firestore:"window"`
+	Deleted bool       `json:"deleted" firestore:"deleted"`
+	Origin  string     `json:"origin" firestore:"origin"`
 }
 
 // Asset Cloud Asset Metadata
@@ -67,7 +67,7 @@ func Initialize(ctx context.Context, global *Global) {
 	projectID = os.Getenv("GCP_PROJECT")
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
 	global.firestoreClient, err = firestore.NewClient(ctx, projectID)
@@ -79,9 +79,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
@@ -97,7 +97,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, gl
 	}
 	// log.Printf("%v", feedMessage)
 
-	documentID := helper.RevertSlash(feedMessage.Asset.Name)
+	documentID := ram.RevertSlash(feedMessage.Asset.Name)
 	documentPath := global.collectionID + "/" + documentID
 	if feedMessage.Deleted == true {
 		_, err = global.firestoreClient.Doc(documentPath).Delete(global.ctx)

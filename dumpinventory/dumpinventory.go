@@ -25,7 +25,7 @@ import (
 	asset "cloud.google.com/go/asset/apiv1"
 	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/ram"
 )
 
 // Global structure for global variables to optimize the cloud function performances
@@ -66,7 +66,7 @@ func Initialize(ctx context.Context, global *Global) {
 	assetDumpFileName = fmt.Sprintf("gs://%s/%s.dump", caiExportBucketName, functionName)
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
 	settingsFileContent, err := ioutil.ReadFile(settingsFileName)
@@ -119,9 +119,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)

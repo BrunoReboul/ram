@@ -22,7 +22,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
 	"cloud.google.com/go/firestore"
@@ -47,10 +47,10 @@ type Global struct {
 
 // FeedMessage Cloud Asset Inventory feed message
 type FeedMessage struct {
-	Asset   Asset         `json:"asset"`
-	Window  helper.Window `json:"window"`
-	Deleted bool          `json:"deleted"`
-	Origin  string        `json:"origin"`
+	Asset   Asset      `json:"asset"`
+	Window  ram.Window `json:"window"`
+	Deleted bool       `json:"deleted"`
+	Origin  string     `json:"origin"`
 }
 
 // Asset Cloud Asset Metadata
@@ -90,7 +90,7 @@ func Initialize(ctx context.Context, global *Global) {
 	projectID = os.Getenv("GCP_PROJECT")
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
 	storageClient, err = storage.NewClient(ctx)
@@ -121,9 +121,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
@@ -138,11 +138,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, gl
 		feedMessage.Origin = "real-time"
 	}
 	feedMessage.Asset.Origin = feedMessage.Origin
-	feedMessage.Asset.AncestryPath = helper.BuildAncestryPath(feedMessage.Asset.Ancestors)
-	feedMessage.Asset.AncestorsDisplayName = helper.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
-	feedMessage.Asset.AncestryPathDisplayName = helper.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
-	feedMessage.Asset.Owner, _ = helper.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
-	feedMessage.Asset.ViolationResolver, _ = helper.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.AncestryPath = ram.BuildAncestryPath(feedMessage.Asset.Ancestors)
+	feedMessage.Asset.AncestorsDisplayName = ram.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
+	feedMessage.Asset.AncestryPathDisplayName = ram.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
+	feedMessage.Asset.Owner, _ = ram.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.ViolationResolver, _ = ram.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 
 	// Legacy
 	feedMessage.Asset.IamPolicyLegacy = feedMessage.Asset.IamPolicy

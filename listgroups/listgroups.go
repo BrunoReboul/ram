@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/ram"
 	"google.golang.org/api/option"
 
 	"cloud.google.com/go/pubsub"
@@ -87,16 +87,16 @@ func Initialize(ctx context.Context, global *Global) {
 	serviceAccountEmail = os.Getenv("SERVICEACCOUNTNAME")
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	if global.logEventEveryXPubSubMsg, ok = helper.GetEnvVarUint64("LOGEVENTEVERYXPUBSUBMSG"); !ok {
+	if global.logEventEveryXPubSubMsg, ok = ram.GetEnvVarUint64("LOGEVENTEVERYXPUBSUBMSG"); !ok {
 		return
 	}
-	if global.maxResultsPerPage, ok = helper.GetEnvVarInt64("MAXRESULTSPERPAGE"); !ok {
+	if global.maxResultsPerPage, ok = ram.GetEnvVarInt64("MAXRESULTSPERPAGE"); !ok {
 		return
 	}
-	if clientOption, ok = helper.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope}); !ok {
+	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope}); !ok {
 		return
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
@@ -114,9 +114,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}
@@ -152,8 +152,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, gl
 }
 
 func initiateQueries(global *Global) error {
-	figures := helper.GetByteSet('0', 10)
-	alphabetLower := helper.GetByteSet('a', 26)
+	figures := ram.GetByteSet('0', 10)
+	alphabetLower := ram.GetByteSet('a', 26)
 	// Query on directory group email is NOT case sensitive
 	// alphabetUpper := getByteSet('A', 26)
 
@@ -222,7 +222,7 @@ func browseGroups(groups *admin.Groups) error {
 	var waitgroup sync.WaitGroup
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, group := range groups.Groups {
-		var feedMessage helper.FeedMessageGroup
+		var feedMessage ram.FeedMessageGroup
 		feedMessage.Window.StartTime = timestamp
 		feedMessage.Origin = "batch-listgroups"
 		feedMessage.Deleted = false
@@ -241,7 +241,7 @@ func browseGroups(groups *admin.Groups) error {
 			}
 			publishResult := topic.Publish(ctx, pubSubMessage)
 			waitgroup.Add(1)
-			go helper.GetPublishCallResult(ctx, publishResult, &waitgroup, directoryCustomerID+"/"+group.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+			go ram.GetPublishCallResult(ctx, publishResult, &waitgroup, directoryCustomerID+"/"+group.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
 		}
 	}
 	waitgroup.Wait()

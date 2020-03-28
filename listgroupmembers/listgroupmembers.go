@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/ram"
 	"google.golang.org/api/option"
 
 	"cloud.google.com/go/pubsub"
@@ -77,16 +77,16 @@ func Initialize(ctx context.Context, global *Global) {
 	serviceAccountEmail = os.Getenv("SERVICEACCOUNTNAME")
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = helper.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	if global.logEventEveryXPubSubMsg, ok = helper.GetEnvVarUint64("LOGEVENTEVERYXPUBSUBMSG"); !ok {
+	if global.logEventEveryXPubSubMsg, ok = ram.GetEnvVarUint64("LOGEVENTEVERYXPUBSUBMSG"); !ok {
 		return
 	}
-	if global.maxResultsPerPage, ok = helper.GetEnvVarInt64("MAXRESULTSPERPAGE"); !ok {
+	if global.maxResultsPerPage, ok = ram.GetEnvVarInt64("MAXRESULTSPERPAGE"); !ok {
 		return
 	}
-	if clientOption, ok = helper.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
+	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
 		return
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
@@ -105,9 +105,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := helper.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}
@@ -120,7 +120,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, gl
 	outputTopicName = global.outputTopicName
 	timestamp = metadata.Timestamp
 
-	var feedMessageGroup helper.FeedMessageGroup
+	var feedMessageGroup ram.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
 		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
@@ -154,7 +154,7 @@ func browseMembers(members *admin.Members) error {
 	var waitgroup sync.WaitGroup
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, member := range members.Members {
-		var feedMessageMember helper.FeedMessageMember
+		var feedMessageMember ram.FeedMessageMember
 		feedMessageMember.Window.StartTime = timestamp
 		feedMessageMember.Origin = origin
 		feedMessageMember.Asset.Ancestors = ancestors
@@ -176,7 +176,7 @@ func browseMembers(members *admin.Members) error {
 			}
 			publishResult := topic.Publish(ctx, pubSubMessage)
 			waitgroup.Add(1)
-			go helper.GetPublishCallResult(ctx, publishResult, &waitgroup, groupAssetName+"/"+member.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+			go ram.GetPublishCallResult(ctx, publishResult, &waitgroup, groupAssetName+"/"+member.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
 		}
 	}
 	return nil
