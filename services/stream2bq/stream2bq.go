@@ -12,6 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package stream2bq stream from PubSub to BigQuery 1) assets 2) compliance states 3) violations
+// - Triggered by: Messages in related PubSub topics
+// - Instances: one per Big Query table
+//   - assets
+//   - compliance states
+//   - violations
+// - Output: Streming into BigQuery tables
+// - Cardinality: one-one, one pubsub message - one stream insert in BQ
+// - Automatic retrying: yes
+// - Required environment variables:
+//   - ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents
+//   - BQ_DATASET name of the Big Query dataset hosting the table
+//   - BQ_TABLE name of the Big Query table where to insert streams
+//   - OWNERLABELKEYNAME key name for the label identifying the asset owner
+//   - VIOLATIONRESOLVERLABELKEYNAMEkey name for the label identifying the asset violation resolver
 package stream2bq
 
 import (
@@ -23,7 +38,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/BrunoReboul/ram/ram"
+	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
 	"cloud.google.com/go/bigquery"

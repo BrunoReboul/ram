@@ -12,6 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package upload2gcs stores feeds as JSON files in a Google Cloud Storage bucket. Create (with override), Delete
+// - Triggered by: Messages in related PubSub topics
+// - Instances:
+//   - one for all IAM bindings policies
+//   - one per AssetType for resource metadata
+// - Output: JSON files into a GCS bucket
+// - Cardinality: one-one, one pubsub message - one file created (with override) or deleted
+// - Automatic retrying: yes
+// - Required environment variables:
+//   - ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents
+//   - BUCKETNAME name of the Google Cloud Storage bucket where to write JSON files
+//   - OWNERLABELKEYNAME key name for the label identifying the asset owner
+//   - VIOLATIONRESOLVERLABELKEYNAMEkey name for the label identifying the asset violation resolver
 package upload2gcs
 
 import (
@@ -22,7 +35,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/BrunoReboul/ram/ram"
+	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
 	"cloud.google.com/go/firestore"

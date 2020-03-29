@@ -12,6 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package splitdump nibble large Cloud Asset Inventory dumps into many PubSub asset feed messages
+// - Triggered by: Google Cloud Storage event when a new dump is delivered
+// - Instances: only one
+// - Output:
+//   - PubSub messages formated like Cloud Asset Inventory real-time feed messages
+//   - Delivered in the same topics as used per CAI real-time
+//   - Tags to differentiate them from CAI real time feeds
+//   - Create missing topics en the fly (best effort) in case it does not already exist for real-time
+// - Cardinality:
+//   - one-many: one dump is nubbled in many feed messages
+//   - To ensure scallabilty the function is recurssive:
+//     - dump size > x lines then segment it in x line child dumps
+//     - else nibble the dump
+//     - x is set through an environment variable
+// - Automatic retrying: yes
+// - Is recurssive: yes
+// - Required environment variables:
+//   - CAIEXPORTBUCKETNAME the name of the GCS bucket where are delivered the CAI dumps
+//   - IAMTOPICNAME the name of the topic used for all IAM policies feed messages
 package splitdump
 
 import (
@@ -29,7 +48,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
-	"github.com/BrunoReboul/ram/ram"
+	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
 // Global structure for global variables to optimize the cloud function performances

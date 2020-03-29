@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package ram avoid code redundancy by grouping types and functions used by other ram packages
 package ram
 
 import (
