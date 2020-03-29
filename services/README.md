@@ -55,7 +55,7 @@ import (
     "context"
 
     "github.com/BrunoReboul/ram/<package_name>"
-    "github.com/BrunoReboul/ram/ram"
+    "github.com/BrunoReboul/ram/utilities/ram"
 )
 
 var global <package_name>.Global
@@ -83,7 +83,7 @@ import (
     "context"
 
     "github.com/BrunoReboul/ram/<package_name>"
-    "github.com/BrunoReboul/ram/ram"
+    "github.com/BrunoReboul/ram/utilities/ram"
 )
 
 var global <package_name>.Global

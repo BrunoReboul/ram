@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package publish2fs publish assets resource feeds as FireStore documents. Create, Update, Delete
+// - Triggered by: resource or IAM policies assets feed messages in PubSub topics
+// - Instances:
+//   - one per asset type to be persisted in FireStore
+//   - ussually 3: organizations, folders and projects
+// - Output: FireStore documents created, updated, deleted
+// - Cardinality: one-one, one feed message - one operation performed in FireStore
+// - Automatic retrying: yes
+// - Required environment variables:
+//   - COLLECTION_ID the name of the FireStore collection grouping all assets documents
 package publish2fs
 
 import (
@@ -21,7 +31,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/BrunoReboul/ram/ram"
+	"github.com/BrunoReboul/ram/utilities/ram"
 
 	"cloud.google.com/go/firestore"
 )

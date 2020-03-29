@@ -12,6 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package monitorcompliance check asset compliance. Is the heart of RAM
+// - Triggered by: resource or IAM policies assets feed messages in PubSub topics
+// - Instances:
+//   - one per REGO rule
+//   - all constraints (yaml settings) related to a REGO rule are evaluated in the REGO rule instance
+// - Output:
+//   - PubSub violation topic
+//   - PubSub complianceStatus topic
+// - Cardinality:
+//   - When compliant one-one only the compliance state, no violations
+//   - When not compliant one-few 1 compliance state + n violations
+// - Automatic retrying: yes
+// - Required environment variables:
+//   - ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents
+//   - ENVIRONMENT the execution environment for RAM, eg, dev
+//   - OWNERLABELKEYNAME key name for the label identifying the asset owner
+//   - STATUS_TOPIC name of the PubSub topic used to output evaluated compliance states
+//   - VIOLATIONRESOLVERLABELKEYNAMEkey name for the label identifying the asset violation resolver
+//   - VIOLATION_TOPIC name of the PubSub topic used to output found violations
 package monitorcompliance
 
 import (
@@ -25,7 +44,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/pubsub"
-	"github.com/BrunoReboul/ram/ram"
+	"github.com/BrunoReboul/ram/utilities/ram"
 	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
