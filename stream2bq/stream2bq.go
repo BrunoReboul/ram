@@ -21,15 +21,13 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/firestore"
-	"cloud.google.com/go/functions/metadata"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 )
 
@@ -37,22 +35,15 @@ import (
 type Global struct {
 	ctx                           context.Context
 	assetsCollectionID            string
-	bigQueryClient                *bigquery.Client
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
-	dataset                       *bigquery.Dataset
-	datasetName                   string
 	firestoreClient               *firestore.Client
 	initFailed                    bool
 	inserter                      *bigquery.Inserter
 	ownerLabelKeyName             string
-	projectID                     string
 	retryTimeOutSeconds           int64
 	schema                        bigquery.Schema
-	schemaFileName                string
-	table                         *bigquery.Table
 	tableName                     string
-	tableNameList                 []string
 	violationResolverLabelKeyName string
 }
 
@@ -148,16 +139,16 @@ type SpecBQ struct {
 
 // FeedMessage Cloud Asset Inventory feed message
 type FeedMessage struct {
-	Asset  Asset  `json:"asset"`
-	Window Window `json:"window"`
-	Origin string `json:"origin"`
+	Asset  Asset      `json:"asset"`
+	Window ram.Window `json:"window"`
+	Origin string     `json:"origin"`
 }
 
 // FeedMessageBQ format to persist in BQ
 type FeedMessageBQ struct {
-	Asset  AssetBQ `json:"asset"`
-	Window Window  `json:"window"`
-	Origin string  `json:"origin"`
+	Asset  AssetBQ    `json:"asset"`
+	Window ram.Window `json:"window"`
+	Origin string     `json:"origin"`
 }
 
 // Asset Cloud Asset Metadata
@@ -191,7 +182,7 @@ type AssetBQ struct {
 // AssetFeedMessageBQ Cloud Asset Inventory feed message for asset table
 type AssetFeedMessageBQ struct {
 	Asset   AssetAssetBQ `json:"asset"`
-	Window  Window       `json:"window"`
+	Window  ram.Window   `json:"window"`
 	Deleted bool         `json:"deleted"`
 	Origin  string       `json:"origin"`
 }
@@ -210,64 +201,64 @@ type AssetAssetBQ struct {
 	Timestamp               time.Time `json:"timestamp"`
 }
 
-// Window Cloud Asset Inventory feed message time window
-type Window struct {
-	StartTime time.Time `json:"startTime"`
-}
-
 // Parameters Constraint's settings
 type Parameters map[string]json.RawMessage
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) {
-	var tableNameList = []string{"complianceStatus", "violations", "assets"}
 	global.ctx = ctx
 	global.initFailed = false
-	global.schemaFileName = "./schema.json"
-	global.tableNameList = tableNameList
+
+	var bigQueryClient *bigquery.Client
+	var dataset *bigquery.Dataset
+	var datasetName string
+	var ok bool
+	var projectID string
+	var schemaFileName string
+	var table *bigquery.Table
+	var tableNameList = []string{"complianceStatus", "violations", "assets"}
+
+	datasetName = os.Getenv("BQ_DATASET")
 	global.assetsCollectionID = os.Getenv("ASSETSCOLLECTIONID")
-	global.datasetName = os.Getenv("BQ_DATASET")
 	global.ownerLabelKeyName = os.Getenv("OWNERLABELKEYNAME")
-	global.projectID = os.Getenv("GCP_PROJECT")
 	global.tableName = os.Getenv("BQ_TABLE")
 	global.violationResolverLabelKeyName = os.Getenv("VIOLATIONRESOLVERLABELKEYNAME")
+	projectID = os.Getenv("GCP_PROJECT")
+	schemaFileName = "./schema.json"
 
 	log.Println("Function COLD START")
 	// err is pre-declared to avoid shadowing client.
 	var err error
-	global.retryTimeOutSeconds, err = strconv.ParseInt(os.Getenv("RETRYTIMEOUTSECONDS"), 10, 64)
-	if err != nil {
-		log.Printf("ERROR - Env variable RETRYTIMEOUTSECONDS cannot be converted to int64: %v", err)
+	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+		return
+	}
+	if !ram.Find(tableNameList, global.tableName) {
+		log.Printf("ERROR - Unsupported tablename %s supported are %v\n", global.tableName, tableNameList)
 		global.initFailed = true
 		return
 	}
-	if !helper.Find(tableNameList, global.tableName) {
-		log.Printf("ERROR - Unsupported tablename %s supported are %v\n", global.tableName, global.tableNameList)
-		global.initFailed = true
-		return
-	}
-	global.bigQueryClient, err = bigquery.NewClient(global.ctx, global.projectID)
+	bigQueryClient, err = bigquery.NewClient(global.ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - bigquery.NewClient: %v", err)
 		global.initFailed = true
 		return
 	}
-	global.dataset = global.bigQueryClient.Dataset(global.datasetName)
-	_, err = global.dataset.Metadata(ctx)
+	dataset = bigQueryClient.Dataset(datasetName)
+	_, err = dataset.Metadata(ctx)
 	if err != nil {
 		log.Printf("ERROR - dataset.Metadata: %v", err)
 		global.initFailed = true
 		return
 	}
-	global.table = global.dataset.Table(global.tableName)
-	_, err = global.table.Metadata(ctx)
+	table = dataset.Table(global.tableName)
+	_, err = table.Metadata(ctx)
 	if err != nil {
 		log.Printf("ERROR - missing table %s %v", global.tableName, err)
 		global.initFailed = true
 		return
 	}
-	global.inserter = global.table.Inserter()
-	schemaFileContent, err := ioutil.ReadFile(global.schemaFileName)
+	global.inserter = table.Inserter()
+	schemaFileContent, err := ioutil.ReadFile(schemaFileName)
 	if err != nil {
 		log.Printf("ERROR - ioutil.ReadFile: %v", err)
 		global.initFailed = true
@@ -292,7 +283,7 @@ func Initialize(ctx context.Context, global *Global) {
 			global.initFailed = true
 			return
 		}
-		global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
+		global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
 		if err != nil {
 			log.Printf("ERROR - firestore.NewClient: %v", err)
 			global.initFailed = true
@@ -302,27 +293,14 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if global.initFailed {
-		log.Println("ERROR - init function failed")
-		return nil // NO RETRY
-	}
-
-	metadata, err := metadata.FromContext(ctxEvent)
-	if err != nil {
-		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("metadata.FromContext: %v", err) // RETRY
-	}
-
-	// Ignore events that are too old.
-	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
-	if time.Now().After(expiration) {
-		log.Printf("ERROR - too many retries for expired event '%q'", metadata.EventID)
-		return nil // NO MORE RETRY
+	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
+	var err error
 	switch global.tableName {
 	case "complianceStatus":
 		err = persistComplianceStatus(PubSubMessage.Data, global)
@@ -422,11 +400,11 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	}
 	assetFeedMessageBQ.Asset.Timestamp = feedMessage.Window.StartTime
 	assetFeedMessageBQ.Asset.Deleted = assetFeedMessageBQ.Deleted
-	assetFeedMessageBQ.Asset.AncestryPath = helper.BuildAncestryPath(assetFeedMessageBQ.Asset.Ancestors)
-	assetFeedMessageBQ.Asset.AncestorsDisplayName = helper.BuildAncestorsDisplayName(global.ctx, assetFeedMessageBQ.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
-	assetFeedMessageBQ.Asset.AncestryPathDisplayName = helper.BuildAncestryPath(assetFeedMessageBQ.Asset.AncestorsDisplayName)
-	assetFeedMessageBQ.Asset.Owner, _ = helper.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
-	assetFeedMessageBQ.Asset.ViolationResolver, _ = helper.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+	assetFeedMessageBQ.Asset.AncestryPath = ram.BuildAncestryPath(assetFeedMessageBQ.Asset.Ancestors)
+	assetFeedMessageBQ.Asset.AncestorsDisplayName = ram.BuildAncestorsDisplayName(global.ctx, assetFeedMessageBQ.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
+	assetFeedMessageBQ.Asset.AncestryPathDisplayName = ram.BuildAncestryPath(assetFeedMessageBQ.Asset.AncestorsDisplayName)
+	assetFeedMessageBQ.Asset.Owner, _ = ram.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
+	assetFeedMessageBQ.Asset.ViolationResolver, _ = ram.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 
 	insertID := fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
 	savers := []*bigquery.StructSaver{

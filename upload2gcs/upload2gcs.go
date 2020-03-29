@@ -20,15 +20,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
-	"time"
 
-	"github.com/BrunoReboul/ram/helper"
+	"github.com/BrunoReboul/ram/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
 	"cloud.google.com/go/firestore"
-	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/storage"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 )
@@ -38,30 +35,22 @@ type Global struct {
 	ctx                           context.Context
 	assetsCollectionID            string
 	bucketFolderPath              string
-	bucketName                    string
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
 	firestoreClient               *firestore.Client
 	initFailed                    bool
 	ownerLabelKeyName             string
-	projectID                     string
 	retryTimeOutSeconds           int64
 	storageBucket                 *storage.BucketHandle
-	storageClient                 *storage.Client
 	violationResolverLabelKeyName string
 }
 
 // FeedMessage Cloud Asset Inventory feed message
 type FeedMessage struct {
-	Asset   Asset  `json:"asset"`
-	Window  Window `json:"window"`
-	Deleted bool   `json:"deleted"`
-	Origin  string `json:"origin"`
-}
-
-// Window Cloud Asset Inventory feed message time window
-type Window struct {
-	StartTime time.Time `json:"startTime"`
+	Asset   Asset      `json:"asset"`
+	Window  ram.Window `json:"window"`
+	Deleted bool       `json:"deleted"`
+	Origin  string     `json:"origin"`
 }
 
 // Asset Cloud Asset Metadata
@@ -87,28 +76,30 @@ func Initialize(ctx context.Context, global *Global) {
 	global.ctx = ctx
 	global.initFailed = false
 
+	// err is pre-declared to avoid shadowing client.
+	var bucketName string
+	var err error
+	var ok bool
+	var projectID string
+	var storageClient *storage.Client
+
+	bucketName = os.Getenv("BUCKETNAME")
 	global.assetsCollectionID = os.Getenv("ASSETSCOLLECTIONID")
-	global.bucketName = os.Getenv("BUCKETNAME")
 	global.ownerLabelKeyName = os.Getenv("OWNERLABELKEYNAME")
-	global.projectID = os.Getenv("GCP_PROJECT")
 	global.violationResolverLabelKeyName = os.Getenv("VIOLATIONRESOLVERLABELKEYNAME")
+	projectID = os.Getenv("GCP_PROJECT")
 
 	log.Println("Function COLD START")
-	// err is pre-declared to avoid shadowing client.
-	var err error
-	global.retryTimeOutSeconds, err = strconv.ParseInt(os.Getenv("RETRYTIMEOUTSECONDS"), 10, 64)
-	if err != nil {
-		log.Printf("ERROR - Env variable RETRYTIMEOUTSECONDS cannot be converted to int64: %v", err)
-		global.initFailed = true
+	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	global.storageClient, err = storage.NewClient(ctx)
+	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
 		log.Printf("ERROR - storage.NewClient: %v", err)
 		global.initFailed = true
 		return
 	}
-	global.storageBucket = global.storageClient.Bucket(global.bucketName)
+	global.storageBucket = storageClient.Bucket(bucketName)
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
 		log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
@@ -121,7 +112,7 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	global.firestoreClient, err = firestore.NewClient(ctx, global.projectID)
+	global.firestoreClient, err = firestore.NewClient(ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - firestore.NewClient: %v", err)
 		global.initFailed = true
@@ -130,29 +121,15 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if global.initFailed {
-		log.Println("ERROR - init function failed")
-		return nil // NO RETRY
-	}
-
-	metadata, err := metadata.FromContext(ctxEvent)
-	if err != nil {
-		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("metadata.FromContext: %v", err) // RETRY
-	}
-
-	// Ignore events that are too old.
-	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
-	if time.Now().After(expiration) {
-		log.Printf("ERROR - too many retries for expired event '%q'", metadata.EventID)
-		return nil // NO MORE RETRY
+	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
 	var feedMessage FeedMessage
-	err = json.Unmarshal(PubSubMessage.Data, &feedMessage)
+	err := json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal: %v", err)
 		return nil // NO RETRY
@@ -161,11 +138,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage helper.PubSubMessage, gl
 		feedMessage.Origin = "real-time"
 	}
 	feedMessage.Asset.Origin = feedMessage.Origin
-	feedMessage.Asset.AncestryPath = helper.BuildAncestryPath(feedMessage.Asset.Ancestors)
-	feedMessage.Asset.AncestorsDisplayName = helper.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
-	feedMessage.Asset.AncestryPathDisplayName = helper.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
-	feedMessage.Asset.Owner, _ = helper.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
-	feedMessage.Asset.ViolationResolver, _ = helper.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.AncestryPath = ram.BuildAncestryPath(feedMessage.Asset.Ancestors)
+	feedMessage.Asset.AncestorsDisplayName = ram.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
+	feedMessage.Asset.AncestryPathDisplayName = ram.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
+	feedMessage.Asset.Owner, _ = ram.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.ViolationResolver, _ = ram.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 
 	// Legacy
 	feedMessage.Asset.IamPolicyLegacy = feedMessage.Asset.IamPolicy

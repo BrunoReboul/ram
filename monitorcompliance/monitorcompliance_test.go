@@ -12,14 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
-
-import (
-	"fmt"
-
-	"github.com/BrunoReboul/ram/ram"
-)
-
-func main() {
-	fmt.Println(ram.RevertSlash("hello/World"))
-}
+package monitorcompliance
