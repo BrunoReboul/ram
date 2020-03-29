@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package getgroupsettings retreives one group settings from `Groups Settings API`
+// - Triggered by: PubSub messages in GCI groups topic
+// - Instances: Only one
+// - Output: PubSub messages to a dedicated topic formated like Cloud Asset Inventory feed messages
+// - Cardinality: one-one, one output message for each triggering event
 package getgroupsettings
 
 import (
