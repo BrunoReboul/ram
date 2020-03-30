@@ -47,101 +47,101 @@ type Global struct {
 	violationResolverLabelKeyName string
 }
 
-// Violation from the "audit" rego policy in "audit.rego" module
-type Violation struct {
-	NonCompliance    NonCompliance    `json:"nonCompliance"`
-	FunctionConfig   FunctionConfig   `json:"functionConfig"`
-	ConstraintConfig ConstraintConfig `json:"constraintConfig"`
-	FeedMessage      FeedMessage      `json:"feedMessage"`
+// violation from the "audit" rego policy in "audit.rego" module
+type violation struct {
+	NonCompliance    nonCompliance    `json:"nonCompliance"`
+	FunctionConfig   functionConfig   `json:"functionConfig"`
+	ConstraintConfig constraintConfig `json:"constraintConfig"`
+	FeedMessage      feedMessage      `json:"feedMessage"`
 	RegoModules      json.RawMessage  `json:"regoModules"`
 }
 
-// ViolationBQ from the "audit" rego policy in "audit.rego" module
-type ViolationBQ struct {
-	NonCompliance    NonComplianceBQ    `json:"nonCompliance"`
-	FunctionConfig   FunctionConfig     `json:"functionConfig"`
-	ConstraintConfig ConstraintConfigBQ `json:"constraintConfig"`
-	FeedMessage      FeedMessageBQ      `json:"feedMessage"`
+// violationBQ from the "audit" rego policy in "audit.rego" module
+type violationBQ struct {
+	NonCompliance    nonComplianceBQ    `json:"nonCompliance"`
+	FunctionConfig   functionConfig     `json:"functionConfig"`
+	ConstraintConfig constraintConfigBQ `json:"constraintConfig"`
+	FeedMessage      feedMessageBQ      `json:"feedMessage"`
 	RegoModules      string             `json:"regoModules"`
 }
 
-// NonCompliance form the "deny" rego policy in a <templateName>.rego module
-type NonCompliance struct {
+// nonCompliance form the "deny" rego policy in a <templateName>.rego module
+type nonCompliance struct {
 	Message  string          `json:"message"`
 	Metadata json.RawMessage `json:"metadata"`
 }
 
-// NonComplianceBQ form the "deny" rego policy in a <templateName>.rego module
-type NonComplianceBQ struct {
+// nonComplianceBQ form the "deny" rego policy in a <templateName>.rego module
+type nonComplianceBQ struct {
 	Message  string `json:"message"`
 	Metadata string `json:"metadata"`
 }
 
-// FunctionConfig function deployment settings
-type FunctionConfig struct {
+// functionConfig function deployment settings
+type functionConfig struct {
 	FunctionName   string    `json:"functionName"`
 	DeploymentTime time.Time `json:"deploymentTime"`
 	ProjectID      string    `json:"projectID"`
 	Environment    string    `json:"environment"`
 }
 
-// ConstraintConfig expose content of the constraint yaml file
-type ConstraintConfig struct {
+// constraintConfig expose content of the constraint yaml file
+type constraintConfig struct {
 	APIVersion string             `json:"apiVersion"`
 	Kind       string             `json:"kind"`
-	Metadata   ConstraintMetadata `json:"metadata"`
-	Spec       Spec               `json:"spec"`
+	Metadata   constraintMetadata `json:"metadata"`
+	Spec       spec               `json:"spec"`
 }
 
-// ConstraintConfigBQ format to persist in BQ
-type ConstraintConfigBQ struct {
+// constraintConfigBQ format to persist in BQ
+type constraintConfigBQ struct {
 	Kind     string               `json:"kind"`
-	Metadata ConstraintMetadataBQ `json:"metadata"`
-	Spec     SpecBQ               `json:"spec"`
+	Metadata constraintMetadataBQ `json:"metadata"`
+	Spec     specBQ               `json:"spec"`
 }
 
-// ConstraintMetadata Constraint's metadata
-type ConstraintMetadata struct {
+// constraintMetadata Constraint's metadata
+type constraintMetadata struct {
 	Name        string          `json:"name"`
 	Annotations json.RawMessage `json:"annotation"`
 }
 
-// ConstraintMetadataBQ format to persist in BQ
-type ConstraintMetadataBQ struct {
+// constraintMetadataBQ format to persist in BQ
+type constraintMetadataBQ struct {
 	Name        string `json:"name"`
 	Annotations string `json:"annotation"`
 }
 
-// Spec Constraint's specifications
-type Spec struct {
+// spec Constraint's specifications
+type spec struct {
 	Severity   string          `json:"severity"`
 	Match      json.RawMessage `json:"match"`
 	Parameters json.RawMessage `json:"parameters"`
 }
 
-// SpecBQ format to persist in BQ
-type SpecBQ struct {
+// specBQ format to persist in BQ
+type specBQ struct {
 	Severity   string `json:"severity"`
 	Match      string `json:"match"`
 	Parameters string `json:"parameters"`
 }
 
-// FeedMessage Cloud Asset Inventory feed message
-type FeedMessage struct {
-	Asset  Asset      `json:"asset"`
+// feedMessage Cloud Asset Inventory feed message
+type feedMessage struct {
+	Asset  asset      `json:"asset"`
 	Window ram.Window `json:"window"`
 	Origin string     `json:"origin"`
 }
 
-// FeedMessageBQ format to persist in BQ
-type FeedMessageBQ struct {
-	Asset  AssetBQ    `json:"asset"`
+// feedMessageBQ format to persist in BQ
+type feedMessageBQ struct {
+	Asset  assetBQ    `json:"asset"`
 	Window ram.Window `json:"window"`
 	Origin string     `json:"origin"`
 }
 
-// Asset Cloud Asset Metadata
-type Asset struct {
+// asset Cloud Asset Metadata
+type asset struct {
 	Name                    string          `json:"name"`
 	Owner                   string          `json:"owner"`
 	ViolationResolver       string          `json:"violationResolver"`
@@ -154,8 +154,8 @@ type Asset struct {
 	Resource                json.RawMessage `json:"resource"`
 }
 
-// AssetBQ format to persist asset in BQ violations table
-type AssetBQ struct {
+// assetBQ format to persist asset in BQ violations table
+type assetBQ struct {
 	Name                    string `json:"name"`
 	Owner                   string `json:"owner"`
 	ViolationResolver       string `json:"violationResolver"`
@@ -168,16 +168,16 @@ type AssetBQ struct {
 	Resource                string `json:"resource"`
 }
 
-// AssetFeedMessageBQ Cloud Asset Inventory feed message for asset table
-type AssetFeedMessageBQ struct {
-	Asset   AssetAssetBQ `json:"asset"`
+// assetFeedMessageBQ Cloud Asset Inventory feed message for asset table
+type assetFeedMessageBQ struct {
+	Asset   assetAssetBQ `json:"asset"`
 	Window  ram.Window   `json:"window"`
 	Deleted bool         `json:"deleted"`
 	Origin  string       `json:"origin"`
 }
 
-// AssetAssetBQ format to persist asset in BQ assets table
-type AssetAssetBQ struct {
+// assetAssetBQ format to persist asset in BQ assets table
+type assetAssetBQ struct {
 	Name                    string    `json:"name"`
 	Owner                   string    `json:"owner"`
 	ViolationResolver       string    `json:"violationResolver"`
@@ -189,9 +189,6 @@ type AssetAssetBQ struct {
 	Deleted                 bool      `json:"deleted"`
 	Timestamp               time.Time `json:"timestamp"`
 }
-
-// Parameters Constraint's settings
-type Parameters map[string]json.RawMessage
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) {
@@ -323,8 +320,8 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
 }
 
 func persistViolation(pubSubJSONDoc []byte, global *Global) error {
-	var violation Violation
-	var violationBQ ViolationBQ
+	var violation violation
+	var violationBQ violationBQ
 	err := json.Unmarshal(pubSubJSONDoc, &violation)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &violation): %v", err)
@@ -371,13 +368,13 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 }
 
 func persistAsset(pubSubJSONDoc []byte, global *Global) error {
-	var feedMessage FeedMessage
+	var feedMessage feedMessage
 	err := json.Unmarshal(pubSubJSONDoc, &feedMessage)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &feedMessage): %v", err)
 		return nil
 	}
-	var assetFeedMessageBQ AssetFeedMessageBQ
+	var assetFeedMessageBQ assetFeedMessageBQ
 	err = json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ): %v", err)
