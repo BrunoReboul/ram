@@ -72,6 +72,17 @@ type AssetMember struct {
 	Resource     Member          `json:"resource"`
 }
 
+// ComplianceStatus by asset, by rule, true/false compliance status
+type ComplianceStatus struct {
+	AssetName               string    `json:"assetName"`
+	AssetInventoryTimeStamp time.Time `json:"assetInventoryTimeStamp"`
+	AssetInventoryOrigin    string    `json:"assetInventoryOrigin"`
+	RuleName                string    `json:"ruleName"`
+	RuleDeploymentTimeStamp time.Time `json:"ruleDeploymentTimeStamp"`
+	Compliant               bool      `json:"compliant"`
+	Deleted                 bool      `json:"deleted"`
+}
+
 // FeedMessageGroup CAI like format
 type FeedMessageGroup struct {
 	Asset   AssetGroup `json:"asset"`
@@ -170,7 +181,7 @@ type Window struct {
 	StartTime time.Time `json:"startTime" firestore:"startTime"`
 }
 
-// BuildAncestorsDisplayName build a slice of Ancestor friendly name fron a slice of ancestors
+// BuildAncestorsDisplayName build a slice of Ancestor friendly name from a slice of ancestors
 func BuildAncestorsDisplayName(ctx context.Context, ancestors []string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) []string {
 	cnt := len(ancestors)
 	ancestorsDisplayName := make([]string, len(ancestors))

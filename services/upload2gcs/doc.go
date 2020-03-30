@@ -13,31 +13,43 @@
 // limitations under the License.
 
 /*
-Package dumpinventory request CAI to perform an export
+Package upload2gcs stores feeds as JSON files in a GCS bucket
+
+Manage file creation (with override) and deletion.
 
 Triggered by
 
-Cloud Scheduler Job, through PubSub messages.
+Messages in related PubSub topics.
 
 Instances
 
-- one for all IAM bindings policies.
-
-- one per AssetType for resource metadata exports.
+one-one, one pubsub message - one file created (with override) or deleted.
 
 Output
 
-None, CAI execute exports as an asynchonous task delivered in a Google Cloud Storage bucket.
+JSON files into a GCS bucket.
+
+Cardinality
+
+One-one: one feed message - one operation performed in FireStore.
 
 Automatic retrying
 
 Yes.
 
+Is recurssive
+
+Yes.
+
 Required environment variables
 
-- CAIEXPORTBUCKETNAME the name of the GCS bucket where CAI dumps should be delivered.
+- ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents
 
-- SETTINGSFILENAME name of the JSON setting file.
+- BUCKETNAME name of the Google Cloud Storage bucket where to write JSON files
+
+- OWNERLABELKEYNAME key name for the label identifying the asset owner
+
+- VIOLATIONRESOLVERLABELKEYNAME key name for the label identifying the asset violation resolver
 
 Implementation example
 
@@ -45,20 +57,20 @@ Implementation example
  import (
      "context"
 
-     "github.com/BrunoReboul/ram/services/dumpinventory"
+     "github.com/BrunoReboul/ram/services/upload2gcs"
      "github.com/BrunoReboul/ram/utilities/ram"
  )
- var global dumpinventory.Global
+ var global upload2gcs.Global
  var ctx = context.Background()
 
  // EntryPoint is the function to be executed for each cloud function occurence
  func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage) error {
-     return dumpinventory.EntryPoint(ctxEvent, PubSubMessage, &global)
+     return upload2gcs.EntryPoint(ctxEvent, PubSubMessage, &global)
  }
 
  func init() {
-     dumpinventory.Initialize(ctx, &global)
+     upload2gcs.Initialize(ctx, &global)
  }
 
 */
-package dumpinventory
+package upload2gcs

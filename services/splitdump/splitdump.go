@@ -12,25 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package splitdump nibble large Cloud Asset Inventory dumps into many PubSub asset feed messages
-// - Triggered by: Google Cloud Storage event when a new dump is delivered
-// - Instances: only one
-// - Output:
-//   - PubSub messages formated like Cloud Asset Inventory real-time feed messages
-//   - Delivered in the same topics as used per CAI real-time
-//   - Tags to differentiate them from CAI real time feeds
-//   - Create missing topics en the fly (best effort) in case it does not already exist for real-time
-// - Cardinality:
-//   - one-many: one dump is nubbled in many feed messages
-//   - To ensure scallabilty the function is recurssive:
-//     - dump size > x lines then segment it in x line child dumps
-//     - else nibble the dump
-//     - x is set through an environment variable
-// - Automatic retrying: yes
-// - Is recurssive: yes
-// - Required environment variables:
-//   - CAIEXPORTBUCKETNAME the name of the GCS bucket where are delivered the CAI dumps
-//   - IAMTOPICNAME the name of the topic used for all IAM policies feed messages
 package splitdump
 
 import (
@@ -62,8 +43,8 @@ type Global struct {
 	storageBucket            *storage.BucketHandle
 }
 
-// Asset uses the new CAI feed format
-type Asset struct {
+// asset uses the new CAI feed format
+type asset struct {
 	Name      string          `json:"name"`
 	AssetType string          `json:"assetType"`
 	Ancestors []string        `json:"ancestors"`
@@ -71,16 +52,16 @@ type Asset struct {
 	Resource  json.RawMessage `json:"resource"`
 }
 
-// FeedMessage Cloud Asset Inventory feed message
-type FeedMessage struct {
-	Asset  Asset      `json:"asset"`
+// feedMessage Cloud Asset Inventory feed message
+type feedMessage struct {
+	Asset  asset      `json:"asset"`
 	Window ram.Window `json:"window"`
 	Origin string     `json:"origin"`
 }
 
-// AssetLegacy uses the CAI export legacy format, not the new CAI feed format
+// assetLegacy uses the CAI export legacy format, not the new CAI feed format
 // aka asset_type instead of assetType, iam_policy instead of iamPolicy
-type AssetLegacy struct {
+type assetLegacy struct {
 	Name      string          `json:"name"`
 	AssetType string          `json:"asset_type"`
 	Ancestors []string        `json:"ancestors"`
@@ -311,7 +292,7 @@ func splitToLines(buffer bytes.Buffer, global *Global, pointerTopubSubMsgNumber 
 }
 
 func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *int64, topicList []string, startTime time.Time) error {
-	var assetLegacy AssetLegacy
+	var assetLegacy assetLegacy
 	var topicName string
 	err := json.Unmarshal([]byte(dumpline), &assetLegacy)
 	if err != nil {
@@ -350,16 +331,16 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 	return nil
 }
 
-func getFeedMessage(asset Asset, startTime time.Time) FeedMessage {
-	var feedMessage FeedMessage
+func getFeedMessage(asset asset, startTime time.Time) feedMessage {
+	var feedMessage feedMessage
 	feedMessage.Asset = asset
 	feedMessage.Origin = "batch-export"
 	feedMessage.Window.StartTime = startTime
 	return feedMessage
 }
 
-func transposeAsset(assetLegacy AssetLegacy) Asset {
-	var asset Asset
+func transposeAsset(assetLegacy assetLegacy) asset {
+	var asset asset
 	asset.Name = assetLegacy.Name
 	asset.AssetType = assetLegacy.AssetType
 	asset.IamPolicy = assetLegacy.IamPolicy
@@ -368,7 +349,7 @@ func transposeAsset(assetLegacy AssetLegacy) Asset {
 	return asset
 }
 
-func getAssetShortTypeName(asset Asset) string {
+func getAssetShortTypeName(asset asset) string {
 	var serviceName string
 	tmpArr := strings.Split(asset.AssetType, "/")
 	assetTypeName := tmpArr[len(tmpArr)-1]

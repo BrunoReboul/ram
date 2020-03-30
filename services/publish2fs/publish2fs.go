@@ -12,16 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package publish2fs publish assets resource feeds as FireStore documents. Create, Update, Delete
-// - Triggered by: resource or IAM policies assets feed messages in PubSub topics
-// - Instances:
-//   - one per asset type to be persisted in FireStore
-//   - ussually 3: organizations, folders and projects
-// - Output: FireStore documents created, updated, deleted
-// - Cardinality: one-one, one feed message - one operation performed in FireStore
-// - Automatic retrying: yes
-// - Required environment variables:
-//   - COLLECTION_ID the name of the FireStore collection grouping all assets documents
 package publish2fs
 
 import (
@@ -45,16 +35,16 @@ type Global struct {
 	firestoreClient     *firestore.Client
 }
 
-// FeedMessage Cloud Asset Inventory feed message
-type FeedMessage struct {
-	Asset   Asset      `json:"asset" firestore:"asset"`
+// feedMessage Cloud Asset Inventory feed message
+type feedMessage struct {
+	Asset   asset      `json:"asset" firestore:"asset"`
 	Window  ram.Window `json:"window" firestore:"window"`
 	Deleted bool       `json:"deleted" firestore:"deleted"`
 	Origin  string     `json:"origin" firestore:"origin"`
 }
 
 // Asset Cloud Asset Metadata
-type Asset struct {
+type asset struct {
 	Name         string                 `json:"name" firestore:"name"`
 	AssetType    string                 `json:"assetType" firestore:"assetType"`
 	Ancestors    []string               `json:"ancestors" firestore:"ancestors"`
@@ -96,7 +86,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
-	var feedMessage FeedMessage
+	var feedMessage feedMessage
 	err := json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal: %v", err)

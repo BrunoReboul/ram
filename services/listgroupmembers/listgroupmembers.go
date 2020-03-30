@@ -12,17 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package listgroupmembers extract all members from a group in Google Cloud Identity directory using the Admin SDK API
-// - Triggered by: PubSub messages from the GCI groups topic
-// - Instances: Only one
-// - Output: PubSub messages to a dedicated topic formated like Cloud Asset Inventory feed messages
-// - Cardinality: one-many, one group may have many members. There is no limit in GCI on the number of members in a group
-// - Automatic retrying: yes
-// - Required environment variables:
-//   - GCIADMINUSERTOIMPERSONATE email of the Google Cloud Identity super admin to impersonate
-//   - KEYJSONFILENAME name for the service account JSON file containig the key to authenticate against CGI
-//   - OUTPUTTOPICNAME name of the PubSub topic where to deliver feed messages
-//   - SERVICEACCOUNTNAME name of the service account used to asscess GCI
 package listgroupmembers
 
 import (
