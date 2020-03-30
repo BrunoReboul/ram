@@ -62,17 +62,6 @@ type Global struct {
 	violationResolverLabelKeyName string
 }
 
-// ComplianceStatus by asset, by rule, true/false compliance status
-type ComplianceStatus struct {
-	AssetName               string    `json:"assetName"`
-	AssetInventoryTimeStamp time.Time `json:"assetInventoryTimeStamp"`
-	AssetInventoryOrigin    string    `json:"assetInventoryOrigin"`
-	RuleName                string    `json:"ruleName"`
-	RuleDeploymentTimeStamp time.Time `json:"ruleDeploymentTimeStamp"`
-	Compliant               bool      `json:"compliant"`
-	Deleted                 bool      `json:"deleted"`
-}
-
 // Violation from the "audit" rego policy in "audit.rego" module
 type Violation struct {
 	NonCompliance    NonCompliance    `json:"nonCompliance"`
@@ -331,7 +320,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 }
 
 func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
-	var complianceStatus ComplianceStatus
+	var complianceStatus ram.ComplianceStatus
 	err := json.Unmarshal(pubSubJSONDoc, &complianceStatus)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &complianceStatus): %v", err)

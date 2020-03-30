@@ -13,21 +13,25 @@
 // limitations under the License.
 
 /*
-Package dumpinventory request CAI to perform an export
+Package listgroupmembers extract all members from a group in GCI directory using the Admin SDK API
 
 Triggered by
 
-Cloud Scheduler Job, through PubSub messages.
+PubSub messages from the GCI groups topic.
 
 Instances
 
-- one for all IAM bindings policies.
-
-- one per AssetType for resource metadata exports.
+Only one.
 
 Output
 
-None, CAI execute exports as an asynchonous task delivered in a Google Cloud Storage bucket.
+PubSub messages to a dedicated topic formated like Cloud Asset Inventory feed messages.
+
+Cardinality
+
+One-many: one group may have many members.
+
+There is no limit in GCI on the number of members in a group.
 
 Automatic retrying
 
@@ -35,9 +39,13 @@ Yes.
 
 Required environment variables
 
-- CAIEXPORTBUCKETNAME the name of the GCS bucket where CAI dumps should be delivered.
+- GCIADMINUSERTOIMPERSONATE email of the Google Cloud Identity super admin to impersonate.
 
-- SETTINGSFILENAME name of the JSON setting file.
+- KEYJSONFILENAME name for the service account JSON file containig the key to authenticate against CGI.
+
+- OUTPUTTOPICNAME name of the PubSub topic where to deliver feed messages.
+
+- SERVICEACCOUNTNAME name of the service account used to asscess GCI.
 
 Implementation example
 
@@ -45,20 +53,20 @@ Implementation example
  import (
      "context"
 
-     "github.com/BrunoReboul/ram/services/dumpinventory"
+     "github.com/BrunoReboul/ram/services/listgroupmembers"
      "github.com/BrunoReboul/ram/utilities/ram"
  )
- var global dumpinventory.Global
+ var global listgroupmembers.Global
  var ctx = context.Background()
 
  // EntryPoint is the function to be executed for each cloud function occurence
  func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage) error {
-     return dumpinventory.EntryPoint(ctxEvent, PubSubMessage, &global)
+     return listgroupmembers.EntryPoint(ctxEvent, PubSubMessage, &global)
  }
 
  func init() {
-     dumpinventory.Initialize(ctx, &global)
+     listgroupmembers.Initialize(ctx, &global)
  }
 
 */
-package dumpinventory
+package listgroupmembers

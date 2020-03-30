@@ -13,31 +13,39 @@
 // limitations under the License.
 
 /*
-Package dumpinventory request CAI to perform an export
+Package publish2fs publish assets resource feeds as FireStore documents
+
+It manages creation, updates and delete.
 
 Triggered by
 
-Cloud Scheduler Job, through PubSub messages.
+Resource or IAM policies assets feed messages in PubSub topics.
 
 Instances
 
-- one for all IAM bindings policies.
+- one per asset type to be persisted in FireStore.
 
-- one per AssetType for resource metadata exports.
+- ussually 3: organizations, folders and projects.
 
 Output
 
-None, CAI execute exports as an asynchonous task delivered in a Google Cloud Storage bucket.
+FireStore documents created, updated, deleted.
+
+Cardinality
+
+One-one, one feed message - one operation performed in FireStore
 
 Automatic retrying
 
 Yes.
 
+Is recurssive
+
+Yes.
+
 Required environment variables
 
-- CAIEXPORTBUCKETNAME the name of the GCS bucket where CAI dumps should be delivered.
-
-- SETTINGSFILENAME name of the JSON setting file.
+- COLLECTION_ID the name of the FireStore collection grouping all assets documents
 
 Implementation example
 
@@ -45,20 +53,20 @@ Implementation example
  import (
      "context"
 
-     "github.com/BrunoReboul/ram/services/dumpinventory"
+     "github.com/BrunoReboul/ram/services/publish2fs"
      "github.com/BrunoReboul/ram/utilities/ram"
  )
- var global dumpinventory.Global
+ var global publish2fs.Global
  var ctx = context.Background()
 
  // EntryPoint is the function to be executed for each cloud function occurence
  func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage) error {
-     return dumpinventory.EntryPoint(ctxEvent, PubSubMessage, &global)
+     return publish2fs.EntryPoint(ctxEvent, PubSubMessage, &global)
  }
 
  func init() {
-     dumpinventory.Initialize(ctx, &global)
+     publish2fs.Initialize(ctx, &global)
  }
 
 */
-package dumpinventory
+package publish2fs

@@ -12,25 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package monitorcompliance check asset compliance. Is the heart of RAM
-// - Triggered by: resource or IAM policies assets feed messages in PubSub topics
-// - Instances:
-//   - one per REGO rule
-//   - all constraints (yaml settings) related to a REGO rule are evaluated in the REGO rule instance
-// - Output:
-//   - PubSub violation topic
-//   - PubSub complianceStatus topic
-// - Cardinality:
-//   - When compliant one-one only the compliance state, no violations
-//   - When not compliant one-few 1 compliance state + n violations
-// - Automatic retrying: yes
-// - Required environment variables:
-//   - ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents
-//   - ENVIRONMENT the execution environment for RAM, eg, dev
-//   - OWNERLABELKEYNAME key name for the label identifying the asset owner
-//   - STATUS_TOPIC name of the PubSub topic used to output evaluated compliance states
-//   - VIOLATIONRESOLVERLABELKEYNAMEkey name for the label identifying the asset violation resolver
-//   - VIOLATION_TOPIC name of the PubSub topic used to output found violations
 package monitorcompliance
 
 import (
@@ -72,12 +53,12 @@ type Global struct {
 	ramComplianceStatusTopicName  string
 	ramViolationTopicName         string
 	regoModulesFolderPath         string
-	settings                      Settings
+	settings                      settings
 	violationResolverLabelKeyName string
 }
 
-// Settings the structure of the settings.json setting file
-type Settings struct {
+// settings the structure of the settings.json setting file
+type settings struct {
 	WritabelOPAFolderPath string `json:"writabelOPAFolderPath"`
 	AssetsFolderName      string `json:"assetsFolderName"`
 	AssetsFileName        string `json:"assetsFileName"`
@@ -85,17 +66,17 @@ type Settings struct {
 	RegoModulesFolderName string `json:"regoModulesFolderName"`
 }
 
-// FeedMessage Cloud Asset Inventory feed message
-type FeedMessage struct {
-	Asset   Asset      `json:"asset"`
+// feedMessage Cloud Asset Inventory feed message
+type feedMessage struct {
+	Asset   asset      `json:"asset"`
 	Window  ram.Window `json:"window"`
 	Deleted bool       `json:"deleted"`
 	Origin  string     `json:"origin"`
 }
 
-// Asset Cloud Asset Metadata
+// asset Cloud Asset Metadata
 // Duplicate "iamPolicy" and "assetType en ensure compatibility beetween format in CAI feed, aka real time, and CAI Export aka batch
-type Asset struct {
+type asset struct {
 	Name                    string          `json:"name"`
 	Owner                   string          `json:"owner"`
 	ViolationResolver       string          `json:"violationResolver"`
@@ -111,74 +92,60 @@ type Asset struct {
 	Resource                json.RawMessage `json:"resource"`
 }
 
-// Assets array of Asset
-type Assets []Asset
+// assets slice of asset
+type assets []asset
 
-// Violations array of Violation
-type Violations []Violation
+// violations array of violation
+type violations []violation
 
-// Violation from the "audit" rego policy in "audit.rego" module
-type Violation struct {
-	NonCompliance    NonCompliance     `json:"nonCompliance"`
-	FunctionConfig   FunctionConfig    `json:"functionConfig"`
-	ConstraintConfig ConstraintConfig  `json:"constraintConfig"`
-	FeedMessage      FeedMessage       `json:"feedMessage"`
+// violation from the "audit" rego policy in "audit.rego" module
+type violation struct {
+	NonCompliance    nonCompliance     `json:"nonCompliance"`
+	FunctionConfig   functionConfig    `json:"functionConfig"`
+	ConstraintConfig constraintConfig  `json:"constraintConfig"`
+	FeedMessage      feedMessage       `json:"feedMessage"`
 	RegoModules      map[string]string `json:"regoModules"`
 }
 
-// NonCompliance form the "deny" rego policy in a <templateName>.rego module
-type NonCompliance struct {
+// nonCompliance form the "deny" rego policy in a <templateName>.rego module
+type nonCompliance struct {
 	Message  string                 `json:"message"`
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
-// FunctionConfig function deployment settings
-type FunctionConfig struct {
+// functionConfig function deployment settings
+type functionConfig struct {
 	FunctionName   string    `json:"functionName"`
 	DeploymentTime time.Time `json:"deploymentTime"`
 	ProjectID      string    `json:"projectID"`
 	Environment    string    `json:"environment"`
 }
 
-// ConstraintConfig expose content of the constraint yaml file
-type ConstraintConfig struct {
+// constraintConfig expose content of the constraint yaml file
+type constraintConfig struct {
 	APIVersion string             `json:"apiVersion"`
 	Kind       string             `json:"kind"`
-	Metadata   ConstraintMetadata `json:"metadata"`
-	Spec       Spec               `json:"spec"`
+	Metadata   constraintMetadata `json:"metadata"`
+	Spec       spec               `json:"spec"`
 }
 
-// ConstraintMetadata Constraint's metadata
-type ConstraintMetadata struct {
+// constraintMetadata Constraint's metadata
+type constraintMetadata struct {
 	Name        string                 `json:"name"`
 	Annotations map[string]interface{} `json:"annotation"`
 }
 
-// Spec Constraint's specifications
-type Spec struct {
+// spec Constraint's specifications
+type spec struct {
 	Severity   string                 `json:"severity"`
 	Match      map[string]interface{} `json:"match"`
 	Parameters map[string]interface{} `json:"parameters"`
 }
 
-// Parameters Constraint's settings
-type Parameters map[string]json.RawMessage
-
-// ComplianceStatus by asset, by rule, true/false compliance status
-type ComplianceStatus struct {
-	AssetName               string    `json:"assetName"`
-	AssetInventoryTimeStamp time.Time `json:"assetInventoryTimeStamp"`
-	AssetInventoryOrigin    string    `json:"assetInventoryOrigin"`
-	RuleName                string    `json:"ruleName"`
-	RuleDeploymentTimeStamp time.Time `json:"ruleDeploymentTimeStamp"`
-	Compliant               bool      `json:"compliant"`
-	Deleted                 bool      `json:"deleted"`
-}
-
-// CompliantLog log entry when compliant
-type CompliantLog struct {
-	ComplianceStatus   ComplianceStatus `json:"complianceStatus"`
-	AssetsJSONDocument json.RawMessage  `json:"assetsJSONDocument"`
+// compliantLog log entry when compliant
+type compliantLog struct {
+	ComplianceStatus   ram.ComplianceStatus `json:"complianceStatus"`
+	AssetsJSONDocument json.RawMessage      `json:"assetsJSONDocument"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -259,8 +226,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
-	var complianceStatus ComplianceStatus
-	var compliantLog CompliantLog
+	var complianceStatus ram.ComplianceStatus
+	var compliantLog compliantLog
 
 	assetsJSONDocument, feedMessage, err := buildAssetsDocument(PubSubMessage, global)
 	if err != nil {
@@ -349,9 +316,9 @@ func publishPubSubMessage(docJSON []byte, topicName string, global *Global) erro
 }
 
 // inspectResultSet explore rego query output and craft violation document
-func inspectResultSet(resultSet rego.ResultSet, feedMessage FeedMessage, global *Global) (Violations, error) {
-	var violations Violations
-	var violation Violation
+func inspectResultSet(resultSet rego.ResultSet, feedMessage feedMessage, global *Global) (violations, error) {
+	var violations violations
+	var violation violation
 
 	regoModules := importRegoModulesCode(global)
 	if regoModules == nil {
@@ -457,7 +424,7 @@ func importRegoModulesCode(global *Global) map[string]string {
 }
 
 // evalutateConstraints audit assets data to rego rules
-func evalutateConstraints(assetsJSONDocument []byte, feedMessage FeedMessage, global *Global) (rego.ResultSet, FeedMessage, error) {
+func evalutateConstraints(assetsJSONDocument []byte, feedMessage feedMessage, global *Global) (rego.ResultSet, feedMessage, error) {
 	var resultSet rego.ResultSet
 	if _, err := os.Stat(global.assetsFilePath); os.IsExist(err) {
 		// log.Println("Found ", assetsFilePath)
@@ -490,10 +457,10 @@ func evalutateConstraints(assetsJSONDocument []byte, feedMessage FeedMessage, gl
 }
 
 // buildAssetsDocument
-func buildAssetsDocument(pubSubMessage ram.PubSubMessage, global *Global) ([]byte, FeedMessage, error) {
-	var feedMessage FeedMessage
+func buildAssetsDocument(pubSubMessage ram.PubSubMessage, global *Global) ([]byte, feedMessage, error) {
+	var feedMessage feedMessage
 	var assetsJSONDocument []byte
-	var assets Assets
+	var assets assets
 
 	err := json.Unmarshal(pubSubMessage.Data, &feedMessage)
 	if err != nil {
