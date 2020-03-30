@@ -12,16 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package dumpinventory request Cloud Asset Inventory to perform an export
-// - Triggered by: Cloud Scheduler Job, through PubSub messages
-// - Instances:
-//   - one for all IAM bindings policies
-//   - one per AssetType for resource metadata exports
-// - Output: none, CAI execute exports as an asynchonous task delivered in a Google Cloud Storage bucket
-// - Automatic retrying: yes
-// - Required environment variables:
-//   - CAIEXPORTBUCKETNAME the name of the GCS bucket where CAI dumps should be delivered
-//   - SETTINGSFILENAME name of the JSON setting file
 package dumpinventory
 
 import (
