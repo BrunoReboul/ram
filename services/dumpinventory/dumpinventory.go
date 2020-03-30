@@ -12,16 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package dumpinventory request Cloud Asset Inventory to perform an export
-// - Triggered by: Cloud Scheduler Job, through PubSub messages
-// - Instances:
-//   - one for all IAM bindings policies
-//   - one per AssetType for resource metadata exports
-// - Output: none, CAI execute exports as an asynchonous task delivered in a Google Cloud Storage bucket
-// - Automatic retrying: yes
-// - Required environment variables:
-//   - CAIEXPORTBUCKETNAME the name of the GCS bucket where CAI dumps should be delivered
-//   - SETTINGSFILENAME name of the JSON setting file
 package dumpinventory
 
 import (
@@ -47,8 +37,8 @@ type Global struct {
 	request             *assetpb.ExportAssetsRequest
 }
 
-// Settings the structure of the export.json setting file
-type Settings struct {
+// settings the structure of the export.json setting file
+type settings struct {
 	Type        string   `json:"type"`
 	ID          string   `json:"id"`
 	ContentType string   `json:"contentType"`
@@ -67,7 +57,7 @@ func Initialize(ctx context.Context, global *Global) {
 	var err error
 	var functionName string
 	var ok bool
-	var settings Settings
+	var settings settings
 	var settingsFileName string
 
 	caiExportBucketName = os.Getenv("CAIEXPORTBUCKETNAME")
