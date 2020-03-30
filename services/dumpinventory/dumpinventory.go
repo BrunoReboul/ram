@@ -37,8 +37,8 @@ type Global struct {
 	request             *assetpb.ExportAssetsRequest
 }
 
-// Settings the structure of the export.json setting file
-type Settings struct {
+// settings the structure of the export.json setting file
+type settings struct {
 	Type        string   `json:"type"`
 	ID          string   `json:"id"`
 	ContentType string   `json:"contentType"`
@@ -57,7 +57,7 @@ func Initialize(ctx context.Context, global *Global) {
 	var err error
 	var functionName string
 	var ok bool
-	var settings Settings
+	var settings settings
 	var settingsFileName string
 
 	caiExportBucketName = os.Getenv("CAIEXPORTBUCKETNAME")
