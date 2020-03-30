@@ -19,7 +19,6 @@ Triggered by
 
 Cloud Scheduler Job, through PubSub messages.
 
-
 Instances
 
 - one for all IAM bindings policies.
