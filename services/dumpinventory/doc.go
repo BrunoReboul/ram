@@ -46,7 +46,7 @@ Implementation example
 
      "github.com/BrunoReboul/ram/services/dumpinventory"
      "github.com/BrunoReboul/ram/utilities/ram"
-)
+ )
  var global dumpinventory.Global
  var ctx = context.Background()
  // EntryPoint is the function to be executed for each cloud function occurence
