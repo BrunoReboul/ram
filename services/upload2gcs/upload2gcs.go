@@ -45,16 +45,16 @@ type Global struct {
 	violationResolverLabelKeyName string
 }
 
-// FeedMessage Cloud Asset Inventory feed message
-type FeedMessage struct {
-	Asset   Asset      `json:"asset"`
+// feedMessage Cloud Asset Inventory feed message
+type feedMessage struct {
+	Asset   asset      `json:"asset"`
 	Window  ram.Window `json:"window"`
 	Deleted bool       `json:"deleted"`
 	Origin  string     `json:"origin"`
 }
 
-// Asset Cloud Asset Metadata
-type Asset struct {
+// asset Cloud Asset Metadata
+type asset struct {
 	Name                    string                 `json:"name"`
 	Ancestors               []string               `json:"ancestors"`
 	AncestorsDisplayName    []string               `json:"ancestorsDisplayName"`
@@ -128,7 +128,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
-	var feedMessage FeedMessage
+	var feedMessage feedMessage
 	err := json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal: %v", err)

@@ -42,3 +42,7 @@ Impact on cloud functions Stackdriver logs:
 resource.type="cloud_function"
 textPayload:"error"
 ```
+
+## Documentation
+
+- `ram` GO packages are documented on line: [https://godoc.org/github.com/BrunoReboul/ram](https://godoc.org/github.com/BrunoReboul/ram)
