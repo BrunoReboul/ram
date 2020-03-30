@@ -13,9 +13,9 @@
 // limitations under the License.
 
 /*
-Package upload2gcs stores feeds as JSON files in a GCS bucket
+Package stream2bq streams PubSub message into BigQuery tables
 
-Manage file creation (with override) and deletion.
+It can stream into 3 RAM tables: 1) assets 2) compliance states 3) violations.
 
 Triggered by
 
@@ -23,15 +23,21 @@ Messages in related PubSub topics.
 
 Instances
 
-one-one, one pubsub message - one file created (with override) or deleted.
+One per Big Query table.
+
+- assets.
+
+- compliance states.
+
+- violations.
 
 Output
 
-JSON files into a GCS bucket.
+Streaming into BigQuery tables.
 
 Cardinality
 
-One-one: one feed message - one operation performed in FireStore.
+One-one, one pubsub message - one stream inserted in BigQuery.
 
 Automatic retrying
 
@@ -41,11 +47,13 @@ Required environment variables
 
 - ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents
 
-- BUCKETNAME name of the Google Cloud Storage bucket where to write JSON files
+- BQ_DATASET name of the Big Query dataset hosting the table
+
+- BQ_TABLE name of the Big Query table where to insert streams
 
 - OWNERLABELKEYNAME key name for the label identifying the asset owner
 
-- VIOLATIONRESOLVERLABELKEYNAME key name for the label identifying the asset violation resolver
+- VIOLATIONRESOLVERLABELKEYNAMEkey name for the label identifying the asset violation resolver
 
 Implementation example
 
@@ -53,20 +61,20 @@ Implementation example
  import (
      "context"
 
-     "github.com/BrunoReboul/ram/services/upload2gcs"
+     "github.com/BrunoReboul/ram/services/stream2bq"
      "github.com/BrunoReboul/ram/utilities/ram"
  )
- var global upload2gcs.Global
+ var global stream2bq.Global
  var ctx = context.Background()
 
  // EntryPoint is the function to be executed for each cloud function occurence
  func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage) error {
-     return upload2gcs.EntryPoint(ctxEvent, PubSubMessage, &global)
+     return stream2bq.EntryPoint(ctxEvent, PubSubMessage, &global)
  }
 
  func init() {
-     upload2gcs.Initialize(ctx, &global)
+     stream2bq.Initialize(ctx, &global)
  }
 
 */
-package upload2gcs
+package stream2bq

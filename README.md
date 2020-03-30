@@ -16,3 +16,7 @@ Audit Google Cloud resources (the assets) compliance against a set of rules when
 
 - It is all easier to fix when it is detected early
 - Value is delivered only when a detected non compliance is fixed
+
+## Documentation
+
+- `ram` GO packages are documented on line: [https://godoc.org/github.com/BrunoReboul/ram](https://godoc.org/github.com/BrunoReboul/ram)

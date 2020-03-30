@@ -41,10 +41,6 @@ Automatic retrying
 
 Yes.
 
-Is recurssive
-
-Yes.
-
 Required environment variables
 
 - ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents.
