@@ -37,6 +37,7 @@ type Global struct {
 	initFailed            bool
 	outputTopicName       string
 	// pubSubClient          *pubsubold.Client
+	projectID             string
 	pubsubPublisherClient *pubsub.PublisherClient
 	retryTimeOutSeconds   int64
 }
@@ -52,20 +53,19 @@ func Initialize(ctx context.Context, global *Global) {
 	var gciAdminUserToImpersonate string
 	var keyJSONFilePath string
 	var ok bool
-	var projectID string
 	var serviceAccountEmail string
 
 	gciAdminUserToImpersonate = os.Getenv("GCIADMINUSERTOIMPERSONATE")
 	global.outputTopicName = os.Getenv("OUTPUTTOPICNAME")
 	keyJSONFilePath = "./" + os.Getenv("KEYJSONFILENAME")
-	projectID = os.Getenv("GCP_PROJECT")
+	global.projectID = os.Getenv("GCP_PROJECT")
 	serviceAccountEmail = os.Getenv("SERVICEACCOUNTNAME")
 
 	log.Println("Function COLD START")
 	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
+	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, global.projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
 		return
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
@@ -143,7 +143,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	pubsubMessages = append(pubsubMessages, &pubSubMessage)
 
 	var publishRequestv1 pubsubpb.PublishRequest
-	publishRequestv1.Topic = global.outputTopicName
+	publishRequestv1.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, global.outputTopicName)
 	publishRequestv1.Messages = pubsubMessages
 
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequestv1)
