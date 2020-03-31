@@ -25,7 +25,6 @@ import (
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
 
-	// pubsubold "cloud.google.com/go/pubsub"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
@@ -36,7 +35,6 @@ type Global struct {
 	groupsSettingsService *groupssettings.Service
 	initFailed            bool
 	outputTopicName       string
-	// pubSubClient          *pubsubold.Client
 	projectID             string
 	pubsubPublisherClient *pubsub.PublisherClient
 	retryTimeOutSeconds   int64
@@ -74,12 +72,6 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	// global.pubSubClient, err = pubsubold.NewClient(ctx, projectID)
-	// if err != nil {
-	// 	log.Printf("ERROR - pubsubold.NewClient: %v", err)
-	// 	global.initFailed = true
-	// 	return
-	// }
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
 		log.Printf("ERROR - global.pubsubPublisherClient: %v", err)
@@ -126,27 +118,17 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 		return nil // NO RETRY
 	}
 
-	// publishRequest := ram.PublishRequest{Topic: global.outputTopicName}
-	// pubSubMessage := &pubsubold.Message{
-	// 	Data: feedMessageGroupSettingsJSON,
-	// }
-	// id, err := global.pubSubClient.Topic(publishRequest.Topic).Publish(global.ctx, pubSubMessage).Get(global.ctx)
-	// if err != nil {
-	// 	return fmt.Errorf("pubSubClient.Topic(publishRequest.Topic).Publish: %v", err) // RETRY
-	// }
-	// log.Printf("Group %s %s settings published to pubsub topic %s id %s %s", feedMessageGroup.Asset.Resource.Id, feedMessageGroup.Asset.Resource.Email, global.outputTopicName, id, string(feedMessageGroupSettingsJSON))
-
 	var pubSubMessage pubsubpb.PubsubMessage
 	pubSubMessage.Data = feedMessageGroupSettingsJSON
 
 	var pubsubMessages []*pubsubpb.PubsubMessage
 	pubsubMessages = append(pubsubMessages, &pubSubMessage)
 
-	var publishRequestv1 pubsubpb.PublishRequest
-	publishRequestv1.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, global.outputTopicName)
-	publishRequestv1.Messages = pubsubMessages
+	var publishRequest pubsubpb.PublishRequest
+	publishRequest.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, global.outputTopicName)
+	publishRequest.Messages = pubsubMessages
 
-	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequestv1)
+	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
 		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err) // RETRY
 	}
