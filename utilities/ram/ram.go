@@ -223,12 +223,15 @@ func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClie
 	topicRequested.Name = fmt.Sprintf("projects/%s/topics/%s", projectID, topicName)
 	topicRequested.Labels = map[string]string{"name": topicName}
 
+	log.Printf("topicRequested %v", topicRequested)
+
 	topic, err := pubSubPulisherClient.CreateTopic(ctx, &topicRequested)
 	if err != nil {
 		matched, _ := regexp.Match(`.*AlreadyExists.*`, []byte(err.Error()))
 		if !matched {
 			return fmt.Errorf("pubSubPulisherClient.CreateTopic: %v", err)
 		}
+		return nil
 	}
 	log.Println("Created topic:", topic.Name)
 	return nil
