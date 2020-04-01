@@ -150,7 +150,8 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 	defer storageObjectReader.Close()
 	teeStorageObjectReader := io.TeeReader(storageObjectReader, &buffer)
 
-	topicList, err := ram.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID)
+	var topicList []string
+	err = ram.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &topicList)
 	if err != nil {
 		return fmt.Errorf("getTopicList: %v", err) // RETRY
 	}
@@ -173,7 +174,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 		}
 		log.Printf("Processed %d lines, created %d childdumps files from %s generation %v duration %v\n", dumpLineNumber, childDumpNumber+1, gcsEvent.Name, gcsEvent.Generation, duration)
 	} else {
-		dumpLineNumber, duration = splitToLines(buffer, global, &pubSubMsgNumber, topicList, startTime)
+		dumpLineNumber, duration = splitToLines(buffer, global, &pubSubMsgNumber, &topicList, startTime)
 		log.Printf("Processed %d lines %d pubsub msg from %s generation %v duration %v\n", dumpLineNumber, pubSubMsgNumber, gcsEvent.Name, gcsEvent.Generation, duration)
 	}
 
@@ -278,7 +279,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 	return dumpLineNumber, duration, nil
 }
 
-func splitToLines(buffer bytes.Buffer, global *Global, pointerTopubSubMsgNumber *int64, topicList []string, startTime time.Time) (int64, time.Duration) {
+func splitToLines(buffer bytes.Buffer, global *Global, pointerTopubSubMsgNumber *int64, topicListPointer *[]string, startTime time.Time) (int64, time.Duration) {
 	var dumpLineNumber int64
 	scanner := bufio.NewScanner(&buffer)
 	dumpLineNumber = 0
@@ -286,13 +287,13 @@ func splitToLines(buffer bytes.Buffer, global *Global, pointerTopubSubMsgNumber 
 	start := time.Now()
 	for scanner.Scan() {
 		dumpLineNumber++
-		_ = processDumpLine(scanner.Text(), global, pointerTopubSubMsgNumber, topicList, startTime)
+		_ = processDumpLine(scanner.Text(), global, pointerTopubSubMsgNumber, topicListPointer, startTime)
 	}
 	duration := time.Since(start)
 	return dumpLineNumber, duration
 }
 
-func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *int64, topicList []string, startTime time.Time) error {
+func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *int64, topicListPointer *[]string, startTime time.Time) error {
 	var assetLegacy assetLegacy
 	var topicName string
 	err := json.Unmarshal([]byte(dumpline), &assetLegacy)
@@ -309,7 +310,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 				topicName = "cai-rces-" + getAssetShortTypeName(asset)
 			}
 			// log.Println("topicName", topicName)
-			if err = ram.CreateTopic(global.ctx, global.pubsubPublisherClient, topicList, topicName, global.projectID); err != nil {
+			if err = ram.CreateTopic(global.ctx, global.pubsubPublisherClient, topicListPointer, topicName, global.projectID); err != nil {
 				log.Printf("Ignored dump line: no topic %s to publish %s %v", topicName, dumpline, err)
 			} else {
 				feedMessageJSON, err := json.Marshal(getFeedMessage(asset, startTime))

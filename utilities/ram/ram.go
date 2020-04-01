@@ -207,16 +207,16 @@ func BuildAncestryPath(ancestors []string) string {
 }
 
 // CreateTopic check if a topic already exist, if not create it
-func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, topicList []string, topicName string, projectID string) error {
-	if Find(topicList, topicName) {
+func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, topicListPointer *[]string, topicName string, projectID string) error {
+	if Find(*topicListPointer, topicName) {
 		return nil
 	}
 	// refresh topic list
-	topicList, err := GetTopicList(ctx, pubSubPulisherClient, projectID)
+	err := GetTopicList(ctx, pubSubPulisherClient, projectID, topicListPointer)
 	if err != nil {
 		return fmt.Errorf("getTopicList: %v", err)
 	}
-	if Find(topicList, topicName) {
+	if Find(*topicListPointer, topicName) {
 		return nil
 	}
 	var topicRequested pubsubpb.Topic
@@ -232,9 +232,14 @@ func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClie
 			return fmt.Errorf("pubSubPulisherClient.CreateTopic: %v", err)
 		}
 		log.Println("Try to create but already exist:", topicName)
-		return nil
+	} else {
+		log.Println("Created topic:", topic.Name)
 	}
-	log.Println("Created topic:", topic.Name)
+	// refresh topic list
+	err = GetTopicList(ctx, pubSubPulisherClient, projectID, topicListPointer)
+	if err != nil {
+		return fmt.Errorf("getTopicList: %v", err)
+	}
 	return nil
 }
 
@@ -489,7 +494,7 @@ func GetPublishCallResult(ctx context.Context, publishResult *pubsubold.PublishR
 }
 
 // GetTopicList retreive the list of existing pubsub topics
-func GetTopicList(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, projectID string) ([]string, error) {
+func GetTopicList(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, projectID string, topicListPointer *[]string) error {
 	var topicList []string
 	var listTopicRequest pubsubpb.ListTopicsRequest
 	listTopicRequest.Project = fmt.Sprintf("projects/%s", projectID)
@@ -501,16 +506,17 @@ func GetTopicList(ctx context.Context, pubSubPulisherClient *pubsub.PublisherCli
 			break
 		}
 		if err != nil {
-			return topicList, fmt.Errorf("topicsIterator.Next: %v", err)
+			return fmt.Errorf("topicsIterator.Next: %v", err)
 		}
-		log.Printf("topic.Name %v", topic.Name)
+		// log.Printf("topic.Name %v", topic.Name)
 		nameParts := strings.Split(topic.Name, "/")
 		topicShortName := nameParts[len(nameParts)-1]
-		log.Printf("topicShortName %s", topicShortName)
+		// log.Printf("topicShortName %s", topicShortName)
 		topicList = append(topicList, topicShortName)
 	}
-	log.Printf("topicList %v", topicList)
-	return topicList, nil
+	// log.Printf("topicList %v", topicList)
+	*topicListPointer = topicList
+	return nil
 }
 
 // IntialRetryCheck performs intitial controls
