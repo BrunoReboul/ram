@@ -25,7 +25,8 @@ import (
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
 
-	"cloud.google.com/go/pubsub"
+	pubsub "cloud.google.com/go/pubsub/apiv1"
+	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
 // Global structure for global variables to optimize the cloud function performances
@@ -34,7 +35,8 @@ type Global struct {
 	groupsSettingsService *groupssettings.Service
 	initFailed            bool
 	outputTopicName       string
-	pubSubClient          *pubsub.Client
+	projectID             string
+	pubsubPublisherClient *pubsub.PublisherClient
 	retryTimeOutSeconds   int64
 }
 
@@ -49,20 +51,19 @@ func Initialize(ctx context.Context, global *Global) {
 	var gciAdminUserToImpersonate string
 	var keyJSONFilePath string
 	var ok bool
-	var projectID string
 	var serviceAccountEmail string
 
 	gciAdminUserToImpersonate = os.Getenv("GCIADMINUSERTOIMPERSONATE")
 	global.outputTopicName = os.Getenv("OUTPUTTOPICNAME")
 	keyJSONFilePath = "./" + os.Getenv("KEYJSONFILENAME")
-	projectID = os.Getenv("GCP_PROJECT")
+	global.projectID = os.Getenv("GCP_PROJECT")
 	serviceAccountEmail = os.Getenv("SERVICEACCOUNTNAME")
 
 	log.Println("Function COLD START")
 	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
 		return
 	}
-	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
+	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, global.projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
 		return
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
@@ -71,9 +72,9 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
+	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		log.Printf("ERROR - pubsub.NewClient: %v", err)
+		log.Printf("ERROR - global.pubsubPublisherClient: %v", err)
 		global.initFailed = true
 		return
 	}
@@ -111,20 +112,27 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 		feedMessageGroupSettings.Asset.Resource = groupSettings
 	}
 
-	publishRequest := ram.PublishRequest{Topic: global.outputTopicName}
 	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
 	if err != nil {
 		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
 		return nil // NO RETRY
 	}
-	pubSubMessage := &pubsub.Message{
-		Data: feedMessageGroupSettingsJSON,
-	}
-	id, err := global.pubSubClient.Topic(publishRequest.Topic).Publish(global.ctx, pubSubMessage).Get(global.ctx)
+
+	var pubSubMessage pubsubpb.PubsubMessage
+	pubSubMessage.Data = feedMessageGroupSettingsJSON
+
+	var pubsubMessages []*pubsubpb.PubsubMessage
+	pubsubMessages = append(pubsubMessages, &pubSubMessage)
+
+	var publishRequest pubsubpb.PublishRequest
+	publishRequest.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, global.outputTopicName)
+	publishRequest.Messages = pubsubMessages
+
+	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
-		return fmt.Errorf("pubSubClient.Topic(publishRequest.Topic).Publish: %v", err) // RETRY
+		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err) // RETRY
 	}
-	log.Printf("Group %s %s settings published to pubsub topic %s id %s %s", feedMessageGroup.Asset.Resource.Id, feedMessageGroup.Asset.Resource.Email, global.outputTopicName, id, string(feedMessageGroupSettingsJSON))
+	log.Printf("Group %s %s settings published to pubsub topic %s ids %v %s", feedMessageGroup.Asset.Resource.Id, feedMessageGroup.Asset.Resource.Email, global.outputTopicName, pubsubResponse.MessageIds, string(feedMessageGroupSettingsJSON))
 
 	return nil
 }

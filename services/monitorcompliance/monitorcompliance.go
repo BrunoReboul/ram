@@ -24,11 +24,12 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
-	"cloud.google.com/go/pubsub"
+	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
+	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
 const settingsFileName string = "./settings.json"
@@ -49,7 +50,7 @@ type Global struct {
 	functionName                  string
 	ownerLabelKeyName             string
 	projectID                     string
-	pubSubClient                  *pubsub.Client
+	pubsubPublisherClient         *pubsub.PublisherClient
 	ramComplianceStatusTopicName  string
 	ramViolationTopicName         string
 	regoModulesFolderPath         string
@@ -204,9 +205,9 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	global.pubSubClient, err = pubsub.NewClient(ctx, global.projectID)
+	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		log.Printf("ERROR - pubsub.NewClient: %v", err)
+		log.Printf("ERROR - global.pubsubPublisherClient: %v", err)
 		global.initFailed = true
 		return
 	}
@@ -302,16 +303,23 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 }
 
 func publishPubSubMessage(docJSON []byte, topicName string, global *Global) error {
-	publishRequest := ram.PublishRequest{Topic: topicName}
-	pubSubMessage := &pubsub.Message{
-		Data: docJSON,
-	}
-	id, err := global.pubSubClient.Topic(publishRequest.Topic).Publish(global.ctx, pubSubMessage).Get(global.ctx)
+	var pubSubMessage pubsubpb.PubsubMessage
+	pubSubMessage.Data = docJSON
+
+	var pubsubMessages []*pubsubpb.PubsubMessage
+	pubsubMessages = append(pubsubMessages, &pubSubMessage)
+
+	var publishRequest pubsubpb.PublishRequest
+	publishRequest.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, topicName)
+	publishRequest.Messages = pubsubMessages
+
+	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
-		return fmt.Errorf("topic(%s).Publish.Get: %v", publishRequest.Topic, err)
+		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err) // RETRY
 	}
-	// log.Printf("Published to topic %s, msg id: %v", topicName, id)
-	_ = id
+
+	log.Printf("Published to topic %s, msg ids: %v", topicName, pubsubResponse.MessageIds)
+	_ = pubsubResponse
 	return nil
 }
 
