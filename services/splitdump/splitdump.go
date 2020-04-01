@@ -27,9 +27,10 @@ import (
 	"strings"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/BrunoReboul/ram/utilities/ram"
+	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
 // Global structure for global variables to optimize the cloud function performances
@@ -38,7 +39,8 @@ type Global struct {
 	initFailed               bool
 	retryTimeOutSeconds      int64
 	iamTopicName             string
-	pubSubClient             *pubsub.Client
+	pubsubPublisherClient    *pubsub.PublisherClient
+	projectID                string
 	splitThresholdLineNumber int64
 	storageBucket            *storage.BucketHandle
 }
@@ -78,12 +80,11 @@ func Initialize(ctx context.Context, global *Global) {
 	var bucketName string
 	var err error
 	var ok bool
-	var projectID string
 	var storageClient *storage.Client
 
 	bucketName = os.Getenv("CAIEXPORTBUCKETNAME")
 	global.iamTopicName = os.Getenv("IAMTOPICNAME")
-	projectID = os.Getenv("GCP_PROJECT")
+	global.projectID = os.Getenv("GCP_PROJECT")
 
 	log.Println("Function COLD START")
 	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
@@ -99,9 +100,9 @@ func Initialize(ctx context.Context, global *Global) {
 		return
 	}
 	global.storageBucket = storageClient.Bucket(bucketName)
-	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
+	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		log.Printf("ERROR - pubsub.NewClient: %v", err)
+		log.Printf("ERROR - global.pubsubPublisherClient: %v", err)
 		global.initFailed = true
 		return
 	}
@@ -149,7 +150,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 	defer storageObjectReader.Close()
 	teeStorageObjectReader := io.TeeReader(storageObjectReader, &buffer)
 
-	topicList, err := ram.GetTopicList(global.ctx, global.pubSubClient)
+	topicList, err := ram.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID)
 	if err != nil {
 		return fmt.Errorf("getTopicList: %v", err) // RETRY
 	}
@@ -308,7 +309,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 				topicName = "cai-rces-" + getAssetShortTypeName(asset)
 			}
 			// log.Println("topicName", topicName)
-			if err = ram.CreateTopic(global.ctx, global.pubSubClient, topicList, topicName); err != nil {
+			if err = ram.CreateTopic(global.ctx, global.pubsubPublisherClient, topicList, topicName, global.projectID); err != nil {
 				log.Printf("Ignored dump line: no topic %s to publish %s %v", topicName, dumpline, err)
 			} else {
 				feedMessageJSON, err := json.Marshal(getFeedMessage(asset, startTime))
@@ -316,14 +317,22 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 					log.Println("Error json.Marshal", err)
 					return err
 				}
-				publishRequest := ram.PublishRequest{Topic: topicName}
-				pubSubMessage := &pubsub.Message{
-					Data: feedMessageJSON,
-				}
-				_, err = global.pubSubClient.Topic(publishRequest.Topic).Publish(global.ctx, pubSubMessage).Get(global.ctx)
+				var pubSubMessage pubsubpb.PubsubMessage
+				pubSubMessage.Data = feedMessageJSON
+
+				var pubsubMessages []*pubsubpb.PubsubMessage
+				pubsubMessages = append(pubsubMessages, &pubSubMessage)
+
+				var publishRequest pubsubpb.PublishRequest
+				publishRequest.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, topicName)
+				publishRequest.Messages = pubsubMessages
+
+				pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 				if err != nil {
-					log.Printf("ERROR pubSubClient.Topic(publishRequest.Topic).Publish: %v", err)
+					log.Printf("ERROR global.pubsubPublisherClient.Publish: %v", err) // NO RETRY
 				}
+				// log.Printf("Published to pubsub topic %s ids %v %s", topicName, pubsubResponse.MessageIds, string(feedMessageJSON))
+				_ = pubsubResponse
 				*pointerTopubSubMsgNumber++
 			}
 		}
