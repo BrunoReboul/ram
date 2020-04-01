@@ -221,7 +221,7 @@ func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClie
 	}
 	var topicRequested pubsubpb.Topic
 	topicRequested.Name = fmt.Sprintf("projects/%s/topics/%s", projectID, topicName)
-	topicRequested.Labels = map[string]string{"name": topicName}
+	topicRequested.Labels = map[string]string{"name": strings.ToLower(topicName)}
 
 	log.Printf("topicRequested %v", topicRequested)
 
@@ -231,6 +231,7 @@ func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClie
 		if !matched {
 			return fmt.Errorf("pubSubPulisherClient.CreateTopic: %v", err)
 		}
+		log.Println("Try to create but already exist:", topicName)
 		return nil
 	}
 	log.Println("Created topic:", topic.Name)
@@ -502,8 +503,13 @@ func GetTopicList(ctx context.Context, pubSubPulisherClient *pubsub.PublisherCli
 		if err != nil {
 			return topicList, fmt.Errorf("topicsIterator.Next: %v", err)
 		}
-		topicList = append(topicList, topic.Name)
+		log.Printf("topic.Name %v", topic.Name)
+		nameParts := strings.Split(topic.Name, "/")
+		topicShortName := nameParts[len(nameParts)-1]
+		log.Printf("topicShortName %s", topicShortName)
+		topicList = append(topicList, topicShortName)
 	}
+	log.Printf("topicList %v", topicList)
 	return topicList, nil
 }
 
