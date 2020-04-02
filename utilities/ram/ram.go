@@ -391,6 +391,14 @@ func getDisplayName(ctx context.Context, name string, collectionID string, fires
 	return displayName
 }
 
+// GetEnvVarBool retreive an os var, and convert it to bool
+func GetEnvVarBool(envVarName string) bool {
+	if strings.ToLower(os.Getenv(envVarName)) == "true" {
+		return true
+	}
+	return false
+}
+
 // GetEnvVarInt64 retreive an os var, convert it and manage the init state
 func GetEnvVarInt64(envVarName string) (int64, bool) {
 	var value int64
