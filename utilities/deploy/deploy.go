@@ -34,31 +34,45 @@ type SolutionSettings struct {
 			Region string
 		}
 		GCS struct {
-			CAIExport struct {
-				BucketNames map[string]string `yaml:"bucketNames"`
-			}
-			AssetsJSONFile struct {
-				BucketNames map[string]string `yaml:"bucketNames"`
+			BucketNames struct {
+				CAIExport      map[string]string `yaml:"CAIExport"`
+				AssetsJSONFile map[string]string `yaml:"assetsJSONFile"`
 			}
 		}
-		BQ struct {
-			DatasetName string `yaml:"datasetName"`
-			Location    string
+		Bigquery struct {
+			Dataset struct {
+				Name     string
+				Location string
+			}
 		}
-		PupSub struct {
-			TopicName struct {
-				IAM                 string `yaml:"IAM"`
+		PubSub struct {
+			TopicNames struct {
+				IAMPolicies         string `yaml:"IAMPolicies"`
 				RAMViolation        string `yaml:"RAMViolation"`
 				RAMComplianceStatus string `yaml:"RAMComplianceStatus"`
 			}
 		}
-	}
-	Monitoring struct {
-		OrganizationIDList      []string          `yaml:"organizationIDList"`
-		DirectoryCustomerIDList map[string]string `yaml:"directoryCustomerIDList"`
-		AssetTypeList           struct {
-			IAM       []string `yaml:"iam"`
-			Resources []string `yaml:"resources"`
+		FireStore struct {
+			CollectionIDs struct {
+				Assets string
+			}
 		}
 	}
+	Monitoring struct {
+		OrganizationIDs      []string          `yaml:"organizationIDs"`
+		DirectoryCustomerIDs map[string]string `yaml:"directoryCustomerIDs"`
+		AssetTypes           struct {
+			IAMPolicies []string `yaml:"iamPolicies"`
+			Resources   []string `yaml:"resources"`
+		}
+		LabelKeyNames struct {
+			Owner             string
+			ViolationResolver string `yaml:"violationResolver"`
+		}
+	}
+}
+
+// GetProjectID returns the project ID for a given environment name
+func (solutionSettings *SolutionSettings) GetProjectID(environmentName string) string {
+	return solutionSettings.Hosting.ProjectIDs[environmentName]
 }
