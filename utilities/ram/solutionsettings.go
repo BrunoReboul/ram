@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ramdeploy is a utility to hel deploying ram
-package ramdeploy
+package ram
 
 // SolutionSettings settings common to all services / all instances
 type SolutionSettings struct {
@@ -21,7 +20,7 @@ type SolutionSettings struct {
 		BillingAccountID string            `yaml:"billingAccountID"`
 		FolderIDs        map[string]string `yaml:"folderIDs"`
 		ProjectIDs       map[string]string `yaml:"projectIDs"`
-		StackDriver      struct {
+		Stackdriver      struct {
 			ProjectIDs map[string]string `yaml:"projectIDs"`
 		}
 		Repository struct {
@@ -37,7 +36,7 @@ type SolutionSettings struct {
 			BucketNames struct {
 				CAIExport      map[string]string `yaml:"CAIExport"`
 				AssetsJSONFile map[string]string `yaml:"assetsJSONFile"`
-			}
+			} `yaml:"bucketNames"`
 		}
 		Bigquery struct {
 			Dataset struct {
@@ -45,17 +44,17 @@ type SolutionSettings struct {
 				Location string
 			}
 		}
-		PubSub struct {
+		Pubsub struct {
 			TopicNames struct {
 				IAMPolicies         string `yaml:"IAMPolicies"`
 				RAMViolation        string `yaml:"RAMViolation"`
 				RAMComplianceStatus string `yaml:"RAMComplianceStatus"`
-			}
+			} `yaml:"topicNames"`
 		}
 		FireStore struct {
 			CollectionIDs struct {
 				Assets string
-			}
+			} `yaml:"collectionIDs"`
 		}
 	}
 	Monitoring struct {
@@ -64,11 +63,11 @@ type SolutionSettings struct {
 		AssetTypes           struct {
 			IAMPolicies []string `yaml:"iamPolicies"`
 			Resources   []string `yaml:"resources"`
-		}
+		} `yaml:"assetTypes"`
 		LabelKeyNames struct {
 			Owner             string
 			ViolationResolver string `yaml:"violationResolver"`
-		}
+		} `yaml:"labelKeyNames"`
 	}
 }
 
