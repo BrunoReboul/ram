@@ -29,10 +29,11 @@ import (
 )
 
 const (
-	description            = "publish  %s assets resource feeds as FireStore documents in collection %s"
+	description            = "publish %s assets resource feeds as FireStore documents in collection %s"
 	eventProviderNamespace = "cloud.pubsub"
 	eventResourceType      = "topic.publish"
 	eventService           = "pubsub.googleapis.com"
+	runTime                = "go111"
 )
 
 // Global structure for global variables to optimize the cloud function performances
@@ -50,7 +51,7 @@ type Global struct {
 // ServiceSettings defines service settings common to all service instances
 type ServiceSettings struct {
 	GCF struct {
-		AvailableMemoryMb   int64  `yaml:"availableMemoryMb"`
+		AvailableMemoryMb   int64  `yaml:"availableMemoryMb" valid:"isAvailableMemory"`
 		RetryTimeOutSeconds int64  `yaml:"retryTimeOutSeconds"`
 		Runtime             string `yaml:"runtime"`
 		Timeout             string `yaml:"timeout"`
@@ -151,15 +152,6 @@ func (settings *ServiceSettings) ReadConfigFile(path string) error {
 	return ram.ReadUnmarshalYAML(path, settings)
 }
 
-// Situate set settings from settings
-func (settings *ServiceSettings) Situate(situation interface{}) error {
-	if serviceName, ok := situation.(string); ok {
-		settings.Name = serviceName
-		return nil
-	}
-	return fmt.Errorf("situation is expected to be the service name")
-}
-
 // Validate validates the settings
 func (settings *ServiceSettings) Validate() (err error) {
 	err = validater.ValidateStruct(settings, "publish2fsServiceSettings")
@@ -167,6 +159,15 @@ func (settings *ServiceSettings) Validate() (err error) {
 		return err
 	}
 	return nil
+}
+
+// Situate set settings from settings
+func (settings *ServiceSettings) Situate(situation interface{}) error {
+	if serviceName, ok := situation.(string); ok {
+		settings.Name = serviceName
+		return nil
+	}
+	return fmt.Errorf("situation is expected to be the service name")
 }
 
 // ReadValidateSituate reads settings from a config file, validates then, situates them
@@ -222,9 +223,10 @@ func (settings *InstanceSettings) Situate(situation interface{}) error {
 			settings.CloudFunction.EventTrigger = &eventTrigger
 			settings.CloudFunction.Labels = map[string]string{"name": instanceSituation.InstanceName}
 			settings.CloudFunction.Name = fmt.Sprintf("projects/%s/locations/%s/functions/%s", solutionSettings.Hosting.ProjectID, solutionSettings.Hosting.GCF.Region, instanceSituation.InstanceName)
-			settings.CloudFunction.Runtime = serviceSettings.GCF.Runtime
+			settings.CloudFunction.Runtime = runTime
 			settings.CloudFunction.ServiceAccountEmail = fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceSettings.Name, solutionSettings.Hosting.ProjectID)
 			settings.CloudFunction.Timeout = serviceSettings.GCF.Timeout
+
 			return nil
 		}
 		return fmt.Errorf("Provided service settings type in the situation is not the expected type")

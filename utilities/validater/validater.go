@@ -50,11 +50,35 @@ func (v isNotZeroValueValidater) validate(value interface{}) (bool, error) {
 	case reflect.String:
 		l := len(value.(string))
 		if l == 0 {
-			return false, fmt.Errorf("should NOT be a zero value")
+			return false, fmt.Errorf("Should NOT be a zero value %s", kind)
 		}
-
+	case reflect.Int64:
+		if value.(int64) == 0 {
+			return false, fmt.Errorf("Should NOT be a zero value %s", kind)
+		}
+	default:
+		return false, fmt.Errorf("Unmanaged kind by 'isNotZeroValueValidater' %s", kind)
 	}
 	return true, nil
+}
+
+// isAvailableMemoryMbValidater accepts only valid memory sizes for Cloud Functions
+type isAvailableMemoryMbValidater struct {
+}
+
+// validate interface returns true for a valid field, false and why in the error otherwise
+func (v isAvailableMemoryMbValidater) validate(value interface{}) (bool, error) {
+	acceptedValueList := []int64{128, 256, 512, 1024, 2048}
+	if availableMemoryMb, ok := value.(int64); ok {
+		for _, acceptedValue := range acceptedValueList {
+			if acceptedValue == availableMemoryMb {
+				return true, nil
+			}
+		}
+	} else {
+		return false, fmt.Errorf("Should be int64")
+	}
+	return false, fmt.Errorf("Should be one of %v", acceptedValueList)
 }
 
 func getValidater(kind reflect.Kind, tagValue string) validater {
@@ -63,6 +87,8 @@ func getValidater(kind reflect.Kind, tagValue string) validater {
 	switch tagPrefix {
 	case "isNotZeroValue":
 		return isNotZeroValueValidater{}
+	case "isAvailableMemory":
+		return isAvailableMemoryMbValidater{}
 	}
 	return defaultValidater{}
 }

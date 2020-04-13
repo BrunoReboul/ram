@@ -33,6 +33,7 @@ import (
 	"cloud.google.com/go/functions/metadata"
 	pubsubold "cloud.google.com/go/pubsub"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
+	"gopkg.in/yaml.v2"
 
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
@@ -239,6 +240,19 @@ func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClie
 	err = GetTopicList(ctx, pubSubPulisherClient, projectID, topicListPointer)
 	if err != nil {
 		return fmt.Errorf("getTopicList: %v", err)
+	}
+	return nil
+}
+
+// DumpToYAMLFile Marchal to YAML format, add disclaimer and write as a file
+func DumpToYAMLFile(iface interface{}, path string) (err error) {
+	contentBytes, err := yaml.Marshal(iface)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(path, append([]byte(YAMLDisclaimer), contentBytes...), 0644)
+	if err != nil {
+		return err
 	}
 	return nil
 }
