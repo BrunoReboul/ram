@@ -64,5 +64,13 @@ Implementation example
      publish2fs.Initialize(ctx, &global)
  }
 
+Notes
+
+- It replaces / by \ in asset names not to confilct with Firestore collection/document structure.
+
+- Cloud FireStore share the same project's default location than Cloud Storage and App Engine.
+
+- https://cloud.google.com/firestore/docs/locations#default-cloud-location
+
 */
 package publish2fs
