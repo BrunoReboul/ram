@@ -25,6 +25,7 @@ import (
 // Settings file names
 const (
 	DevelopmentEnvironmentName   = "dev"
+	DumpSettingsFileName         = "settings.yaml"
 	SolutionSettingsFileName     = "solution.yaml"
 	ServiceSettingsFileName      = "service.yaml"
 	InstanceSettingsFileName     = "instance.yaml"
@@ -49,6 +50,12 @@ const YAMLDisclaimer = `# Copyright 2020 Google LLC
 #
 `
 
+// MicroServiceInstanceDeployment interface
+type MicroServiceInstanceDeployment interface {
+	Deploy(repositoryPath, environmentName, serviceName, InstanceName string, dump bool) (err error)
+	// MakeTrigger() (err error)
+}
+
 // Service structure
 type Service struct {
 	ConfigFilePath  string
@@ -64,11 +71,13 @@ type Instance struct {
 
 // Configurer interface
 type Configurer interface {
-	ReadConfigFile(path string) (err error)
-	Validate() (err error)
-	Situate(situation interface{}) (err error)
 	ReadValidateSituate(path string, situation interface{}) (err error)
 }
+
+// // Deployer interface
+// type Deployer interface {
+// 	Deploy() (err error)
+// }
 
 // InstanceSituation settings used to situate an instance
 type InstanceSituation struct {
@@ -143,6 +152,11 @@ type SolutionSettings struct {
 	}
 }
 
+// NewSolutionSettings create a solution settings structure
+func NewSolutionSettings() *SolutionSettings {
+	return &SolutionSettings{}
+}
+
 // ReadUnmarshalYAML Read bytes from a given path and unmarshal assuming YAML format
 func ReadUnmarshalYAML(path string, settings interface{}) (err error) {
 	settingsYAML, err := ioutil.ReadFile(path)
@@ -153,6 +167,20 @@ func ReadUnmarshalYAML(path string, settings interface{}) (err error) {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// ReadValidate reads a YAML config file to a struct and validate the struct
+func ReadValidate(serviceName, settingsType, path string, settings interface{}) (err error) {
+	err = ReadUnmarshalYAML(path, settings)
+	if err != nil {
+		return err
+	}
+	err = validater.ValidateStruct(settings, fmt.Sprintf("%s%s", serviceName, settingsType))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -200,9 +228,4 @@ func (settings *SolutionSettings) ReadValidateSituate(path string, situation int
 		return err
 	}
 	return nil
-}
-
-// NewSolutionSettings create a solution settings structure
-func NewSolutionSettings() *SolutionSettings {
-	return &SolutionSettings{}
 }
