@@ -12,12 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ramcli
+package ram
 
-import "strings"
+import (
+	"fmt"
 
-// GetServiceAndInstanceNames split the instance folder relative path to extract 1) serviceName 2) instanceName
-func GetServiceAndInstanceNames(instanceFolderRelativePath string) (serviceName, instanceName string) {
-	parts := strings.Split(instanceFolderRelativePath, "/")
-	return parts[1], parts[3]
+	"github.com/BrunoReboul/ram/utilities/validater"
+)
+
+// ReadValidate reads a YAML config file to a struct and validate the struct
+func ReadValidate(serviceName, settingsType, path string, settings interface{}) (err error) {
+	err = ReadUnmarshalYAML(path, settings)
+	if err != nil {
+		return err
+	}
+	err = validater.ValidateStruct(settings, fmt.Sprintf("%s%s", serviceName, settingsType))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

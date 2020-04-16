@@ -12,12 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ramcli
+package gcftemplate
 
-import "strings"
+import (
+	"fmt"
+)
 
-// GetServiceAndInstanceNames split the instance folder relative path to extract 1) serviceName 2) instanceName
-func GetServiceAndInstanceNames(instanceFolderRelativePath string) (serviceName, instanceName string) {
-	parts := strings.Split(instanceFolderRelativePath, "/")
-	return parts[1], parts[3]
+// GoMod go.mod skeleton, replace first %s goVersion, second by ramVersion
+const GoMod = `
+module example.com/cloudfunction
+
+go %s
+
+require github.com/BrunoReboul/ram %s
+`
+
+// MakeGoModContent craft the content of a cloud function go.mod file for a RAM microservice instance
+func MakeGoModContent(goVersion, ramVersion string) (goModContent string) {
+	return fmt.Sprintf(GoMod, goVersion, ramVersion)
 }

@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ramcli
+package ram
 
-import "strings"
-
-// GetServiceAndInstanceNames split the instance folder relative path to extract 1) serviceName 2) instanceName
-func GetServiceAndInstanceNames(instanceFolderRelativePath string) (serviceName, instanceName string) {
-	parts := strings.Split(instanceFolderRelativePath, "/")
-	return parts[1], parts[3]
-}
+// Settings file names
+const (
+	DevelopmentEnvironmentName   = "dev"
+	DumpSettingsFileName         = "settings.yaml"
+	SolutionSettingsFileName     = "solution.yaml"
+	ServiceSettingsFileName      = "service.yaml"
+	InstanceSettingsFileName     = "instance.yaml"
+	MicroserviceParentFolderName = "services"
+	InstancesFolderName          = "instances"
+)

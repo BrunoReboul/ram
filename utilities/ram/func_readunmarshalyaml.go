@@ -12,12 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ramcli
+package ram
 
-import "strings"
+import (
+	"io/ioutil"
 
-// GetServiceAndInstanceNames split the instance folder relative path to extract 1) serviceName 2) instanceName
-func GetServiceAndInstanceNames(instanceFolderRelativePath string) (serviceName, instanceName string) {
-	parts := strings.Split(instanceFolderRelativePath, "/")
-	return parts[1], parts[3]
+	"gopkg.in/yaml.v2"
+)
+
+// ReadUnmarshalYAML Read bytes from a given path and unmarshal assuming YAML format
+func ReadUnmarshalYAML(path string, settings interface{}) (err error) {
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	err = yaml.Unmarshal(bytes, settings)
+	if err != nil {
+		return err
+	}
+	return nil
 }

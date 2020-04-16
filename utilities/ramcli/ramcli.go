@@ -18,6 +18,8 @@ import (
 	"context"
 	"log"
 
+	"github.com/BrunoReboul/ram/utilities/ram"
+
 	"github.com/BrunoReboul/ram/services/publish2fs"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudbuild/v1"
@@ -44,6 +46,10 @@ type settings struct {
 	EnvironmentName             string
 	InstanceFolderRelativePaths []string
 	RepositoryPath              string
+	Versions                    struct {
+		Go  string
+		RAM string
+	}
 }
 
 // Initialize is to be executed in the init()
@@ -80,11 +86,15 @@ func RAMCli(global *Global) (err error) {
 	log.Printf("Found %d instances", len(global.settings.InstanceFolderRelativePaths))
 
 	if global.settings.Commands.Deploy {
+		var deployment ram.MicroServiceInstanceDeployment
 		for _, instanceFolderRelativePath := range global.settings.InstanceFolderRelativePaths {
 			serviceName, instanceName := GetServiceAndInstanceNames(instanceFolderRelativePath)
 			switch serviceName {
 			case "publish2fs":
-				err := publish2fs.NewDeployment().Deploy(global.settings.RepositoryPath,
+				deployment = publish2fs.NewDeployment()
+				err := deployment.Deploy(global.settings.Versions.Go,
+					global.settings.Versions.RAM,
+					global.settings.RepositoryPath,
 					global.settings.EnvironmentName,
 					instanceName,
 					global.settings.Commands.Dumpsettings)

@@ -14,8 +14,13 @@
 
 package gcftemplate
 
-// BackgroundPubSubTriggeredFunctionGo function.go code skeleton, replace %s by serviceName
-const BackgroundPubSubTriggeredFunctionGo = `
+import (
+	"fmt"
+	"strings"
+)
+
+// BackgroundPubSubFunctionGo function.go code skeleton, replace <serviceName> by serviceName
+const BackgroundPubSubFunctionGo = `
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the 'License');
@@ -36,19 +41,29 @@ package p
 import (
 	"context"
 
-	"github.com/BrunoReboul/ram/services/%s"
+	"github.com/BrunoReboul/ram/services/<serviceName>"
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
-var global %s.Global
+var global <serviceName>.Global
 var ctx = context.Background()
 
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage) error {
-	return %s.EntryPoint(ctxEvent, PubSubMessage, &global)
+	return <serviceName>.EntryPoint(ctxEvent, PubSubMessage, &global)
 }
 
 func init() {
-	%s.Initialize(ctx, &global)
+	<serviceName>.Initialize(ctx, &global)
 }
 `
+
+// MakeFunctionGoContent craft the content of a cloud function function.go file for a RAM microservice instance
+func MakeFunctionGoContent(gcfType, serviceName string) (functionGoContent string, err error) {
+	switch gcfType {
+	case "backgroundPubSub":
+		return strings.Replace(BackgroundPubSubFunctionGo, "<serviceName>", serviceName, -1), nil
+	default:
+		return "", fmt.Errorf("gcfType provided not managed: %s", gcfType)
+	}
+}

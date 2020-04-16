@@ -28,16 +28,22 @@ const (
 	eventProviderNamespace = "cloud.pubsub"
 	eventResourceType      = "topic.publish"
 	eventService           = "pubsub.googleapis.com"
-	goVersion              = "1.11"
+	gcfType                = "backgroundPubSub"
 	serviceName            = "publish2fs"
 )
 
 // Deployment flatten instance / service / solution structure
 type Deployment struct {
-	Solution      ram.SolutionSettings
-	Service       ServiceSettings
-	Instance      InstanceSettings
-	CloudFunction cloudfunctions.CloudFunction
+	Settings struct {
+		Solution ram.SolutionSettings
+		Service  ServiceSettings
+		Instance InstanceSettings
+	}
+	Artifacts struct {
+		CloudFunction     cloudfunctions.CloudFunction
+		GoModContent      string
+		FunctionGoContent string
+	}
 }
 
 // InstanceSettings instance specific settings
@@ -62,12 +68,12 @@ func NewDeployment() *Deployment {
 }
 
 // Deploy deploy an instance of a microservice
-func (deployment *Deployment) Deploy(repositoryPath, environmentName, instanceName string, dump bool) (err error) {
+func (deployment *Deployment) Deploy(goVersion, ramVersion, repositoryPath, environmentName, instanceName string, dump bool) (err error) {
 	err = deployment.readValidate(repositoryPath, instanceName)
 	if err != nil {
 		return err
 	}
-	err = deployment.situate(repositoryPath, instanceName, environmentName, dump)
+	err = deployment.situate(goVersion, ramVersion, repositoryPath, instanceName, environmentName, dump)
 	if err != nil {
 		return err
 	}
@@ -76,30 +82,27 @@ func (deployment *Deployment) Deploy(repositoryPath, environmentName, instanceNa
 
 func (deployment *Deployment) readValidate(repositoryPath, instanceName string) (err error) {
 	solutionConfigFilePath := fmt.Sprintf("%s/%s", repositoryPath, ram.SolutionSettingsFileName)
-	err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &deployment.Solution)
+	err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &deployment.Settings.Solution)
 	if err != nil {
 		return err
 	}
 
 	serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", repositoryPath, ram.MicroserviceParentFolderName, serviceName, ram.ServiceSettingsFileName)
-	err = ram.ReadValidate(serviceName, "ServiceSettings", serviceConfigFilePath, &deployment.Service)
+	err = ram.ReadValidate(serviceName, "ServiceSettings", serviceConfigFilePath, &deployment.Settings.Service)
 	if err != nil {
 		return err
 	}
 
 	instanceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s/%s/%s", repositoryPath, ram.MicroserviceParentFolderName, serviceName, ram.InstancesFolderName, instanceName, ram.InstanceSettingsFileName)
-	err = ram.ReadValidate(instanceName, "InstanceSettings", instanceConfigFilePath, &deployment.Instance)
+	err = ram.ReadValidate(instanceName, "InstanceSettings", instanceConfigFilePath, &deployment.Settings.Instance)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (deployment *Deployment) situate(repositoryPath, instanceName, environmentName string, dump bool) (err error) {
-	err = deployment.Solution.Situate(environmentName)
-	if err != nil {
-		return err
-	}
+func (deployment *Deployment) situate(goVersion, ramVersion, repositoryPath, instanceName, environmentName string, dump bool) (err error) {
+	deployment.Settings.Solution.Situate(environmentName)
 
 	var failurePolicy cloudfunctions.FailurePolicy
 	retry := cloudfunctions.Retry{}
@@ -107,29 +110,36 @@ func (deployment *Deployment) situate(repositoryPath, instanceName, environmentN
 
 	var eventTrigger cloudfunctions.EventTrigger
 	eventTrigger.EventType = fmt.Sprintf("providers/%s/eventTypes/%s", eventProviderNamespace, eventResourceType)
-	eventTrigger.Resource = fmt.Sprintf("projects/%s/topics/%s", deployment.Solution.Hosting.ProjectID, deployment.Instance.GCF.TriggerTopic)
+	eventTrigger.Resource = fmt.Sprintf("projects/%s/topics/%s", deployment.Settings.Solution.Hosting.ProjectID, deployment.Settings.Instance.GCF.TriggerTopic)
 	eventTrigger.Service = eventService
 	eventTrigger.FailurePolicy = &failurePolicy
 
 	envVars := make(map[string]string)
-	envVars["RETRYTIMEOUTSECONDS"] = strconv.FormatInt(deployment.Service.GCF.RetryTimeOutSeconds, 10)
-	envVars["COLLECTION_ID"] = deployment.Solution.Hosting.FireStore.CollectionIDs.Assets
+	envVars["RETRYTIMEOUTSECONDS"] = strconv.FormatInt(deployment.Settings.Service.GCF.RetryTimeOutSeconds, 10)
+	envVars["COLLECTION_ID"] = deployment.Settings.Solution.Hosting.FireStore.CollectionIDs.Assets
 
 	runTime, err := gcftemplate.GetRunTime(goVersion)
 	if err != nil {
 		return err
 	}
 
-	deployment.CloudFunction.AvailableMemoryMb = deployment.Service.GCF.AvailableMemoryMb
-	deployment.CloudFunction.Description = fmt.Sprintf(description, deployment.Instance.GCF.TriggerTopic, deployment.Solution.Hosting.FireStore.CollectionIDs.Assets)
-	deployment.CloudFunction.EntryPoint = "EntryPoint"
-	deployment.CloudFunction.EnvironmentVariables = envVars
-	deployment.CloudFunction.EventTrigger = &eventTrigger
-	deployment.CloudFunction.Labels = map[string]string{"name": instanceName}
-	deployment.CloudFunction.Name = fmt.Sprintf("projects/%s/locations/%s/functions/%s", deployment.Solution.Hosting.ProjectID, deployment.Solution.Hosting.GCF.Region, instanceName)
-	deployment.CloudFunction.Runtime = runTime
-	deployment.CloudFunction.ServiceAccountEmail = fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceName, deployment.Solution.Hosting.ProjectID)
-	deployment.CloudFunction.Timeout = deployment.Service.GCF.Timeout
+	deployment.Artifacts.CloudFunction.AvailableMemoryMb = deployment.Settings.Service.GCF.AvailableMemoryMb
+	deployment.Artifacts.CloudFunction.Description = fmt.Sprintf(description, deployment.Settings.Instance.GCF.TriggerTopic, deployment.Settings.Solution.Hosting.FireStore.CollectionIDs.Assets)
+	deployment.Artifacts.CloudFunction.EntryPoint = "EntryPoint"
+	deployment.Artifacts.CloudFunction.EnvironmentVariables = envVars
+	deployment.Artifacts.CloudFunction.EventTrigger = &eventTrigger
+	deployment.Artifacts.CloudFunction.Labels = map[string]string{"name": instanceName}
+	deployment.Artifacts.CloudFunction.Name = fmt.Sprintf("projects/%s/locations/%s/functions/%s", deployment.Settings.Solution.Hosting.ProjectID, deployment.Settings.Solution.Hosting.GCF.Region, instanceName)
+	deployment.Artifacts.CloudFunction.Runtime = runTime
+	deployment.Artifacts.CloudFunction.ServiceAccountEmail = fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceName, deployment.Settings.Solution.Hosting.ProjectID)
+	deployment.Artifacts.CloudFunction.Timeout = deployment.Settings.Service.GCF.Timeout
+
+	functionGoContent, err := gcftemplate.MakeFunctionGoContent(gcfType, serviceName)
+	if err != nil {
+		return err
+	}
+	deployment.Artifacts.GoModContent = gcftemplate.MakeGoModContent(goVersion, ramVersion)
+	deployment.Artifacts.FunctionGoContent = functionGoContent
 
 	if dump {
 		err := ram.DumpToYAMLFile(deployment, fmt.Sprintf("%s/%s", repositoryPath, ram.DumpSettingsFileName))
