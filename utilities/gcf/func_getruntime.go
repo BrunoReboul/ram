@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package gcf
 
-// Settings file names
-const (
-	DevelopmentEnvironmentName   = "dev"
-	SettingsFileName             = "settings.yaml"
-	SolutionSettingsFileName     = "solution.yaml"
-	ServiceSettingsFileName      = "service.yaml"
-	InstanceSettingsFileName     = "instance.yaml"
-	MicroserviceParentFolderName = "services"
-	InstancesFolderName          = "instances"
+import (
+	"fmt"
 )
+
+// GetRunTime returns the GCF runtime string for a given Go version. Error is version not supported
+func GetRunTime(goVersion string) (runTime string, err error) {
+	switch goVersion {
+	case "1.11":
+		return "go111", nil
+	default:
+		return "", fmt.Errorf("Supported Go version are [1.11], provided version was: %s", goVersion)
+	}
+}

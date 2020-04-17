@@ -55,7 +55,6 @@ type settings struct {
 // Initialize is to be executed in the init()
 func Initialize(ctx context.Context, global *Global) {
 	global.ctx = ctx
-
 	var err error
 	var cloudfunctionsService *cloudfunctions.Service
 	var cloudbuildService *cloudbuild.Service
@@ -83,7 +82,7 @@ func Initialize(ctx context.Context, global *Global) {
 // RAMCli Real-time Asset Monitor cli
 func RAMCli(global *Global) (err error) {
 	global.settings.CheckArguments()
-	log.Printf("Found %d instances", len(global.settings.InstanceFolderRelativePaths))
+	log.Printf("found %d instance(s)", len(global.settings.InstanceFolderRelativePaths))
 
 	if global.settings.Commands.Deploy {
 		var deployment ram.MicroServiceInstanceDeployment
@@ -91,18 +90,23 @@ func RAMCli(global *Global) (err error) {
 			serviceName, instanceName := GetServiceAndInstanceNames(instanceFolderRelativePath)
 			switch serviceName {
 			case "publish2fs":
-				deployment = publish2fs.NewDeployment()
-				err := deployment.Deploy(global.settings.Versions.Go,
-					global.settings.Versions.RAM,
-					global.settings.RepositoryPath,
-					global.settings.EnvironmentName,
-					instanceName,
-					global.settings.Commands.Dumpsettings)
+				goGCFDeployment := publish2fs.NewGoGCFDeployment()
+				goGCFDeployment.Artifacts.Ctx = global.ctx
+				goGCFDeployment.Artifacts.GoVersion = global.settings.Versions.Go
+				goGCFDeployment.Artifacts.RAMVersion = global.settings.Versions.RAM
+				goGCFDeployment.Artifacts.RepositoryPath = global.settings.RepositoryPath
+				goGCFDeployment.Artifacts.EnvironmentName = global.settings.EnvironmentName
+				goGCFDeployment.Artifacts.InstanceName = instanceName
+				goGCFDeployment.Artifacts.Dump = global.settings.Commands.Dumpsettings
+				goGCFDeployment.Artifacts.ProjectsLocationsFunctionsService = global.projectsLocationsFunctionsService
+				deployment = goGCFDeployment
+				err := deployment.DeployGoCloudFunction()
 				if err != nil {
 					log.Fatal(err)
 				}
 			}
 		}
 	}
+	log.Println("done")
 	return nil
 }

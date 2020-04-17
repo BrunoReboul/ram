@@ -16,6 +16,6 @@ package ram
 
 // MicroServiceInstanceDeployment interface
 type MicroServiceInstanceDeployment interface {
-	Deploy(goVersion, ramVersion, repositoryPath, environmentName, instanceName string, dump bool) (err error)
+	DeployGoCloudFunction() (err error)
 	// MakeTrigger() (err error)
 }

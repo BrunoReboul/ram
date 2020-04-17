@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcftemplate
+package gcf
 
-import (
-	"fmt"
-)
+import "log"
 
-// GetRunTime returns the GCF runtime string for a given Go version. Error is version not supported
-func GetRunTime(goVersion string) (runTime string, err error) {
-	switch goVersion {
-	case "1.11":
-		return "go111", nil
-	default:
-		return "", fmt.Errorf("Supported Go version are [1.11], provided version was: %s", goVersion)
+// CreateCloudFunction looks for and existing cloud function
+func (goGCFArtifacts *GoGCFArtifacts) CreateCloudFunction() (err error) {
+	operation, err := goGCFArtifacts.ProjectsLocationsFunctionsService.Create(goGCFArtifacts.Location,
+		&goGCFArtifacts.CloudFunction).Context(goGCFArtifacts.Ctx).Do()
+	if err != nil {
+		return err
 	}
+	log.Printf("ops name %s done %v", operation.Name, operation.Done)
+	return nil
 }
