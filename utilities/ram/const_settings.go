@@ -17,10 +17,11 @@ package ram
 // Settings file names
 const (
 	DevelopmentEnvironmentName   = "dev"
-	DumpSettingsFileName         = "settings.yaml"
+	SettingsFileName         = "settings.yaml"
 	SolutionSettingsFileName     = "solution.yaml"
 	ServiceSettingsFileName      = "service.yaml"
 	InstanceSettingsFileName     = "instance.yaml"
 	MicroserviceParentFolderName = "services"
 	InstancesFolderName          = "instances"
+	CloudFunctionZipFullPath     = "./cloud_function_source.zip"
 )

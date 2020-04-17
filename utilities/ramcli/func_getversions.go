@@ -39,7 +39,7 @@ func GetVersions() (goVersion, ramVersion string) {
 		if strings.HasPrefix(line, "go ") {
 			goVersion = strings.TrimLeft(line, "go ")
 		}
-		if !(strings.Contains(line, "module") || strings.Contains(line, "module")) {
+		if !(strings.Contains(line, "module") || strings.Contains(line, "replace")) {
 			if strings.Contains(line, "github.com/") && strings.Contains(line, "/ram ") {
 				parts := strings.Split(line, "/ram ")
 				ramVersion = parts[len(parts)-1]
@@ -56,5 +56,6 @@ func GetVersions() (goVersion, ramVersion string) {
 	if ramVersion == "" {
 		log.Fatalf("ramVersion NOT found, missing reauire line to ram module in go.mod")
 	}
+	log.Printf("goVersion %s, ramVersion %s", goVersion, ramVersion)
 	return goVersion, ramVersion
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gcftemplate"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/cloudfunctions/v1"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -40,9 +41,8 @@ type Deployment struct {
 		Instance InstanceSettings
 	}
 	Artifacts struct {
-		CloudFunction     cloudfunctions.CloudFunction
-		GoModContent      string
-		FunctionGoContent string
+		CloudFunction cloudfunctions.CloudFunction
+		ZipFiles      map[string]string
 	}
 }
 
@@ -77,6 +77,12 @@ func (deployment *Deployment) Deploy(goVersion, ramVersion, repositoryPath, envi
 	if err != nil {
 		return err
 	}
+
+	err = ram.ZipSource(ram.CloudFunctionZipFullPath, deployment.Artifacts.ZipFiles)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -134,15 +140,22 @@ func (deployment *Deployment) situate(goVersion, ramVersion, repositoryPath, ins
 	deployment.Artifacts.CloudFunction.ServiceAccountEmail = fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceName, deployment.Settings.Solution.Hosting.ProjectID)
 	deployment.Artifacts.CloudFunction.Timeout = deployment.Settings.Service.GCF.Timeout
 
+	deployment.Artifacts.ZipFiles = make(map[string]string)
 	functionGoContent, err := gcftemplate.MakeFunctionGoContent(gcfType, serviceName)
 	if err != nil {
 		return err
 	}
-	deployment.Artifacts.GoModContent = gcftemplate.MakeGoModContent(goVersion, ramVersion)
-	deployment.Artifacts.FunctionGoContent = functionGoContent
+	deployment.Artifacts.ZipFiles["function.go"] = functionGoContent
+	deployment.Artifacts.ZipFiles["go.mod"] = gcftemplate.MakeGoModContent(goVersion, ramVersion)
 
+	// Keep ram.SettingsFileName as the last element of the map (himself)
+	deploymentYAMLBytes, err := yaml.Marshal(deployment)
+	if err != nil {
+		return err
+	}
+	deployment.Artifacts.ZipFiles[ram.SettingsFileName] = string(deploymentYAMLBytes)
 	if dump {
-		err := ram.DumpToYAMLFile(deployment, fmt.Sprintf("%s/%s", repositoryPath, ram.DumpSettingsFileName))
+		err := ram.DumpToYAMLFile(deployment, fmt.Sprintf("%s/%s", repositoryPath, ram.SettingsFileName))
 		if err != nil {
 			return err
 		}

@@ -28,7 +28,7 @@ func (settings *settings) CheckArguments() {
 	flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
 	flag.BoolVar(&settings.Commands.Maketrigger, "make-trigger", false, "make cloud build triggers to deploy one instance, one microservice, or all")
 	flag.BoolVar(&settings.Commands.Deploy, "deploy", false, "deploy one microservice instance")
-	flag.BoolVar(&settings.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.DumpSettingsFileName))
+	flag.BoolVar(&settings.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.SettingsFileName))
 	flag.StringVar(&settings.RepositoryPath, "repo", ".", "Path to the root of the code repository")
 	var microserviceFolderName = flag.String("service", "", "Microservice folder name")
 	var instanceFolderName = flag.String("instance", "", "Instance folder name")
