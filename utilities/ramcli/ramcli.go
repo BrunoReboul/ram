@@ -31,6 +31,7 @@ import (
 type Global struct {
 	ctx                               context.Context
 	projectsTriggersService           *cloudbuild.ProjectsTriggersService
+	operationsService                 *cloudfunctions.OperationsService
 	projectsLocationsFunctionsService *cloudfunctions.ProjectsLocationsFunctionsService
 	settings                          settings
 }
@@ -68,6 +69,7 @@ func Initialize(ctx context.Context, global *Global) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	global.operationsService = cloudfunctions.NewOperationsService(cloudfunctionsService)
 	cloudfunctionsProjectsService := cloudfunctionsService.Projects
 	global.projectsLocationsFunctionsService = cloudfunctionsProjectsService.Locations.Functions
 
@@ -98,6 +100,7 @@ func RAMCli(global *Global) (err error) {
 				goGCFDeployment.Artifacts.EnvironmentName = global.settings.EnvironmentName
 				goGCFDeployment.Artifacts.InstanceName = instanceName
 				goGCFDeployment.Artifacts.Dump = global.settings.Commands.Dumpsettings
+				goGCFDeployment.Artifacts.OperationsService = global.operationsService
 				goGCFDeployment.Artifacts.ProjectsLocationsFunctionsService = global.projectsLocationsFunctionsService
 				deployment = goGCFDeployment
 				err := deployment.DeployGoCloudFunction()

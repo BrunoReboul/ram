@@ -17,6 +17,7 @@ package gcf
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // BackgroundPubSubFunctionGo function.go code skeleton, replace <serviceName> by serviceName
@@ -34,6 +35,8 @@ const BackgroundPubSubFunctionGo = `
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// generated code %v
 
 // Package p contains a background cloud function
 package p
@@ -62,7 +65,7 @@ func init() {
 func MakeFunctionGoContent(gcfType, serviceName string) (functionGoContent string, err error) {
 	switch gcfType {
 	case "backgroundPubSub":
-		return strings.Replace(BackgroundPubSubFunctionGo, "<serviceName>", serviceName, -1), nil
+		return fmt.Sprintf(strings.Replace(BackgroundPubSubFunctionGo, "<serviceName>", serviceName, -1), time.Now()), nil
 	default:
 		return "", fmt.Errorf("gcfType provided not managed: %s", gcfType)
 	}

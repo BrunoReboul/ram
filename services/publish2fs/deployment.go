@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/ram"
@@ -26,12 +28,11 @@ import (
 )
 
 const (
-	description            = "publish %s assets resource feeds as FireStore documents in collection %s"
-	eventProviderNamespace = "cloud.pubsub"
-	eventResourceType      = "topic.publish"
-	eventService           = "pubsub.googleapis.com"
-	gcfType                = "backgroundPubSub"
-	serviceName            = "publish2fs"
+	description  = "publish %s assets resource feeds as FireStore documents in collection %s"
+	eventService = "pubsub.googleapis.com"
+	eventType    = "google.pubsub.topic.publish"
+	gcfType      = "backgroundPubSub"
+	serviceName  = "publish2fs"
 )
 
 // ServiceSettings defines service settings common to all service instances
@@ -59,8 +60,9 @@ type Settings struct {
 
 // GoGCFDeployment settings and Artifacts structure
 type GoGCFDeployment struct {
-	Settings  Settings
-	Artifacts gcf.GoGCFArtifacts
+	DumpTimestamp time.Time
+	Settings      Settings
+	Artifacts     gcf.GoGCFArtifacts
 }
 
 // NewGoGCFDeployment create a service settings structure
@@ -70,7 +72,8 @@ func NewGoGCFDeployment() *GoGCFDeployment {
 
 // DeployGoCloudFunction deploy an instance of a microservice as a Go cloud function
 func (goGCFDeployment *GoGCFDeployment) DeployGoCloudFunction() (err error) {
-	log.Printf("%s deploy cloud function %s", serviceName, goGCFDeployment.Artifacts.InstanceName)
+	start := time.Now()
+	log.Printf("%s deploy cloud function %s", goGCFDeployment.Artifacts.InstanceName, serviceName)
 	err = goGCFDeployment.readValidate()
 	if err != nil {
 		return err
@@ -79,36 +82,28 @@ func (goGCFDeployment *GoGCFDeployment) DeployGoCloudFunction() (err error) {
 	if err != nil {
 		return err
 	}
-	log.Println("settings read, validated, situated")
+	log.Printf("%s settings read, validated, situated", goGCFDeployment.Artifacts.InstanceName)
 	err = ram.ZipSource(gcf.CloudFunctionZipFullPath, goGCFDeployment.Artifacts.ZipFiles)
 	if err != nil {
 		return err
 	}
-	log.Println("sources zipped")
+	log.Printf("%s sources zipped", goGCFDeployment.Artifacts.InstanceName)
 	err = goGCFDeployment.Artifacts.GetUploadURL(goGCFDeployment.Settings.Solution.Hosting.ProjectID,
 		goGCFDeployment.Settings.Solution.Hosting.GCF.Region)
 	if err != nil {
 		return err
 	}
-	log.Println("signed URL for upload retreived")
+	log.Printf("%s signed URL for upload retreived", goGCFDeployment.Artifacts.InstanceName)
 	response, err := goGCFDeployment.Artifacts.UploadZipUsingSignedURL()
 	if err != nil {
 		return err
 	}
-	log.Printf("upload %s response status code: %v", gcf.CloudFunctionZipFullPath, response.StatusCode)
-
-	// cloudFunction, err := gcf.GetCloudFunction(ctx, projectsLocationsFunctionsService, goGCFDeployment.Settings.Solution.Hosting.ProjectID,
-	// 	goGCFDeployment.Settings.Solution.Hosting.GCF.Region, instanceName)
-	// if err != nil {
-	// 	return err
-	// }
-	// _ = cloudFunction
-
+	log.Printf("%s upload %s response status code: %v", goGCFDeployment.Artifacts.InstanceName, gcf.CloudFunctionZipFullPath, response.StatusCode)
 	err = goGCFDeployment.Artifacts.CreateCloudFunction()
 	if err != nil {
 		return err
 	}
-
+	log.Printf("%s done in %v minutes", goGCFDeployment.Artifacts.InstanceName, time.Since(start).Minutes())
 	return nil
 }
 
@@ -141,7 +136,7 @@ func (goGCFDeployment *GoGCFDeployment) situate() (err error) {
 	failurePolicy.Retry = &retry
 
 	var eventTrigger cloudfunctions.EventTrigger
-	eventTrigger.EventType = fmt.Sprintf("providers/%s/eventTypes/%s", eventProviderNamespace, eventResourceType)
+	eventTrigger.EventType = eventType
 	eventTrigger.Resource = fmt.Sprintf("projects/%s/topics/%s", goGCFDeployment.Settings.Solution.Hosting.ProjectID, goGCFDeployment.Settings.Instance.GCF.TriggerTopic)
 	eventTrigger.Service = eventService
 	eventTrigger.FailurePolicy = &failurePolicy
@@ -160,11 +155,12 @@ func (goGCFDeployment *GoGCFDeployment) situate() (err error) {
 	goGCFDeployment.Artifacts.CloudFunction.EntryPoint = "EntryPoint"
 	goGCFDeployment.Artifacts.CloudFunction.EnvironmentVariables = envVars
 	goGCFDeployment.Artifacts.CloudFunction.EventTrigger = &eventTrigger
-	goGCFDeployment.Artifacts.CloudFunction.Labels = map[string]string{"name": goGCFDeployment.Artifacts.InstanceName}
+	goGCFDeployment.Artifacts.CloudFunction.Labels = map[string]string{"name": strings.ToLower(goGCFDeployment.Artifacts.InstanceName)}
 	goGCFDeployment.Artifacts.CloudFunction.Name = fmt.Sprintf("projects/%s/locations/%s/functions/%s", goGCFDeployment.Settings.Solution.Hosting.ProjectID, goGCFDeployment.Settings.Solution.Hosting.GCF.Region, goGCFDeployment.Artifacts.InstanceName)
 	goGCFDeployment.Artifacts.CloudFunction.Runtime = runTime
 	goGCFDeployment.Artifacts.CloudFunction.ServiceAccountEmail = fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceName, goGCFDeployment.Settings.Solution.Hosting.ProjectID)
 	goGCFDeployment.Artifacts.CloudFunction.Timeout = goGCFDeployment.Settings.Service.GCF.Timeout
+	goGCFDeployment.Artifacts.CloudFunction.IngressSettings = "ALLOW_ALL"
 
 	goGCFDeployment.Artifacts.ZipFiles = make(map[string]string)
 	functionGoContent, err := gcf.MakeFunctionGoContent(gcfType, serviceName)
@@ -177,6 +173,7 @@ func (goGCFDeployment *GoGCFDeployment) situate() (err error) {
 	goGCFDeployment.Artifacts.Location = fmt.Sprintf("projects/%s/locations/%s", goGCFDeployment.Settings.Solution.Hosting.ProjectID, goGCFDeployment.Settings.Solution.Hosting.GCF.Region)
 
 	// Keep ram.SettingsFileName as the last element of the map (himself)
+	goGCFDeployment.DumpTimestamp = time.Now()
 	GoGCFDeploymentYAMLBytes, err := yaml.Marshal(goGCFDeployment)
 	if err != nil {
 		return err
