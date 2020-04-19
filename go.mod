@@ -8,6 +8,7 @@ require (
 	cloud.google.com/go/firestore v1.1.1
 	cloud.google.com/go/pubsub v1.0.1
 	cloud.google.com/go/storage v1.0.0
+	github.com/google/uuid v1.1.1
 	github.com/open-policy-agent/opa v0.16.0
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	google.golang.org/api v0.20.0

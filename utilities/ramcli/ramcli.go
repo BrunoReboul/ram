@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package ramcli Real-time Asset Monitor command line cli
 package ramcli
 
 import (
@@ -24,15 +25,17 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudfunctions/v1"
+	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 )
 
 // Global structure for global variables
 type Global struct {
 	ctx                               context.Context
-	projectsTriggersService           *cloudbuild.ProjectsTriggersService
+	iamService                        *iam.Service
 	operationsService                 *cloudfunctions.OperationsService
 	projectsLocationsFunctionsService *cloudfunctions.ProjectsLocationsFunctionsService
+	projectsTriggersService           *cloudbuild.ProjectsTriggersService
 	settings                          settings
 }
 
@@ -79,6 +82,11 @@ func Initialize(ctx context.Context, global *Global) {
 	}
 	cloudbuildProjectsService := cloudbuildService.Projects
 	global.projectsTriggersService = cloudbuildProjectsService.Triggers
+
+	global.iamService, err = iam.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 // RAMCli Real-time Asset Monitor cli
@@ -94,14 +102,15 @@ func RAMCli(global *Global) (err error) {
 			case "publish2fs":
 				goGCFDeployment := publish2fs.NewGoGCFDeployment()
 				goGCFDeployment.Artifacts.Ctx = global.ctx
-				goGCFDeployment.Artifacts.GoVersion = global.settings.Versions.Go
-				goGCFDeployment.Artifacts.RAMVersion = global.settings.Versions.RAM
-				goGCFDeployment.Artifacts.RepositoryPath = global.settings.RepositoryPath
-				goGCFDeployment.Artifacts.EnvironmentName = global.settings.EnvironmentName
-				goGCFDeployment.Artifacts.InstanceName = instanceName
 				goGCFDeployment.Artifacts.Dump = global.settings.Commands.Dumpsettings
+				goGCFDeployment.Artifacts.EnvironmentName = global.settings.EnvironmentName
+				goGCFDeployment.Artifacts.GoVersion = global.settings.Versions.Go
+				goGCFDeployment.Artifacts.IAMService = global.iamService
+				goGCFDeployment.Artifacts.InstanceName = instanceName
 				goGCFDeployment.Artifacts.OperationsService = global.operationsService
 				goGCFDeployment.Artifacts.ProjectsLocationsFunctionsService = global.projectsLocationsFunctionsService
+				goGCFDeployment.Artifacts.RAMVersion = global.settings.Versions.RAM
+				goGCFDeployment.Artifacts.RepositoryPath = global.settings.RepositoryPath
 				deployment = goGCFDeployment
 				err := deployment.DeployGoCloudFunction()
 				if err != nil {

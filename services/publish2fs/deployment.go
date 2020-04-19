@@ -17,12 +17,14 @@ package publish2fs
 import (
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/google/uuid"
 	"google.golang.org/api/cloudfunctions/v1"
 	"gopkg.in/yaml.v2"
 )
@@ -83,7 +85,12 @@ func (goGCFDeployment *GoGCFDeployment) DeployGoCloudFunction() (err error) {
 		return err
 	}
 	log.Printf("%s settings read, validated, situated", goGCFDeployment.Artifacts.InstanceName)
-	err = ram.ZipSource(gcf.CloudFunctionZipFullPath, goGCFDeployment.Artifacts.ZipFiles)
+	err = goGCFDeployment.Artifacts.CreateGCFServiceAccount()
+	if err != nil {
+		return err
+	}
+	log.Printf("%s service account found or created", goGCFDeployment.Artifacts.InstanceName)
+	err = ram.ZipSource(goGCFDeployment.Artifacts.CloudFunctionZipFullPath, goGCFDeployment.Artifacts.ZipFiles)
 	if err != nil {
 		return err
 	}
@@ -98,8 +105,16 @@ func (goGCFDeployment *GoGCFDeployment) DeployGoCloudFunction() (err error) {
 	if err != nil {
 		return err
 	}
-	log.Printf("%s upload %s response status code: %v", goGCFDeployment.Artifacts.InstanceName, gcf.CloudFunctionZipFullPath, response.StatusCode)
-	err = goGCFDeployment.Artifacts.CreateCloudFunction()
+	log.Printf("%s upload %s response status code: %v", goGCFDeployment.Artifacts.InstanceName, goGCFDeployment.Artifacts.CloudFunctionZipFullPath, response.StatusCode)
+	err = goGCFDeployment.Artifacts.CreatePatchCloudFunction()
+	if err != nil {
+		return err
+	}
+	err = os.Remove(goGCFDeployment.Artifacts.CloudFunctionZipFullPath)
+	if err != nil {
+		return err
+	}
+	log.Printf("%s remove file %s", goGCFDeployment.Artifacts.InstanceName, goGCFDeployment.Artifacts.CloudFunctionZipFullPath)
 	if err != nil {
 		return err
 	}
@@ -131,6 +146,10 @@ func (goGCFDeployment *GoGCFDeployment) readValidate() (err error) {
 func (goGCFDeployment *GoGCFDeployment) situate() (err error) {
 	goGCFDeployment.Settings.Solution.Situate(goGCFDeployment.Artifacts.EnvironmentName)
 
+	goGCFDeployment.Artifacts.ServiceName = serviceName
+	goGCFDeployment.Artifacts.ProjectID = goGCFDeployment.Settings.Solution.Hosting.ProjectID
+	goGCFDeployment.Artifacts.Region = goGCFDeployment.Settings.Solution.Hosting.GCF.Region
+	goGCFDeployment.Artifacts.CloudFunctionZipFullPath = fmt.Sprintf("./%s.zip", uuid.New())
 	var failurePolicy cloudfunctions.FailurePolicy
 	retry := cloudfunctions.Retry{}
 	failurePolicy.Retry = &retry
@@ -158,7 +177,6 @@ func (goGCFDeployment *GoGCFDeployment) situate() (err error) {
 	goGCFDeployment.Artifacts.CloudFunction.Labels = map[string]string{"name": strings.ToLower(goGCFDeployment.Artifacts.InstanceName)}
 	goGCFDeployment.Artifacts.CloudFunction.Name = fmt.Sprintf("projects/%s/locations/%s/functions/%s", goGCFDeployment.Settings.Solution.Hosting.ProjectID, goGCFDeployment.Settings.Solution.Hosting.GCF.Region, goGCFDeployment.Artifacts.InstanceName)
 	goGCFDeployment.Artifacts.CloudFunction.Runtime = runTime
-	goGCFDeployment.Artifacts.CloudFunction.ServiceAccountEmail = fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceName, goGCFDeployment.Settings.Solution.Hosting.ProjectID)
 	goGCFDeployment.Artifacts.CloudFunction.Timeout = goGCFDeployment.Settings.Service.GCF.Timeout
 	goGCFDeployment.Artifacts.CloudFunction.IngressSettings = "ALLOW_ALL"
 
@@ -169,8 +187,6 @@ func (goGCFDeployment *GoGCFDeployment) situate() (err error) {
 	}
 	goGCFDeployment.Artifacts.ZipFiles["function.go"] = functionGoContent
 	goGCFDeployment.Artifacts.ZipFiles["go.mod"] = gcf.MakeGoModContent(goGCFDeployment.Artifacts.GoVersion, goGCFDeployment.Artifacts.RAMVersion)
-
-	goGCFDeployment.Artifacts.Location = fmt.Sprintf("projects/%s/locations/%s", goGCFDeployment.Settings.Solution.Hosting.ProjectID, goGCFDeployment.Settings.Solution.Hosting.GCF.Region)
 
 	// Keep ram.SettingsFileName as the last element of the map (himself)
 	goGCFDeployment.DumpTimestamp = time.Now()

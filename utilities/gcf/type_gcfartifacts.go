@@ -12,29 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package gcf helps to deploy cloud functions
 package gcf
 
 import (
 	"context"
 
 	"google.golang.org/api/cloudfunctions/v1"
+	"google.golang.org/api/iam/v1"
 )
-
-// CloudFunctionZipFullPath const
-const CloudFunctionZipFullPath = "./cloud_function_source.zip"
 
 // GoGCFArtifacts struct to deploy a Go CloudFunction
 type GoGCFArtifacts struct {
 	Ctx                               context.Context `yaml:"-"`
-	GoVersion                         string
-	RAMVersion                        string
-	RepositoryPath                    string
-	EnvironmentName                   string
-	InstanceName                      string
-	Dump                              bool
-	ProjectsLocationsFunctionsService *cloudfunctions.ProjectsLocationsFunctionsService `yaml:"-"`
-	OperationsService                 *cloudfunctions.OperationsService                 `yaml:"-"`
 	CloudFunction                     cloudfunctions.CloudFunction
-	Location                          string
+	CloudFunctionZipFullPath          string
+	Dump                              bool
+	EnvironmentName                   string
+	GoVersion                         string
+	IAMService                        *iam.Service `yaml:"-"`
+	InstanceName                      string
+	OperationsService                 *cloudfunctions.OperationsService                 `yaml:"-"`
+	ProjectsLocationsFunctionsService *cloudfunctions.ProjectsLocationsFunctionsService `yaml:"-"`
+	ProjectID                         string
+	RAMVersion                        string
+	Region                            string
+	RepositoryPath                    string
+	ServiceName                       string
 	ZipFiles                          map[string]string
 }

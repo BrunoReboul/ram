@@ -22,7 +22,7 @@ import (
 
 // UploadZipUsingSignedURL upload the rile content using a signed URL
 func (goGCFArtifacts *GoGCFArtifacts) UploadZipUsingSignedURL() (response *http.Response, err error) {
-	contentBytes, err := ioutil.ReadFile(CloudFunctionZipFullPath)
+	contentBytes, err := ioutil.ReadFile(goGCFArtifacts.CloudFunctionZipFullPath)
 	if err != nil {
 		return response, err
 	}

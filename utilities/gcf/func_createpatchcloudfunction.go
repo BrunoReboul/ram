@@ -22,22 +22,26 @@ import (
 	"time"
 )
 
-// CreateCloudFunction looks for and existing cloud function
-func (goGCFArtifacts *GoGCFArtifacts) CreateCloudFunction() (err error) {
+// CreatePatchCloudFunction looks for and existing cloud function
+func (goGCFArtifacts *GoGCFArtifacts) CreatePatchCloudFunction() (err error) {
+	location := fmt.Sprintf("projects/%s/locations/%s", goGCFArtifacts.ProjectID, goGCFArtifacts.Region)
 
-	goGCFArtifacts.CloudFunction.ServiceAccountEmail = "publish-2fs@brunore-ram-dev.iam.gserviceaccount.com"
-
-	operation, err := goGCFArtifacts.ProjectsLocationsFunctionsService.Create(goGCFArtifacts.Location,
+	operation, err := goGCFArtifacts.ProjectsLocationsFunctionsService.Create(location,
 		&goGCFArtifacts.CloudFunction).Context(goGCFArtifacts.Ctx).Do()
 
-	if strings.Contains(err.Error(), "alreadyExists") {
-		log.Printf("%s already exists go for patching", goGCFArtifacts.InstanceName)
-		operation, err = goGCFArtifacts.ProjectsLocationsFunctionsService.Patch(goGCFArtifacts.CloudFunction.Name,
-			&goGCFArtifacts.CloudFunction).Context(goGCFArtifacts.Ctx).Do()
-	}
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "alreadyExists") {
+			log.Printf("%s already exists go for patching", goGCFArtifacts.InstanceName)
+			operation, err = goGCFArtifacts.ProjectsLocationsFunctionsService.Patch(goGCFArtifacts.CloudFunction.Name,
+				&goGCFArtifacts.CloudFunction).Context(goGCFArtifacts.Ctx).Do()
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
+
 	name := operation.Name
 	log.Printf("%s cloud function deployment started", goGCFArtifacts.InstanceName)
 	log.Println(name)
