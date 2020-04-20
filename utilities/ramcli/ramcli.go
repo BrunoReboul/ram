@@ -25,6 +25,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudfunctions/v1"
+	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 )
@@ -32,6 +33,7 @@ import (
 // Global structure for global variables
 type Global struct {
 	ctx                               context.Context
+	cloudresourcemanagerService       *cloudresourcemanager.Service
 	iamService                        *iam.Service
 	operationsService                 *cloudfunctions.OperationsService
 	projectsLocationsFunctionsService *cloudfunctions.ProjectsLocationsFunctionsService
@@ -87,6 +89,10 @@ func Initialize(ctx context.Context, global *Global) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 // RAMCli Real-time Asset Monitor cli
@@ -101,6 +107,8 @@ func RAMCli(global *Global) (err error) {
 			switch serviceName {
 			case "publish2fs":
 				goGCFDeployment := publish2fs.NewGoGCFDeployment()
+
+				goGCFDeployment.Artifacts.CloudresourcemanagerService = global.cloudresourcemanagerService
 				goGCFDeployment.Artifacts.Ctx = global.ctx
 				goGCFDeployment.Artifacts.Dump = global.settings.Commands.Dumpsettings
 				goGCFDeployment.Artifacts.EnvironmentName = global.settings.EnvironmentName
@@ -111,6 +119,7 @@ func RAMCli(global *Global) (err error) {
 				goGCFDeployment.Artifacts.ProjectsLocationsFunctionsService = global.projectsLocationsFunctionsService
 				goGCFDeployment.Artifacts.RAMVersion = global.settings.Versions.RAM
 				goGCFDeployment.Artifacts.RepositoryPath = global.settings.RepositoryPath
+
 				deployment = goGCFDeployment
 				err := deployment.DeployGoCloudFunction()
 				if err != nil {

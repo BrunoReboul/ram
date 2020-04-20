@@ -19,6 +19,7 @@ import (
 	"context"
 
 	"google.golang.org/api/cloudfunctions/v1"
+	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -27,6 +28,7 @@ type GoGCFArtifacts struct {
 	Ctx                               context.Context `yaml:"-"`
 	CloudFunction                     cloudfunctions.CloudFunction
 	CloudFunctionZipFullPath          string
+	CloudresourcemanagerService       *cloudresourcemanager.Service `yaml:"-"`
 	Dump                              bool
 	EnvironmentName                   string
 	GoVersion                         string

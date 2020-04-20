@@ -44,6 +44,20 @@ type ServiceSettings struct {
 		RetryTimeOutSeconds int64  `yaml:"retryTimeOutSeconds"`
 		Timeout             string `yaml:"timeout"`
 	}
+	// ResourceManager struct {
+	// 	Project struct {
+	// 		GCFServiceAccount struct {
+	// 			Roles []string `yaml:"roles"`
+	// 		}
+	// 	}
+	// }
+	// IAM struct {
+	// 	GCFServiceAccount struc {
+	// 		CloudBuildServiceAccount struct {
+	// 			Roles []string `yaml:"roles"`
+	// 		}
+	// 	}
+	// }
 }
 
 // InstanceSettings instance specific settings
@@ -90,6 +104,11 @@ func (goGCFDeployment *GoGCFDeployment) DeployGoCloudFunction() (err error) {
 		return err
 	}
 	log.Printf("%s service account found or created", goGCFDeployment.Artifacts.InstanceName)
+	// err = goGCFDeployment.Artifacts.UpdateProjectIAMPolicy()
+	// if err != nil {
+	// 	return err
+	// }
+	// log.Printf("%s project iam policy updated", goGCFDeployment.Artifacts.InstanceName)
 	err = ram.ZipSource(goGCFDeployment.Artifacts.CloudFunctionZipFullPath, goGCFDeployment.Artifacts.ZipFiles)
 	if err != nil {
 		return err
