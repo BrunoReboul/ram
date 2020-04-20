@@ -17,7 +17,10 @@ package ramcli
 
 import (
 	"context"
+	"fmt"
 	"log"
+
+	"github.com/BrunoReboul/ram/utilities/gcb"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
 
@@ -128,14 +131,36 @@ func RAMCli(global *Global) (err error) {
 			}
 		}
 	}
-
 	if global.settings.Commands.Maketrigger {
+		triggerDeployment := gcb.NewTriggerDeployment()
+
+		solutionConfigFilePath := fmt.Sprintf("%s/%s", global.settings.RepositoryPath, ram.SolutionSettingsFileName)
+		err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &triggerDeployment.Settings.Solution)
+		if err != nil {
+			log.Fatal(err)
+		}
+		triggerDeployment.Settings.Solution.Situate(global.settings.EnvironmentName)
+
 		for _, instanceFolderRelativePath := range global.settings.InstanceFolderRelativePaths {
 			serviceName, instanceName := GetServiceAndInstanceNames(instanceFolderRelativePath)
-			log.Printf("%s %s", serviceName, instanceName)
+
+			serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", global.settings.RepositoryPath, ram.MicroserviceParentFolderName, serviceName, ram.ServiceSettingsFileName)
+			err = ram.ReadValidate(serviceName, "ServiceSettings", serviceConfigFilePath, &triggerDeployment.Settings.Service)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			triggerDeployment.Artifacts.ServiceName = serviceName
+			triggerDeployment.Artifacts.InstanceName = instanceName
+			triggerDeployment.Artifacts.Ctx = global.ctx
+			triggerDeployment.Artifacts.EnvironmentName = global.settings.EnvironmentName
+			triggerDeployment.Artifacts.ProjectsTriggersService = global.projectsTriggersService
+			err := triggerDeployment.CleanCreateInstanceTrigger()
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
-
 	log.Println("done")
 	return nil
 }

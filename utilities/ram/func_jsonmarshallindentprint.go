@@ -14,14 +14,17 @@
 
 package ram
 
-// Settings file names
-const (
-	DevelopmentEnvironmentName   = "dev"
-	SettingsFileName             = "settings.yaml"
-	SolutionSettingsFileName     = "solution.yaml"
-	ServiceSettingsFileName      = "service.yaml"
-	InstanceSettingsFileName     = "instance.yaml"
-	MicroserviceParentFolderName = "services"
-	InstancesFolderName          = "instances"
-	SolutionName                 = "ram"
+import (
+	"encoding/json"
+	"fmt"
+	"log"
 )
+
+// JSONMarshalIndentPrint marshal with 4 spaces indent no prefix and fmt print
+func JSONMarshalIndentPrint(v interface{}) {
+	bytes, err := json.MarshalIndent(v, "", "    ")
+	if err != nil {
+		log.Printf("JSONMarshalIndentPrint %v", err)
+	}
+	fmt.Println(string(bytes))
+}

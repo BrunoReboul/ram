@@ -44,6 +44,9 @@ type ServiceSettings struct {
 		RetryTimeOutSeconds int64  `yaml:"retryTimeOutSeconds"`
 		Timeout             string `yaml:"timeout"`
 	}
+	GCB struct {
+		BuildTimeout string `yaml:"buildTimeout"`
+	}
 	// ResourceManager struct {
 	// 	Project struct {
 	// 		GCFServiceAccount struct {
@@ -74,14 +77,14 @@ type Settings struct {
 	Instance InstanceSettings
 }
 
-// GoGCFDeployment settings and Artifacts structure
+// GoGCFDeployment settings and artifacts structure
 type GoGCFDeployment struct {
 	DumpTimestamp time.Time
 	Settings      Settings
 	Artifacts     gcf.GoGCFArtifacts
 }
 
-// NewGoGCFDeployment create a service settings structure
+// NewGoGCFDeployment create deployment structure
 func NewGoGCFDeployment() *GoGCFDeployment {
 	return &GoGCFDeployment{}
 }

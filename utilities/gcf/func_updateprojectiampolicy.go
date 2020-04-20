@@ -15,8 +15,7 @@
 package gcf
 
 import (
-	"encoding/json"
-	"fmt"
+	"github.com/BrunoReboul/ram/utilities/ram"
 
 	"google.golang.org/api/cloudresourcemanager/v1"
 )
@@ -39,11 +38,6 @@ func (goGCFArtifacts *GoGCFArtifacts) UpdateProjectIAMPolicy() (err error) {
 	// for _, binding := range policy.Bindings {
 
 	// }
-
-	policyJSON, err := json.MarshalIndent(&policy, "", "    ")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(policyJSON))
+	ram.JSONMarshalIndentPrint(&policy)
 	return nil
 }

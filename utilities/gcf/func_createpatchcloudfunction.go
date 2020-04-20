@@ -15,11 +15,12 @@
 package gcf
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
 // CreatePatchCloudFunction looks for and existing cloud function
@@ -55,10 +56,6 @@ func (goGCFArtifacts *GoGCFArtifacts) CreatePatchCloudFunction() (err error) {
 			break
 		}
 	}
-	bytes, err := json.MarshalIndent(operation, "", "    ")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(bytes))
+	ram.JSONMarshalIndentPrint(operation)
 	return nil
 }
