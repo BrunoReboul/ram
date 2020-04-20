@@ -25,7 +25,7 @@ import (
 // CheckArguments() check cli arguments and build the list of microservices instances
 func (settings *settings) CheckArguments() {
 	settings.Versions.Go, settings.Versions.RAM = GetVersions()
-	flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
+	// flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
 	flag.BoolVar(&settings.Commands.Maketrigger, "make-trigger", false, "make cloud build triggers to deploy one instance, one microservice, or all")
 	flag.BoolVar(&settings.Commands.Deploy, "deploy", false, "deploy one microservice instance")
 	flag.BoolVar(&settings.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.SettingsFileName))

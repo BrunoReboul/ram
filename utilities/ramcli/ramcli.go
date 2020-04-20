@@ -44,7 +44,7 @@ type Global struct {
 // Settings is the full set of parameters
 type settings struct {
 	Commands struct {
-		Makeyaml     bool
+		// Makeyaml     bool
 		Maketrigger  bool
 		Deploy       bool
 		Dumpsettings bool
@@ -128,6 +128,14 @@ func RAMCli(global *Global) (err error) {
 			}
 		}
 	}
+
+	if global.settings.Commands.Maketrigger {
+		for _, instanceFolderRelativePath := range global.settings.InstanceFolderRelativePaths {
+			serviceName, instanceName := GetServiceAndInstanceNames(instanceFolderRelativePath)
+			log.Printf("%s %s", serviceName, instanceName)
+		}
+	}
+
 	log.Println("done")
 	return nil
 }
