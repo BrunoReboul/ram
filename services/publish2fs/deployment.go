@@ -50,14 +50,14 @@ type ServiceSettings struct {
 				}
 				RAMProject struct {
 					Roles []string `yaml:"roles"`
-				}
-			}
+				} `yaml:"ramProject"`
+			} `yaml:"resourceManager"`
 			IAM struct {
 				ItSelf struct {
 					Roles []string `yaml:"roles"`
-				}
+				} `yaml:"itSelf"`
 			}
-		}
+		} `yaml:"serviceAccountRoles"`
 	}
 	GCB struct {
 		BuildTimeout        string `yaml:"buildTimeout"`
@@ -68,17 +68,17 @@ type ServiceSettings struct {
 				}
 				RAMProject struct {
 					Roles []string `yaml:"roles"`
-				}
-			}
+				} `yaml:"ramProject"`
+			} `yaml:"resourceManager"`
 			IAM struct {
 				RAMServiceAccounts struct {
 					Roles []string `yaml:"roles"`
-				}
+				} `yaml:"RAMServiceAccounts"`
 			}
-		}
+		} `yaml:"serviceAccountRoles"`
 	}
 	GSU struct {
-		APIList []string
+		APIList []string `yaml:"apiList"`
 	}
 }
 
