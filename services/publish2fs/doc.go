@@ -39,10 +39,6 @@ Automatic retrying
 
 Yes.
 
-Required environment variables
-
-- COLLECTION_ID the name of the FireStore collection grouping all assets documents
-
 Implementation example
 
  package p

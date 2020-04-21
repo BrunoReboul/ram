@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
 
@@ -63,16 +62,27 @@ func Initialize(ctx context.Context, global *Global) {
 
 	// err is pre-declared to avoid shadowing client.
 	var err error
-	var ok bool
+	// var ok bool
 	var projectID string
-
-	global.collectionID = os.Getenv("COLLECTION_ID")
-	projectID = os.Getenv("GCP_PROJECT")
+	var settings GoGCFDeployment
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &settings)
+	if err != nil {
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		global.initFailed = true
 		return
 	}
+	global.collectionID = settings.Settings.Solution.Hosting.FireStore.CollectionIDs.Assets
+	global.retryTimeOutSeconds = settings.Settings.Service.GCF.RetryTimeOutSeconds
+	projectID = settings.Settings.Solution.Hosting.ProjectID
+
+	// global.collectionID = os.Getenv("COLLECTION_ID")
+	// projectID = os.Getenv("GCP_PROJECT")
+	// if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	// 	return
+	// }
+
 	global.firestoreClient, err = firestore.NewClient(ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - firestore.NewClient: %v", err)
