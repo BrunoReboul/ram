@@ -43,24 +43,43 @@ type ServiceSettings struct {
 		AvailableMemoryMb   int64  `yaml:"availableMemoryMb" valid:"isAvailableMemory"`
 		RetryTimeOutSeconds int64  `yaml:"retryTimeOutSeconds"`
 		Timeout             string `yaml:"timeout"`
+		ServiceAccountRoles struct {
+			ResourceManager struct {
+				Organizations struct {
+					Roles []string `yaml:"roles"`
+				}
+				RAMProject struct {
+					Roles []string `yaml:"roles"`
+				}
+			}
+			IAM struct {
+				ItSelf struct {
+					Roles []string `yaml:"roles"`
+				}
+			}
+		}
 	}
 	GCB struct {
-		BuildTimeout string `yaml:"buildTimeout"`
+		BuildTimeout        string `yaml:"buildTimeout"`
+		ServiceAccountRoles struct {
+			ResourceManager struct {
+				Organizations struct {
+					Roles []string `yaml:"roles"`
+				}
+				RAMProject struct {
+					Roles []string `yaml:"roles"`
+				}
+			}
+			IAM struct {
+				RAMServiceAccounts struct {
+					Roles []string `yaml:"roles"`
+				}
+			}
+		}
 	}
-	// ResourceManager struct {
-	// 	Project struct {
-	// 		GCFServiceAccount struct {
-	// 			Roles []string `yaml:"roles"`
-	// 		}
-	// 	}
-	// }
-	// IAM struct {
-	// 	GCFServiceAccount struc {
-	// 		CloudBuildServiceAccount struct {
-	// 			Roles []string `yaml:"roles"`
-	// 		}
-	// 	}
-	// }
+	GSU struct {
+		APIList []string
+	}
 }
 
 // InstanceSettings instance specific settings
