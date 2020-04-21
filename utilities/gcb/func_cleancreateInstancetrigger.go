@@ -75,12 +75,6 @@ func (triggerDeployment *TriggerDeployment) situate() {
 		triggerDeployment.Artifacts.InstanceName)
 	triggerDeployment.Artifacts.BuildTrigger.Build = triggerDeployment.getInstanceDeploymentBuild()
 
-	substitutions := make(map[string]string)
-	substitutions["_ENVIRONMENT"] = triggerDeployment.Artifacts.EnvironmentName
-	substitutions["_SERVICE_NAME"] = triggerDeployment.Artifacts.ServiceName
-	substitutions["_INSTANCE_NAME"] = triggerDeployment.Artifacts.InstanceName
-	triggerDeployment.Artifacts.BuildTrigger.Substitutions = substitutions
-
 	var repoSource cloudbuild.RepoSource
 	repoSource.ProjectId = triggerDeployment.Settings.Solution.Hosting.ProjectID
 	repoSource.RepoName = triggerDeployment.Settings.Solution.Hosting.Repository.Name
@@ -103,10 +97,14 @@ func (triggerDeployment *TriggerDeployment) getInstanceDeploymentBuild() *cloudb
 	step2.Args = []string{"-c", "ls -al ram"}
 	steps = append(steps, &step2)
 
+	ramDeploymentCommand := fmt.Sprintf("./ram -deploy -environment=%s -service=%s -instance=%s",
+		triggerDeployment.Artifacts.EnvironmentName,
+		triggerDeployment.Artifacts.ServiceName,
+		triggerDeployment.Artifacts.InstanceName)
 	step3.Id = fmt.Sprintf("deploy instance %s", triggerDeployment.Artifacts.InstanceName)
 	step3.Name = "gcr.io/cloud-builders/gcloud"
 	step3.Entrypoint = "bash"
-	step3.Args = []string{"-c", "./ram -deploy -environment=$_ENVIRONMENT -service=$_SERVICE_NAME -instance=$_INSTANCE_NAME"}
+	step3.Args = []string{"-c", ramDeploymentCommand}
 	steps = append(steps, &step3)
 
 	var build cloudbuild.Build
