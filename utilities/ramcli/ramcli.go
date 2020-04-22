@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/BrunoReboul/ram/utilities/gcb"
-
 	"github.com/BrunoReboul/ram/utilities/ram"
 
 	"github.com/BrunoReboul/ram/services/publish2fs"
@@ -31,6 +29,7 @@ import (
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
+	"google.golang.org/api/serviceusage/v1"
 )
 
 // Global structure for global variables
@@ -41,6 +40,7 @@ type Global struct {
 	operationsService                 *cloudfunctions.OperationsService
 	projectsLocationsFunctionsService *cloudfunctions.ProjectsLocationsFunctionsService
 	projectsTriggersService           *cloudbuild.ProjectsTriggersService
+	serviceusageService               *serviceusage.Service
 	settings                          settings
 }
 
@@ -96,15 +96,19 @@ func Initialize(ctx context.Context, global *Global) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	global.serviceusageService, err = serviceusage.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 // RAMCli Real-time Asset Monitor cli
 func RAMCli(global *Global) (err error) {
+	var deployment ram.Deployment
 	global.settings.CheckArguments()
 	log.Printf("found %d instance(s)", len(global.settings.InstanceFolderRelativePaths))
 
 	if global.settings.Commands.Deploy {
-		var deployment ram.MicroServiceInstanceDeployment
 		for _, instanceFolderRelativePath := range global.settings.InstanceFolderRelativePaths {
 			serviceName, instanceName := GetServiceAndInstanceNames(instanceFolderRelativePath)
 			switch serviceName {
@@ -124,7 +128,7 @@ func RAMCli(global *Global) (err error) {
 				goGCFDeployment.Artifacts.RepositoryPath = global.settings.RepositoryPath
 
 				deployment = goGCFDeployment
-				err := deployment.DeployGoCloudFunction()
+				err := deployment.Deploy()
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -132,30 +136,32 @@ func RAMCli(global *Global) (err error) {
 		}
 	}
 	if global.settings.Commands.Maketrigger {
-		triggerDeployment := gcb.NewTriggerDeployment()
+		instanceTriggerDeployment := NewInstanceTrigger()
+		instanceTriggerDeployment.Core.Ctx = global.ctx
+		instanceTriggerDeployment.Core.EnvironmentName = global.settings.EnvironmentName
+		instanceTriggerDeployment.Artifacts.ServiceusageService = global.serviceusageService
+		instanceTriggerDeployment.Artifacts.ProjectsTriggersService = global.projectsTriggersService
 
 		solutionConfigFilePath := fmt.Sprintf("%s/%s", global.settings.RepositoryPath, ram.SolutionSettingsFileName)
-		err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &triggerDeployment.Settings.Solution)
+		err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &instanceTriggerDeployment.Core.SolutionSettings)
 		if err != nil {
 			log.Fatal(err)
 		}
-		triggerDeployment.Settings.Solution.Situate(global.settings.EnvironmentName)
+		instanceTriggerDeployment.Core.SolutionSettings.Situate(global.settings.EnvironmentName)
 
 		for _, instanceFolderRelativePath := range global.settings.InstanceFolderRelativePaths {
 			serviceName, instanceName := GetServiceAndInstanceNames(instanceFolderRelativePath)
+			instanceTriggerDeployment.Core.ServiceName = serviceName
+			instanceTriggerDeployment.Core.InstanceName = instanceName
 
 			serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", global.settings.RepositoryPath, ram.MicroserviceParentFolderName, serviceName, ram.ServiceSettingsFileName)
-			err = ram.ReadValidate(serviceName, "ServiceSettings", serviceConfigFilePath, &triggerDeployment.Settings.Service)
+			err = ram.ReadValidate(serviceName, "ServiceSettings", serviceConfigFilePath, &instanceTriggerDeployment.Settings.Service)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			triggerDeployment.Artifacts.ServiceName = serviceName
-			triggerDeployment.Artifacts.InstanceName = instanceName
-			triggerDeployment.Artifacts.Ctx = global.ctx
-			triggerDeployment.Artifacts.EnvironmentName = global.settings.EnvironmentName
-			triggerDeployment.Artifacts.ProjectsTriggersService = global.projectsTriggersService
-			err := triggerDeployment.CleanCreateInstanceTrigger()
+			deployment = instanceTriggerDeployment
+			err = deployment.Deploy()
 			if err != nil {
 				log.Fatal(err)
 			}

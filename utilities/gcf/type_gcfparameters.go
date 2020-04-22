@@ -12,29 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package gcf
 
 import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
-
-	"google.golang.org/api/cloudbuild/v1"
+	"github.com/BrunoReboul/ram/utilities/grm"
+	"github.com/BrunoReboul/ram/utilities/iam"
 )
 
-// TriggerDeployment settings and artifacts structure
-type TriggerDeployment struct {
-	Artifacts struct {
-		ProjectsTriggersService *cloudbuild.ProjectsTriggersService `yaml:"-"`
-		BuildTrigger            cloudbuild.BuildTrigger
-	}
-	Core     deploy.Core
-	Settings struct {
-		Service struct {
-			GCB Parameters
-		}
-	}
-}
-
-// NewTriggerDeployment create deployment structure
-func NewTriggerDeployment() *TriggerDeployment {
-	return &TriggerDeployment{}
+// Parameters structure
+type Parameters struct {
+	AvailableMemoryMb      int64  `yaml:"availableMemoryMb" valid:"isAvailableMemory"`
+	RetryTimeOutSeconds    int64  `yaml:"retryTimeOutSeconds"`
+	Timeout                string `yaml:"timeout"`
+	ServiceAccountBindings struct {
+		ResourceManager grm.Bindings `yaml:"resourceManager"`
+		IAM             iam.Bindings
+	} `yaml:"serviceAccountBindings"`
 }

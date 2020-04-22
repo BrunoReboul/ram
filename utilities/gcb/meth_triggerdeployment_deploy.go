@@ -24,14 +24,14 @@ import (
 
 var globalTriggerDeployment *TriggerDeployment
 
-// CleanCreateInstanceTrigger create or update a cloud build trigger to deploy a microservice instance
-func (triggerDeployment *TriggerDeployment) CleanCreateInstanceTrigger() (err error) {
+// Deploy create or update a cloud build trigger to deploy a microservice instance
+func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
 	triggerDeployment.situate()
 	// ram.JSONMarshalIndentPrint(&triggerDeployment.Artifacts.BuildTrigger)
 	globalTriggerDeployment = triggerDeployment
 	triggerDeployment.deleteTriggers()
-	buildTrigger, err := triggerDeployment.Artifacts.ProjectsTriggersService.Create(triggerDeployment.Settings.Solution.Hosting.ProjectID,
-		&triggerDeployment.Artifacts.BuildTrigger).Context(triggerDeployment.Artifacts.Ctx).Do()
+	buildTrigger, err := triggerDeployment.Artifacts.ProjectsTriggersService.Create(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID,
+		&triggerDeployment.Artifacts.BuildTrigger).Context(triggerDeployment.Core.Ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func (triggerDeployment *TriggerDeployment) CleanCreateInstanceTrigger() (err er
 }
 
 func (triggerDeployment *TriggerDeployment) deleteTriggers() (err error) {
-	err = triggerDeployment.Artifacts.ProjectsTriggersService.List(triggerDeployment.Settings.Solution.Hosting.ProjectID).Pages(triggerDeployment.Artifacts.Ctx, browseTriggerToDelete)
+	err = triggerDeployment.Artifacts.ProjectsTriggersService.List(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID).Pages(triggerDeployment.Core.Ctx, browseTriggerToDelete)
 	if err != nil {
 		return err
 	}
@@ -57,27 +57,27 @@ func browseTriggerToDelete(response *cloudbuild.ListBuildTriggersResponse) error
 }
 
 func deleteBuildTrigger(triggerID string) {
-	_, err := globalTriggerDeployment.Artifacts.ProjectsTriggersService.Delete(globalTriggerDeployment.Settings.Solution.Hosting.ProjectID,
-		triggerID).Context(globalTriggerDeployment.Artifacts.Ctx).Do()
+	_, err := globalTriggerDeployment.Artifacts.ProjectsTriggersService.Delete(globalTriggerDeployment.Core.SolutionSettings.Hosting.ProjectID,
+		triggerID).Context(globalTriggerDeployment.Core.Ctx).Do()
 	if err != nil {
-		log.Printf("ERROR when deleting existing trigger %s %s %v", triggerID, globalTriggerDeployment.Settings.Solution.Hosting.ProjectID, err)
+		log.Printf("%s ERROR when deleting existing trigger %s %s %v", globalTriggerDeployment.Core.InstanceName, triggerID, globalTriggerDeployment.Core.SolutionSettings.Hosting.ProjectID, err)
 	} else {
-		log.Printf("Deleted trigger id %s named %s", triggerID, globalTriggerDeployment.Artifacts.BuildTrigger.Name)
+		log.Printf("%s Deleted trigger id %s named %s", globalTriggerDeployment.Core.InstanceName, triggerID, globalTriggerDeployment.Artifacts.BuildTrigger.Name)
 	}
 }
 
 func (triggerDeployment *TriggerDeployment) situate() {
 	triggerDeployment.Artifacts.BuildTrigger.Name = fmt.Sprintf("%s-%s-cd",
-		triggerDeployment.Artifacts.EnvironmentName,
-		triggerDeployment.Artifacts.InstanceName)
+		triggerDeployment.Core.EnvironmentName,
+		triggerDeployment.Core.InstanceName)
 	triggerDeployment.Artifacts.BuildTrigger.Description = fmt.Sprintf("Environment %s, Instance %s, Phase continuous deployment",
-		triggerDeployment.Artifacts.EnvironmentName,
-		triggerDeployment.Artifacts.InstanceName)
+		triggerDeployment.Core.EnvironmentName,
+		triggerDeployment.Core.InstanceName)
 	triggerDeployment.Artifacts.BuildTrigger.Build = triggerDeployment.getInstanceDeploymentBuild()
 
 	var repoSource cloudbuild.RepoSource
-	repoSource.ProjectId = triggerDeployment.Settings.Solution.Hosting.ProjectID
-	repoSource.RepoName = triggerDeployment.Settings.Solution.Hosting.Repository.Name
+	repoSource.ProjectId = triggerDeployment.Core.SolutionSettings.Hosting.ProjectID
+	repoSource.RepoName = triggerDeployment.Core.SolutionSettings.Hosting.Repository.Name
 	repoSource.TagName = triggerDeployment.tagRegex()
 	triggerDeployment.Artifacts.BuildTrigger.TriggerTemplate = &repoSource
 }
@@ -98,10 +98,10 @@ func (triggerDeployment *TriggerDeployment) getInstanceDeploymentBuild() *cloudb
 	steps = append(steps, &step2)
 
 	ramDeploymentCommand := fmt.Sprintf("./ram -deploy -environment=%s -service=%s -instance=%s",
-		triggerDeployment.Artifacts.EnvironmentName,
-		triggerDeployment.Artifacts.ServiceName,
-		triggerDeployment.Artifacts.InstanceName)
-	step3.Id = fmt.Sprintf("deploy instance %s", triggerDeployment.Artifacts.InstanceName)
+		triggerDeployment.Core.EnvironmentName,
+		triggerDeployment.Core.ServiceName,
+		triggerDeployment.Core.InstanceName)
+	step3.Id = fmt.Sprintf("deploy instance %s", triggerDeployment.Core.InstanceName)
 	step3.Name = "gcr.io/cloud-builders/gcloud"
 	step3.Entrypoint = "bash"
 	step3.Args = []string{"-c", ramDeploymentCommand}
@@ -110,15 +110,15 @@ func (triggerDeployment *TriggerDeployment) getInstanceDeploymentBuild() *cloudb
 	var build cloudbuild.Build
 	build.Steps = steps
 	build.Timeout = triggerDeployment.Settings.Service.GCB.BuildTimeout
-	build.Tags = []string{triggerDeployment.Artifacts.ServiceName,
-		triggerDeployment.Artifacts.InstanceName,
+	build.Tags = []string{triggerDeployment.Core.ServiceName,
+		triggerDeployment.Core.InstanceName,
 		ram.SolutionName}
 	return &build
 }
 
 func (triggerDeployment *TriggerDeployment) tagRegex() (tagRegex string) {
-	instanceTagRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", triggerDeployment.Artifacts.InstanceName, triggerDeployment.Artifacts.EnvironmentName)
-	serviceTagRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", triggerDeployment.Artifacts.ServiceName, triggerDeployment.Artifacts.EnvironmentName)
-	solutionTagRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", ram.SolutionName, triggerDeployment.Artifacts.EnvironmentName)
+	instanceTagRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", triggerDeployment.Core.InstanceName, triggerDeployment.Core.EnvironmentName)
+	serviceTagRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", triggerDeployment.Core.ServiceName, triggerDeployment.Core.EnvironmentName)
+	solutionTagRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", ram.SolutionName, triggerDeployment.Core.EnvironmentName)
 	return fmt.Sprintf("%s|%s|%s", instanceTagRegex, serviceTagRegex, solutionTagRegex)
 }

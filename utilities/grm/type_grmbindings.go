@@ -12,29 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package grm
 
-import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
-
-	"google.golang.org/api/cloudbuild/v1"
-)
-
-// TriggerDeployment settings and artifacts structure
-type TriggerDeployment struct {
-	Artifacts struct {
-		ProjectsTriggersService *cloudbuild.ProjectsTriggersService `yaml:"-"`
-		BuildTrigger            cloudbuild.BuildTrigger
-	}
-	Core     deploy.Core
-	Settings struct {
-		Service struct {
-			GCB Parameters
-		}
-	}
-}
-
-// NewTriggerDeployment create deployment structure
-func NewTriggerDeployment() *TriggerDeployment {
-	return &TriggerDeployment{}
+// Bindings structure
+type Bindings struct {
+	RolesOnOrganizations []string `yaml:"rolesOnOrganizations"`
+	RolesOnRAMProject    []string `yaml:"rolesOnRAMProject"`
 }

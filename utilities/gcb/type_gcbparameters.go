@@ -12,10 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package gcb
 
-// MicroServiceInstanceDeployment interface
-type MicroServiceInstanceDeployment interface {
-	DeployGoCloudFunction() (err error)
-	// MakeTrigger() (err error)
+import (
+	"github.com/BrunoReboul/ram/utilities/grm"
+	"github.com/BrunoReboul/ram/utilities/iam"
+)
+
+// Parameters structure
+type Parameters struct {
+	BuildTimeout           string `yaml:"buildTimeout"`
+	ServiceAccountBindings struct {
+		ResourceManager grm.Bindings `yaml:"resourceManager"`
+		IAM             iam.Bindings
+	} `yaml:"serviceAccountBindings"`
 }

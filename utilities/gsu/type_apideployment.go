@@ -12,29 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package gsu
 
 import (
 	"github.com/BrunoReboul/ram/utilities/deploy"
 
-	"google.golang.org/api/cloudbuild/v1"
+	"google.golang.org/api/serviceusage/v1"
 )
 
-// TriggerDeployment settings and artifacts structure
-type TriggerDeployment struct {
+// APIDeployment struct
+type APIDeployment struct {
 	Artifacts struct {
-		ProjectsTriggersService *cloudbuild.ProjectsTriggersService `yaml:"-"`
-		BuildTrigger            cloudbuild.BuildTrigger
+		ServiceusageService *serviceusage.Service           `yaml:"-"`
+		ServicesService     *serviceusage.ServicesService   `yaml:"-"`
+		OperationsService   *serviceusage.OperationsService `yaml:"-"`
 	}
 	Core     deploy.Core
 	Settings struct {
 		Service struct {
-			GCB Parameters
+			GSU Parameters
 		}
 	}
 }
 
-// NewTriggerDeployment create deployment structure
-func NewTriggerDeployment() *TriggerDeployment {
-	return &TriggerDeployment{}
+// NewAPIDeployment create deployment structure
+func NewAPIDeployment() *APIDeployment {
+	return &APIDeployment{}
 }

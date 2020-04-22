@@ -32,7 +32,7 @@ func (goGCFArtifacts *GoGCFArtifacts) CreatePatchCloudFunction() (err error) {
 
 	if err != nil {
 		if strings.Contains(err.Error(), "alreadyExists") {
-			log.Printf("%s already exists go for patching", goGCFArtifacts.InstanceName)
+			log.Printf("%s patch existing cloud function", goGCFArtifacts.InstanceName)
 			operation, err = goGCFArtifacts.ProjectsLocationsFunctionsService.Patch(goGCFArtifacts.CloudFunction.Name,
 				&goGCFArtifacts.CloudFunction).Context(goGCFArtifacts.Ctx).Do()
 			if err != nil {

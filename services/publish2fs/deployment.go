@@ -22,6 +22,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/gsu"
+
+	"github.com/BrunoReboul/ram/utilities/gcb"
+
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"github.com/google/uuid"
@@ -39,47 +43,9 @@ const (
 
 // ServiceSettings defines service settings common to all service instances
 type ServiceSettings struct {
-	GCF struct {
-		AvailableMemoryMb   int64  `yaml:"availableMemoryMb" valid:"isAvailableMemory"`
-		RetryTimeOutSeconds int64  `yaml:"retryTimeOutSeconds"`
-		Timeout             string `yaml:"timeout"`
-		ServiceAccountRoles struct {
-			ResourceManager struct {
-				Organizations struct {
-					Roles []string `yaml:"roles"`
-				}
-				RAMProject struct {
-					Roles []string `yaml:"roles"`
-				} `yaml:"ramProject"`
-			} `yaml:"resourceManager"`
-			IAM struct {
-				ItSelf struct {
-					Roles []string `yaml:"roles"`
-				} `yaml:"itSelf"`
-			}
-		} `yaml:"serviceAccountRoles"`
-	}
-	GCB struct {
-		BuildTimeout        string `yaml:"buildTimeout"`
-		ServiceAccountRoles struct {
-			ResourceManager struct {
-				Organizations struct {
-					Roles []string `yaml:"roles"`
-				}
-				RAMProject struct {
-					Roles []string `yaml:"roles"`
-				} `yaml:"ramProject"`
-			} `yaml:"resourceManager"`
-			IAM struct {
-				RAMServiceAccounts struct {
-					Roles []string `yaml:"roles"`
-				} `yaml:"RAMServiceAccounts"`
-			}
-		} `yaml:"serviceAccountRoles"`
-	}
-	GSU struct {
-		APIList []string `yaml:"apiList"`
-	}
+	GCF gcf.Parameters
+	GCB gcb.Parameters
+	GSU gsu.Parameters
 }
 
 // InstanceSettings instance specific settings
@@ -108,8 +74,8 @@ func NewGoGCFDeployment() *GoGCFDeployment {
 	return &GoGCFDeployment{}
 }
 
-// DeployGoCloudFunction deploy an instance of a microservice as a Go cloud function
-func (goGCFDeployment *GoGCFDeployment) DeployGoCloudFunction() (err error) {
+// Deploy an instance of a microservice as a Go cloud function
+func (goGCFDeployment *GoGCFDeployment) Deploy() (err error) {
 	start := time.Now()
 	log.Printf("%s deploy cloud function %s", goGCFDeployment.Artifacts.InstanceName, serviceName)
 	err = goGCFDeployment.readValidate()
