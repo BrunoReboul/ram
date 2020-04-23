@@ -43,9 +43,9 @@ const (
 
 // ServiceSettings defines service settings common to all service instances
 type ServiceSettings struct {
-	GCF gcf.Parameters
-	GCB gcb.Parameters
 	GSU gsu.Parameters
+	GCB gcb.Parameters
+	GCF gcf.Parameters
 }
 
 // InstanceSettings instance specific settings

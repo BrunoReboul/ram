@@ -23,6 +23,9 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
+// Retries is the max number of tentative to get the operation status on the cloud function deployment, to deal with transient
+const Retries = 5
+
 // CreatePatchCloudFunction looks for and existing cloud function
 func (goGCFArtifacts *GoGCFArtifacts) CreatePatchCloudFunction() (err error) {
 	location := fmt.Sprintf("projects/%s/locations/%s", goGCFArtifacts.ProjectID, goGCFArtifacts.Region)
@@ -32,7 +35,7 @@ func (goGCFArtifacts *GoGCFArtifacts) CreatePatchCloudFunction() (err error) {
 
 	if err != nil {
 		if strings.Contains(err.Error(), "alreadyExists") {
-			log.Printf("%s patch existing cloud function", goGCFArtifacts.InstanceName)
+			log.Printf("%s gcf patch existing cloud function", goGCFArtifacts.InstanceName)
 			operation, err = goGCFArtifacts.ProjectsLocationsFunctionsService.Patch(goGCFArtifacts.CloudFunction.Name,
 				&goGCFArtifacts.CloudFunction).Context(goGCFArtifacts.Ctx).Do()
 			if err != nil {
@@ -44,11 +47,21 @@ func (goGCFArtifacts *GoGCFArtifacts) CreatePatchCloudFunction() (err error) {
 	}
 
 	name := operation.Name
-	log.Printf("%s cloud function deployment started", goGCFArtifacts.InstanceName)
+	log.Printf("%s gcf cloud function deployment started", goGCFArtifacts.InstanceName)
 	log.Println(name)
 	for {
 		time.Sleep(5 * time.Second)
-		operation, err = goGCFArtifacts.OperationsService.Get(name).Context(goGCFArtifacts.Ctx).Do()
+		for i := 0; i < Retries; i++ {
+			operation, err = goGCFArtifacts.OperationsService.Get(name).Context(goGCFArtifacts.Ctx).Do()
+			if err != nil {
+				if strings.Contains(err.Error(), "500") && strings.Contains(err.Error(), "backendError") {
+					log.Printf("%s ERROR getting operation status, iteration %d, wait 5 sec and retry %v", goGCFArtifacts.InstanceName, i, err)
+					time.Sleep(5 * time.Second)
+				} else {
+					return err
+				}
+			}
+		}
 		if err != nil {
 			return err
 		}

@@ -146,10 +146,10 @@ func RAMCli(global *Global) (err error) {
 				goGCFDeployment.Artifacts.RepositoryPath = global.settings.RepositoryPath
 
 				deployment = goGCFDeployment
-				err := deployment.Deploy()
-				if err != nil {
-					log.Fatal(err)
-				}
+			}
+			err := deployment.Deploy()
+			if err != nil {
+				log.Fatal(err)
 			}
 		}
 	}
