@@ -20,6 +20,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/grm"
 	"github.com/BrunoReboul/ram/utilities/gsu"
+	"github.com/BrunoReboul/ram/utilities/iam"
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
@@ -29,6 +30,9 @@ func (instanceTriggerDeployment *InstanceTriggerDeployment) Deploy() (err error)
 		return err
 	}
 	if err = instanceTriggerDeployment.deployGRMBindings(); err != nil {
+		return err
+	}
+	if err = instanceTriggerDeployment.deployIAMBindings(); err != nil {
 		return err
 	}
 	if err = instanceTriggerDeployment.deployGCBTrigger(); err != nil {
@@ -54,6 +58,17 @@ func (instanceTriggerDeployment *InstanceTriggerDeployment) deployGRMBindings() 
 	bindingsDeployment.Artifacts.CloudresourcemanagerService = instanceTriggerDeployment.Artifacts.CloudresourcemanagerService
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", instanceTriggerDeployment.Core.ProjectNumber)
 	bindingsDeployment.Settings.Service.GRM = instanceTriggerDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager
+	deployment = bindingsDeployment
+	return deployment.Deploy()
+}
+
+func (instanceTriggerDeployment *InstanceTriggerDeployment) deployIAMBindings() (err error) {
+	var deployment ram.Deployment
+	bindingsDeployment := iam.NewBindingsDeployment()
+	bindingsDeployment.Core = instanceTriggerDeployment.Core
+	bindingsDeployment.Artifacts.IAMService = instanceTriggerDeployment.Artifacts.IAMService
+	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", instanceTriggerDeployment.Core.ProjectNumber)
+	bindingsDeployment.Settings.Service.IAM = instanceTriggerDeployment.Settings.Service.GCB.ServiceAccountBindings.IAM
 	deployment = bindingsDeployment
 	return deployment.Deploy()
 }

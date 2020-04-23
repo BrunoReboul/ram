@@ -30,6 +30,7 @@ const Retries = 5
 
 // Deploy BindingsDeployment use retries on a read-modify-write cycle
 func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
+	log.Printf("%s grm Resource Manager bindings on 1)RAM project 2) targeted organizations", bindingsDeployment.Core.InstanceName)
 	if err = bindingsDeployment.deployRAMProjectBindings(); err != nil {
 		return err
 	}
@@ -67,9 +68,9 @@ func (bindingsDeployment *BindingsDeployment) deployRAMProjectBindings() (err er
 					}
 				}
 				if isAlreadyMemberOf {
-					log.Printf("%s member %s already have role %s on project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
+					log.Printf("%s member %s already have %s on project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
 				} else {
-					log.Printf("%s add member %s to existing role %s on project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
+					log.Printf("%s add member %s to existing %s on project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
 					binding.Members = append(binding.Members, bindingsDeployment.Artifacts.Member)
 					policyIsToBeUpdated = true
 				}
@@ -80,7 +81,7 @@ func (bindingsDeployment *BindingsDeployment) deployRAMProjectBindings() (err er
 				var binding cloudresourcemanager.Binding
 				binding.Role = role
 				binding.Members = []string{bindingsDeployment.Artifacts.Member}
-				log.Printf("%s add new role %s with solo member %s on project %s", bindingsDeployment.Core.InstanceName, binding.Role, bindingsDeployment.Artifacts.Member, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
+				log.Printf("%s add new %s with solo member %s on project %s", bindingsDeployment.Core.InstanceName, binding.Role, bindingsDeployment.Artifacts.Member, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
 				policy.Bindings = append(policy.Bindings, &binding)
 				policyIsToBeUpdated = true
 			}
@@ -141,9 +142,9 @@ func (bindingsDeployment *BindingsDeployment) deployOrganizationsBindings() (err
 						}
 					}
 					if isAlreadyMemberOf {
-						log.Printf("%s member %s already have role %s on organization %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, organizationID)
+						log.Printf("%s member %s already have %s on organization %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, organizationID)
 					} else {
-						log.Printf("%s add member %s to existing role %s on organization %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, organizationID)
+						log.Printf("%s add member %s to existing %s on organization %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, organizationID)
 						binding.Members = append(binding.Members, bindingsDeployment.Artifacts.Member)
 						policyIsToBeUpdated = true
 					}
@@ -154,7 +155,7 @@ func (bindingsDeployment *BindingsDeployment) deployOrganizationsBindings() (err
 					var binding cloudresourcemanager.Binding
 					binding.Role = role
 					binding.Members = []string{bindingsDeployment.Artifacts.Member}
-					log.Printf("%s add new role %s with solo member %s on organization %s", bindingsDeployment.Core.InstanceName, binding.Role, bindingsDeployment.Artifacts.Member, organizationID)
+					log.Printf("%s add new %s with solo member %s on organization %s", bindingsDeployment.Core.InstanceName, binding.Role, bindingsDeployment.Artifacts.Member, organizationID)
 					policy.Bindings = append(policy.Bindings, &binding)
 					policyIsToBeUpdated = true
 				}
@@ -179,7 +180,7 @@ func (bindingsDeployment *BindingsDeployment) deployOrganizationsBindings() (err
 					break
 				}
 			} else {
-				log.Printf("%s NO need to update iam policy for project %s", bindingsDeployment.Core.InstanceName, organizationID)
+				log.Printf("%s NO need to update iam policy for organization %s", bindingsDeployment.Core.InstanceName, organizationID)
 				break
 			}
 		}

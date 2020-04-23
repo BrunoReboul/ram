@@ -21,15 +21,17 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
+	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/serviceusage/v1"
 )
 
 // InstanceTriggerDeployment structure
 type InstanceTriggerDeployment struct {
 	Artifacts struct {
+		CloudresourcemanagerService *cloudresourcemanager.Service       `yaml:"-"`
+		IAMService                  *iam.Service                        `yaml:"-"`
 		ProjectsTriggersService     *cloudbuild.ProjectsTriggersService `yaml:"-"`
 		ServiceusageService         *serviceusage.Service               `yaml:"-"`
-		CloudresourcemanagerService *cloudresourcemanager.Service       `yaml:"-"`
 	}
 	Core     deploy.Core
 	Settings struct {

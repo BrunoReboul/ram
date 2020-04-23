@@ -156,9 +156,10 @@ func RAMCli(global *Global) (err error) {
 	if global.settings.Commands.Maketrigger {
 		instanceTriggerDeployment := NewInstanceTrigger()
 		instanceTriggerDeployment.Core = core
-		instanceTriggerDeployment.Artifacts.ServiceusageService = global.serviceusageService
-		instanceTriggerDeployment.Artifacts.ProjectsTriggersService = global.projectsTriggersService
 		instanceTriggerDeployment.Artifacts.CloudresourcemanagerService = global.cloudresourcemanagerService
+		instanceTriggerDeployment.Artifacts.IAMService = global.iamService
+		instanceTriggerDeployment.Artifacts.ProjectsTriggersService = global.projectsTriggersService
+		instanceTriggerDeployment.Artifacts.ServiceusageService = global.serviceusageService
 
 		instanceTriggerDeployment.Core.SolutionSettings = solutionSettings
 		for _, instanceFolderRelativePath := range global.settings.InstanceFolderRelativePaths {
