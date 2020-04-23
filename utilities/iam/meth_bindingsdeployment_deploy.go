@@ -35,7 +35,7 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 	projectsServiceAccountsService := bindingsDeployment.Artifacts.IAMService.Projects.ServiceAccounts
 	for i := 0; i < Retries; i++ {
 		if i > 0 {
-			log.Printf("%s retrying a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
+			log.Printf("%s iam retrying a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
 		}
 		// READ
 		var policy *iam.Policy
@@ -56,9 +56,9 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 					}
 				}
 				if isAlreadyMemberOf {
-					log.Printf("%s member %s already have %s on service account %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, serviceAccountName)
+					log.Printf("%s iam member %s already have %s on service account %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, serviceAccountName)
 				} else {
-					log.Printf("%s add member %s to existing %s on service account %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, serviceAccountName)
+					log.Printf("%s iam add member %s to existing %s on service account %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, serviceAccountName)
 					binding.Members = append(binding.Members, bindingsDeployment.Artifacts.Member)
 					policyIsToBeUpdated = true
 				}
@@ -69,7 +69,7 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 				var binding iam.Binding
 				binding.Role = role
 				binding.Members = []string{bindingsDeployment.Artifacts.Member}
-				log.Printf("%s add new %s with solo member %s on service account %s", bindingsDeployment.Core.InstanceName, binding.Role, bindingsDeployment.Artifacts.Member, serviceAccountName)
+				log.Printf("%s iam add new %s with solo member %s on service account %s", bindingsDeployment.Core.InstanceName, binding.Role, bindingsDeployment.Artifacts.Member, serviceAccountName)
 				policy.Bindings = append(policy.Bindings, &binding)
 				policyIsToBeUpdated = true
 			}
@@ -85,7 +85,7 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 				if !strings.Contains(err.Error(), "There were concurrent policy changes") {
 					return err
 				}
-				log.Printf("%s There were concurrent policy changes, wait 5 sec and retry a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
+				log.Printf("%s iam there were concurrent policy changes, wait 5 sec and retry a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
 				time.Sleep(5 * time.Second)
 			} else {
 				// ram.JSONMarshalIndentPrint(updatedPolicy)
@@ -94,7 +94,7 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 				break
 			}
 		} else {
-			log.Printf("%s NO need to update iam policy for service account %s", bindingsDeployment.Core.InstanceName, serviceAccountName)
+			log.Printf("%s iam NO need to update iam policy for service account %s", bindingsDeployment.Core.InstanceName, serviceAccountName)
 			break
 		}
 	}

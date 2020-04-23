@@ -32,6 +32,9 @@ func (instanceTriggerDeployment *InstanceTriggerDeployment) Deploy() (err error)
 	if err = instanceTriggerDeployment.deployGRMBindings(); err != nil {
 		return err
 	}
+	if err = instanceTriggerDeployment.deployIAMServiceAccount(); err != nil {
+		return err
+	}
 	if err = instanceTriggerDeployment.deployIAMBindings(); err != nil {
 		return err
 	}
@@ -59,6 +62,15 @@ func (instanceTriggerDeployment *InstanceTriggerDeployment) deployGRMBindings() 
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", instanceTriggerDeployment.Core.ProjectNumber)
 	bindingsDeployment.Settings.Service.GRM = instanceTriggerDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager
 	deployment = bindingsDeployment
+	return deployment.Deploy()
+}
+
+func (instanceTriggerDeployment *InstanceTriggerDeployment) deployIAMServiceAccount() (err error) {
+	var deployment ram.Deployment
+	serviceAccountDeployment := iam.NewServiceaccountDeployment()
+	serviceAccountDeployment.Core = instanceTriggerDeployment.Core
+	serviceAccountDeployment.Artifacts.IAMService = instanceTriggerDeployment.Artifacts.IAMService
+	deployment = serviceAccountDeployment
 	return deployment.Deploy()
 }
 

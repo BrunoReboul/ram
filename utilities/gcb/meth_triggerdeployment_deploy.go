@@ -35,7 +35,8 @@ func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
 	if err != nil {
 		return err
 	}
-	ram.JSONMarshalIndentPrint(buildTrigger)
+	// ram.JSONMarshalIndentPrint(buildTrigger)
+	log.Printf("%s gcb created trigger %s id %s with tag filter %s", globalTriggerDeployment.Core.InstanceName, buildTrigger.Name, buildTrigger.Id, buildTrigger.TriggerTemplate.TagName)
 	return nil
 }
 
@@ -60,9 +61,9 @@ func deleteBuildTrigger(triggerID string) {
 	_, err := globalTriggerDeployment.Artifacts.ProjectsTriggersService.Delete(globalTriggerDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		triggerID).Context(globalTriggerDeployment.Core.Ctx).Do()
 	if err != nil {
-		log.Printf("%s ERROR when deleting existing trigger %s %s %v", globalTriggerDeployment.Core.InstanceName, triggerID, globalTriggerDeployment.Core.SolutionSettings.Hosting.ProjectID, err)
+		log.Printf("%s gcb ERROR when deleting existing trigger %s %s %v", globalTriggerDeployment.Core.InstanceName, triggerID, globalTriggerDeployment.Core.SolutionSettings.Hosting.ProjectID, err)
 	} else {
-		log.Printf("%s Deleted trigger id %s named %s", globalTriggerDeployment.Core.InstanceName, triggerID, globalTriggerDeployment.Artifacts.BuildTrigger.Name)
+		log.Printf("%s gcb deleted trigger id %s named %s", globalTriggerDeployment.Core.InstanceName, triggerID, globalTriggerDeployment.Artifacts.BuildTrigger.Name)
 	}
 }
 

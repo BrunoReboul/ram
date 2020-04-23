@@ -41,7 +41,7 @@ func (apiDeployment *APIDeployment) Deploy() (err error) {
 
 	for _, apiName := range apiDeployment.Settings.Service.GSU.APIList {
 		if ram.Find(activeAPIs, apiName) {
-			log.Printf("%s API already active %s", apiDeployment.Core.InstanceName, apiName)
+			log.Printf("%s gsu API already active %s", apiDeployment.Core.InstanceName, apiName)
 		} else {
 			err = apiDeployment.activateAPI(apiName)
 			if err != nil {
@@ -67,7 +67,7 @@ func (apiDeployment *APIDeployment) activateAPI(apiName string) (err error) {
 	if err != nil {
 		return err
 	}
-	log.Printf("%s API %s activation started", apiDeployment.Core.InstanceName, apiName)
+	log.Printf("%s gsu API %s activation started", apiDeployment.Core.InstanceName, apiName)
 	operationName := operation.Name
 	log.Println(operationName)
 
@@ -97,7 +97,8 @@ func (apiDeployment *APIDeployment) activateAPI(apiName string) (err error) {
 			break
 		}
 	}
-	ram.JSONMarshalIndentPrint(googleAPIServiceusageV1Service)
+	// ram.JSONMarshalIndentPrint(googleAPIServiceusageV1Service)
+	log.Printf("%s gsu API %s is active", apiDeployment.Core.InstanceName, apiName)
 
 	return nil
 }
