@@ -64,7 +64,7 @@ func Initialize(ctx context.Context, global *Global) {
 	var err error
 	// var ok bool
 	var projectID string
-	var settings GoGCFDeployment
+	var settings InstanceDeployment
 
 	log.Println("Function COLD START")
 	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &settings)

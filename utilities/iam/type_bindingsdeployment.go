@@ -16,16 +16,14 @@ package iam
 
 import (
 	"github.com/BrunoReboul/ram/utilities/deploy"
-	"google.golang.org/api/iam/v1"
 )
 
 // BindingsDeployment struct
 type BindingsDeployment struct {
 	Artifacts struct {
-		IAMService *iam.Service `yaml:"-"`
-		Member     string
+		Member string
 	}
-	Core     deploy.Core
+	Core     *deploy.Core
 	Settings struct {
 		Service struct {
 			IAM Bindings

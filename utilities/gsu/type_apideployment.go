@@ -23,11 +23,10 @@ import (
 // APIDeployment struct
 type APIDeployment struct {
 	Artifacts struct {
-		ServiceusageService *serviceusage.Service           `yaml:"-"`
-		ServicesService     *serviceusage.ServicesService   `yaml:"-"`
-		OperationsService   *serviceusage.OperationsService `yaml:"-"`
+		ServicesService   *serviceusage.ServicesService   `yaml:"-"`
+		OperationsService *serviceusage.OperationsService `yaml:"-"`
 	}
-	Core     deploy.Core
+	Core     *deploy.Core
 	Settings struct {
 		Service struct {
 			GSU Parameters

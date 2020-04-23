@@ -16,28 +16,17 @@ package ramcli
 
 import (
 	"github.com/BrunoReboul/ram/utilities/deploy"
-	"github.com/BrunoReboul/ram/utilities/gsu"
-
 	"github.com/BrunoReboul/ram/utilities/gcb"
-	"google.golang.org/api/cloudbuild/v1"
-	"google.golang.org/api/cloudresourcemanager/v1"
-	"google.golang.org/api/iam/v1"
-	"google.golang.org/api/serviceusage/v1"
+	"github.com/BrunoReboul/ram/utilities/gsu"
 )
 
 // InstanceTriggerDeployment structure
 type InstanceTriggerDeployment struct {
-	Artifacts struct {
-		CloudresourcemanagerService *cloudresourcemanager.Service       `yaml:"-"`
-		IAMService                  *iam.Service                        `yaml:"-"`
-		ProjectsTriggersService     *cloudbuild.ProjectsTriggersService `yaml:"-"`
-		ServiceusageService         *serviceusage.Service               `yaml:"-"`
-	}
-	Core     deploy.Core
+	Core     *deploy.Core
 	Settings struct {
 		Service struct {
-			GCB gcb.Parameters
 			GSU gsu.Parameters
+			GCB gcb.Parameters
 		}
 	}
 }

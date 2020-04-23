@@ -48,7 +48,6 @@ func (instanceTriggerDeployment *InstanceTriggerDeployment) deployGSUAPI() (err 
 	var deployment ram.Deployment
 	apiDeployment := gsu.NewAPIDeployment()
 	apiDeployment.Core = instanceTriggerDeployment.Core
-	apiDeployment.Artifacts.ServiceusageService = instanceTriggerDeployment.Artifacts.ServiceusageService
 	apiDeployment.Settings.Service.GSU = instanceTriggerDeployment.Settings.Service.GSU
 	deployment = apiDeployment
 	return deployment.Deploy()
@@ -58,7 +57,6 @@ func (instanceTriggerDeployment *InstanceTriggerDeployment) deployGRMBindings() 
 	var deployment ram.Deployment
 	bindingsDeployment := grm.NewBindingsDeployment()
 	bindingsDeployment.Core = instanceTriggerDeployment.Core
-	bindingsDeployment.Artifacts.CloudresourcemanagerService = instanceTriggerDeployment.Artifacts.CloudresourcemanagerService
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", instanceTriggerDeployment.Core.ProjectNumber)
 	bindingsDeployment.Settings.Service.GRM = instanceTriggerDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager
 	deployment = bindingsDeployment
@@ -69,7 +67,6 @@ func (instanceTriggerDeployment *InstanceTriggerDeployment) deployIAMServiceAcco
 	var deployment ram.Deployment
 	serviceAccountDeployment := iam.NewServiceaccountDeployment()
 	serviceAccountDeployment.Core = instanceTriggerDeployment.Core
-	serviceAccountDeployment.Artifacts.IAMService = instanceTriggerDeployment.Artifacts.IAMService
 	deployment = serviceAccountDeployment
 	return deployment.Deploy()
 }
@@ -78,7 +75,6 @@ func (instanceTriggerDeployment *InstanceTriggerDeployment) deployIAMBindings() 
 	var deployment ram.Deployment
 	bindingsDeployment := iam.NewBindingsDeployment()
 	bindingsDeployment.Core = instanceTriggerDeployment.Core
-	bindingsDeployment.Artifacts.IAMService = instanceTriggerDeployment.Artifacts.IAMService
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", instanceTriggerDeployment.Core.ProjectNumber)
 	bindingsDeployment.Settings.Service.IAM = instanceTriggerDeployment.Settings.Service.GCB.ServiceAccountBindings.IAM
 	deployment = bindingsDeployment
@@ -89,7 +85,6 @@ func (instanceTriggerDeployment *InstanceTriggerDeployment) deployGCBTrigger() (
 	var deployment ram.Deployment
 	triggerDeployment := gcb.NewTriggerDeployment()
 	triggerDeployment.Core = instanceTriggerDeployment.Core
-	triggerDeployment.Artifacts.ProjectsTriggersService = instanceTriggerDeployment.Artifacts.ProjectsTriggersService
 	triggerDeployment.Settings.Service.GCB = instanceTriggerDeployment.Settings.Service.GCB
 	deployment = triggerDeployment
 	return deployment.Deploy()

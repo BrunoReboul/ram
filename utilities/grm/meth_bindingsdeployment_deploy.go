@@ -41,7 +41,7 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 }
 
 func (bindingsDeployment *BindingsDeployment) deployRAMProjectBindings() (err error) {
-	projectsService := bindingsDeployment.Artifacts.CloudresourcemanagerService.Projects
+	projectsService := bindingsDeployment.Core.Services.CloudresourcemanagerService.Projects
 	for i := 0; i < Retries; i++ {
 		if i > 0 {
 			log.Printf("%s grm retrying a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
@@ -114,7 +114,7 @@ func (bindingsDeployment *BindingsDeployment) deployRAMProjectBindings() (err er
 }
 
 func (bindingsDeployment *BindingsDeployment) deployOrganizationsBindings() (err error) {
-	organizationsService := bindingsDeployment.Artifacts.CloudresourcemanagerService.Organizations
+	organizationsService := bindingsDeployment.Core.Services.CloudresourcemanagerService.Organizations
 	for _, organizationID := range bindingsDeployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
 		for i := 0; i < Retries; i++ {
 			if i > 0 {

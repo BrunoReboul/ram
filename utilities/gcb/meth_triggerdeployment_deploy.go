@@ -26,6 +26,7 @@ var globalTriggerDeployment *TriggerDeployment
 
 // Deploy create or update a cloud build trigger to deploy a microservice instance
 func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
+	triggerDeployment.Artifacts.ProjectsTriggersService = triggerDeployment.Core.Services.CloudbuildService.Projects.Triggers
 	triggerDeployment.situate()
 	// ram.JSONMarshalIndentPrint(&triggerDeployment.Artifacts.BuildTrigger)
 	globalTriggerDeployment = triggerDeployment

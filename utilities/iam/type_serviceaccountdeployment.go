@@ -16,15 +16,11 @@ package iam
 
 import (
 	"github.com/BrunoReboul/ram/utilities/deploy"
-	"google.golang.org/api/iam/v1"
 )
 
 // ServiceaccountDeployment struct
 type ServiceaccountDeployment struct {
-	Artifacts struct {
-		IAMService *iam.Service `yaml:"-"`
-	}
-	Core deploy.Core
+	Core *deploy.Core
 }
 
 // NewServiceaccountDeployment create deployment structure

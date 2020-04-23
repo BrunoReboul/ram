@@ -22,17 +22,17 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
-// CheckArguments() check cli arguments and build the list of microservices instances
-func (settings *settings) CheckArguments() {
-	settings.Versions.Go, settings.Versions.RAM = GetVersions()
+// CheckArguments check cli arguments and build the list of microservices instances
+func (global *Global) CheckArguments() {
+	global.core.GoVersion, global.core.RAMVersion = GetVersions()
 	// flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
-	flag.BoolVar(&settings.Commands.Maketrigger, "make-trigger", false, "make cloud build triggers to deploy one instance, one microservice, or all")
-	flag.BoolVar(&settings.Commands.Deploy, "deploy", false, "deploy one microservice instance")
-	flag.BoolVar(&settings.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.SettingsFileName))
-	flag.StringVar(&settings.RepositoryPath, "repo", ".", "Path to the root of the code repository")
+	flag.BoolVar(&global.core.Commands.Maketrigger, "make-trigger", false, "make cloud build triggers to deploy one instance, one microservice, or all")
+	flag.BoolVar(&global.core.Commands.Deploy, "deploy", false, "deploy one microservice instance")
+	flag.BoolVar(&global.core.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.SettingsFileName))
+	flag.StringVar(&global.core.RepositoryPath, "repo", ".", "Path to the root of the code repository")
 	var microserviceFolderName = flag.String("service", "", "Microservice folder name")
 	var instanceFolderName = flag.String("instance", "", "Instance folder name")
-	flag.StringVar(&settings.EnvironmentName, "environment", ram.DevelopmentEnvironmentName, "Environment name")
+	flag.StringVar(&global.core.EnvironmentName, "environment", ram.DevelopmentEnvironmentName, "Environment name")
 	flag.Parse()
 
 	// case the one instance
@@ -41,25 +41,25 @@ func (settings *settings) CheckArguments() {
 			log.Fatalln("Missing service argument")
 		}
 		instanceRelativePath := fmt.Sprintf("%s/%s/%s/%s", ram.MicroserviceParentFolderName, *microserviceFolderName, ram.InstancesFolderName, *instanceFolderName)
-		instancePath := fmt.Sprintf("%s/%s", settings.RepositoryPath, instanceRelativePath)
+		instancePath := fmt.Sprintf("%s/%s", global.core.RepositoryPath, instanceRelativePath)
 		ram.CheckPath(instancePath)
-		settings.InstanceFolderRelativePaths = []string{instanceRelativePath}
+		global.core.InstanceFolderRelativePaths = []string{instanceRelativePath}
 		return
 	}
 
 	if *microserviceFolderName != "" {
 		// case the one microservice
-		settings.InstanceFolderRelativePaths = ram.GetChild(settings.RepositoryPath, fmt.Sprintf("%s/%s/%s", ram.MicroserviceParentFolderName, *microserviceFolderName, ram.InstancesFolderName))
+		global.core.InstanceFolderRelativePaths = ram.GetChild(global.core.RepositoryPath, fmt.Sprintf("%s/%s/%s", ram.MicroserviceParentFolderName, *microserviceFolderName, ram.InstancesFolderName))
 	} else {
 		// case all
-		for _, microserviceRelativeFolderPath := range ram.GetChild(settings.RepositoryPath, ram.MicroserviceParentFolderName) {
-			instanceFolderRelativePaths := ram.GetChild(settings.RepositoryPath, fmt.Sprintf("%s/%s", microserviceRelativeFolderPath, ram.InstancesFolderName))
+		for _, microserviceRelativeFolderPath := range ram.GetChild(global.core.RepositoryPath, ram.MicroserviceParentFolderName) {
+			instanceFolderRelativePaths := ram.GetChild(global.core.RepositoryPath, fmt.Sprintf("%s/%s", microserviceRelativeFolderPath, ram.InstancesFolderName))
 			for _, instanceFolderRelativePath := range instanceFolderRelativePaths {
-				settings.InstanceFolderRelativePaths = append(settings.InstanceFolderRelativePaths, instanceFolderRelativePath)
+				global.core.InstanceFolderRelativePaths = append(global.core.InstanceFolderRelativePaths, instanceFolderRelativePath)
 			}
 		}
 	}
-	if len(settings.InstanceFolderRelativePaths) == 0 {
+	if len(global.core.InstanceFolderRelativePaths) == 0 {
 		log.Fatalln("No instance found")
 	}
 	return

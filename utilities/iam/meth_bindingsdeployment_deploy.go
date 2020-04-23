@@ -32,7 +32,7 @@ const Retries = 5
 func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 	log.Printf("%s iam bindings on service accounts", bindingsDeployment.Core.InstanceName)
 	serviceAccountName := fmt.Sprintf("projects/%s/serviceAccounts/%s@%s.iam.gserviceaccount.com", bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID, bindingsDeployment.Core.ServiceName, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
-	projectsServiceAccountsService := bindingsDeployment.Artifacts.IAMService.Projects.ServiceAccounts
+	projectsServiceAccountsService := bindingsDeployment.Core.Services.IAMService.Projects.ServiceAccounts
 	for i := 0; i < Retries; i++ {
 		if i > 0 {
 			log.Printf("%s iam retrying a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)

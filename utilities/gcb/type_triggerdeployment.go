@@ -26,7 +26,7 @@ type TriggerDeployment struct {
 		ProjectsTriggersService *cloudbuild.ProjectsTriggersService `yaml:"-"`
 		BuildTrigger            cloudbuild.BuildTrigger
 	}
-	Core     deploy.Core
+	Core     *deploy.Core
 	Settings struct {
 		Service struct {
 			GCB Parameters

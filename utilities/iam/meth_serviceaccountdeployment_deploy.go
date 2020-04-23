@@ -24,9 +24,10 @@ import (
 
 // Deploy ServiceaccountDeployment
 func (serviceaccountDeployment *ServiceaccountDeployment) Deploy() (err error) {
+	log.Printf("%s iam service accounts", serviceaccountDeployment.Core.InstanceName)
 	projectName := fmt.Sprintf("projects/%s", serviceaccountDeployment.Core.SolutionSettings.Hosting.ProjectID)
 	serviceAccountName := fmt.Sprintf("%s/serviceAccounts/%s@%s.iam.gserviceaccount.com", projectName, serviceaccountDeployment.Core.ServiceName, serviceaccountDeployment.Core.SolutionSettings.Hosting.ProjectID)
-	projectServiceAccountService := serviceaccountDeployment.Artifacts.IAMService.Projects.ServiceAccounts
+	projectServiceAccountService := serviceaccountDeployment.Core.Services.IAMService.Projects.ServiceAccounts
 	retreivedServiceAccount, err := projectServiceAccountService.Get(serviceAccountName).Context(serviceaccountDeployment.Core.Ctx).Do()
 	if err != nil {
 		if strings.Contains(err.Error(), "404") && strings.Contains(err.Error(), "notFound") {

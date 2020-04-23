@@ -18,18 +18,37 @@ import (
 	"context"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
+	"google.golang.org/api/cloudbuild/v1"
+	"google.golang.org/api/cloudfunctions/v1"
+	"google.golang.org/api/cloudresourcemanager/v1"
+	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/serviceusage/v1"
 )
 
 // Core structure common to all deployments
 type Core struct {
-	SolutionSettings ram.SolutionSettings
-	Ctx              context.Context `yaml:"-"`
-	EnvironmentName  string
-	InstanceName     string
-	ServiceName      string
-	ProjectNumber    int64
-	RepositoryPath   string
-	RAMVersion       string
-	GoVersion        string
-	Dump             bool
+	SolutionSettings            ram.SolutionSettings
+	Ctx                         context.Context `yaml:"-"`
+	EnvironmentName             string
+	InstanceName                string
+	ServiceName                 string
+	ProjectNumber               int64
+	RepositoryPath              string
+	RAMVersion                  string
+	GoVersion                   string
+	Dump                        bool
+	InstanceFolderRelativePaths []string
+	Services                    struct {
+		CloudbuildService           *cloudbuild.Service           `yaml:"-"`
+		CloudfunctionsService       *cloudfunctions.Service       `yaml:"-"`
+		CloudresourcemanagerService *cloudresourcemanager.Service `yaml:"-"`
+		IAMService                  *iam.Service                  `yaml:"-"`
+		ServiceusageService         *serviceusage.Service         `yaml:"-"`
+	}
+	Commands struct {
+		// Makeyaml     bool
+		Maketrigger  bool
+		Deploy       bool
+		Dumpsettings bool
+	} `yaml:"-"`
 }

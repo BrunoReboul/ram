@@ -29,9 +29,9 @@ var activeAPIs []string
 
 // Deploy activates APIs
 func (apiDeployment *APIDeployment) Deploy() (err error) {
-	apiDeployment.Artifacts.ServicesService = apiDeployment.Artifacts.ServiceusageService.Services
-	apiDeployment.Artifacts.OperationsService = apiDeployment.Artifacts.ServiceusageService.Operations
-
+	log.Printf("%s gsu APIs", apiDeployment.Core.InstanceName)
+	apiDeployment.Artifacts.ServicesService = apiDeployment.Core.Services.ServiceusageService.Services
+	apiDeployment.Artifacts.OperationsService = apiDeployment.Core.Services.ServiceusageService.Operations
 	activeAPIs = make([]string, 0)
 	parent := fmt.Sprintf("projects/%s", apiDeployment.Core.SolutionSettings.Hosting.ProjectID)
 	err = apiDeployment.Artifacts.ServicesService.List(parent).Filter("state:ENABLED").PageSize(200).Pages(apiDeployment.Core.Ctx, browseActiveAPIs)
