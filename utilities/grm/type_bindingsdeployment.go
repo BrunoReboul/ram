@@ -12,35 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ramcli
+package grm
 
 import (
 	"github.com/BrunoReboul/ram/utilities/deploy"
-	"github.com/BrunoReboul/ram/utilities/gsu"
 
-	"github.com/BrunoReboul/ram/utilities/gcb"
-	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
-	"google.golang.org/api/serviceusage/v1"
 )
 
-// InstanceTriggerDeployment structure
-type InstanceTriggerDeployment struct {
+// BindingsDeployment struct
+type BindingsDeployment struct {
 	Artifacts struct {
-		ProjectsTriggersService     *cloudbuild.ProjectsTriggersService `yaml:"-"`
-		ServiceusageService         *serviceusage.Service               `yaml:"-"`
-		CloudresourcemanagerService *cloudresourcemanager.Service       `yaml:"-"`
+		CloudresourcemanagerService *cloudresourcemanager.Service `yaml:"-"`
+		Member                      string
 	}
 	Core     deploy.Core
 	Settings struct {
 		Service struct {
-			GCB gcb.Parameters
-			GSU gsu.Parameters
+			GRM Bindings
 		}
 	}
 }
 
-// NewInstanceTrigger create deployment structure
-func NewInstanceTrigger() *InstanceTriggerDeployment {
-	return &InstanceTriggerDeployment{}
+// NewBindingsDeployment create deployment structure
+func NewBindingsDeployment() *BindingsDeployment {
+	return &BindingsDeployment{}
 }

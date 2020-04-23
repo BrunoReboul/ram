@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ramcli Real-time Asset Monitor command line cli
 package ramcli
 
 import (
 	"context"
 	"fmt"
 	"log"
+
+	"github.com/BrunoReboul/ram/utilities/deploy"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
 
@@ -106,7 +107,24 @@ func Initialize(ctx context.Context, global *Global) {
 func RAMCli(global *Global) (err error) {
 	var deployment ram.Deployment
 	global.settings.CheckArguments()
+
+	var solutionSettings ram.SolutionSettings
+	solutionConfigFilePath := fmt.Sprintf("%s/%s", global.settings.RepositoryPath, ram.SolutionSettingsFileName)
+	err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &solutionSettings)
+	if err != nil {
+		log.Fatal(err)
+	}
+	solutionSettings.Situate(global.settings.EnvironmentName)
+
+	var core deploy.Core
+	core.Ctx = global.ctx
+	core.EnvironmentName = global.settings.EnvironmentName
+	core.RepositoryPath = global.settings.RepositoryPath
+	core.RAMVersion = global.settings.Versions.RAM
+	core.GoVersion = global.settings.Versions.Go
+	core.Dump = global.settings.Commands.Dumpsettings
 	log.Printf("found %d instance(s)", len(global.settings.InstanceFolderRelativePaths))
+	core.ProjectNumber, err = getProjectNumber(global.ctx, global.cloudresourcemanagerService, solutionSettings.Hosting.ProjectID)
 
 	if global.settings.Commands.Deploy {
 		for _, instanceFolderRelativePath := range global.settings.InstanceFolderRelativePaths {
@@ -137,18 +155,12 @@ func RAMCli(global *Global) (err error) {
 	}
 	if global.settings.Commands.Maketrigger {
 		instanceTriggerDeployment := NewInstanceTrigger()
-		instanceTriggerDeployment.Core.Ctx = global.ctx
-		instanceTriggerDeployment.Core.EnvironmentName = global.settings.EnvironmentName
+		instanceTriggerDeployment.Core = core
 		instanceTriggerDeployment.Artifacts.ServiceusageService = global.serviceusageService
 		instanceTriggerDeployment.Artifacts.ProjectsTriggersService = global.projectsTriggersService
+		instanceTriggerDeployment.Artifacts.CloudresourcemanagerService = global.cloudresourcemanagerService
 
-		solutionConfigFilePath := fmt.Sprintf("%s/%s", global.settings.RepositoryPath, ram.SolutionSettingsFileName)
-		err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &instanceTriggerDeployment.Core.SolutionSettings)
-		if err != nil {
-			log.Fatal(err)
-		}
-		instanceTriggerDeployment.Core.SolutionSettings.Situate(global.settings.EnvironmentName)
-
+		instanceTriggerDeployment.Core.SolutionSettings = solutionSettings
 		for _, instanceFolderRelativePath := range global.settings.InstanceFolderRelativePaths {
 			serviceName, instanceName := GetServiceAndInstanceNames(instanceFolderRelativePath)
 			instanceTriggerDeployment.Core.ServiceName = serviceName

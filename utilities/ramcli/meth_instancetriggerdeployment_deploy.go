@@ -15,34 +15,55 @@
 package ramcli
 
 import (
+	"fmt"
+
 	"github.com/BrunoReboul/ram/utilities/gcb"
+	"github.com/BrunoReboul/ram/utilities/grm"
 	"github.com/BrunoReboul/ram/utilities/gsu"
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
 // Deploy an instance trigger
-func (InstanceTriggerDeployment *InstanceTriggerDeployment) Deploy() (err error) {
-	var deployment ram.Deployment
-
-	apiDeployment := gsu.NewAPIDeployment()
-	apiDeployment.Core = InstanceTriggerDeployment.Core
-	apiDeployment.Artifacts.ServiceusageService = InstanceTriggerDeployment.Artifacts.ServiceusageService
-	apiDeployment.Settings.Service.GSU = InstanceTriggerDeployment.Settings.Service.GSU
-	deployment = apiDeployment
-	err = deployment.Deploy()
-	if err != nil {
+func (instanceTriggerDeployment *InstanceTriggerDeployment) Deploy() (err error) {
+	if err = instanceTriggerDeployment.deployGSUAPI(); err != nil {
 		return err
 	}
-
-	triggerDeployment := gcb.NewTriggerDeployment()
-	triggerDeployment.Core = InstanceTriggerDeployment.Core
-	triggerDeployment.Artifacts.ProjectsTriggersService = InstanceTriggerDeployment.Artifacts.ProjectsTriggersService
-	triggerDeployment.Settings.Service.GCB = InstanceTriggerDeployment.Settings.Service.GCB
-	deployment = triggerDeployment
-	err = deployment.Deploy()
-	if err != nil {
+	if err = instanceTriggerDeployment.deployGRMBindings(); err != nil {
 		return err
 	}
-
+	if err = instanceTriggerDeployment.deployGCBTrigger(); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (instanceTriggerDeployment *InstanceTriggerDeployment) deployGSUAPI() (err error) {
+	var deployment ram.Deployment
+	apiDeployment := gsu.NewAPIDeployment()
+	apiDeployment.Core = instanceTriggerDeployment.Core
+	apiDeployment.Artifacts.ServiceusageService = instanceTriggerDeployment.Artifacts.ServiceusageService
+	apiDeployment.Settings.Service.GSU = instanceTriggerDeployment.Settings.Service.GSU
+	deployment = apiDeployment
+	return deployment.Deploy()
+}
+
+func (instanceTriggerDeployment *InstanceTriggerDeployment) deployGRMBindings() (err error) {
+	var deployment ram.Deployment
+	bindingsDeployment := grm.NewBindingsDeployment()
+	bindingsDeployment.Core = instanceTriggerDeployment.Core
+	bindingsDeployment.Artifacts.CloudresourcemanagerService = instanceTriggerDeployment.Artifacts.CloudresourcemanagerService
+	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", instanceTriggerDeployment.Core.ProjectNumber)
+	bindingsDeployment.Settings.Service.GRM = instanceTriggerDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager
+	deployment = bindingsDeployment
+	return deployment.Deploy()
+}
+
+func (instanceTriggerDeployment *InstanceTriggerDeployment) deployGCBTrigger() (err error) {
+	var deployment ram.Deployment
+	triggerDeployment := gcb.NewTriggerDeployment()
+	triggerDeployment.Core = instanceTriggerDeployment.Core
+	triggerDeployment.Artifacts.ProjectsTriggersService = instanceTriggerDeployment.Artifacts.ProjectsTriggersService
+	triggerDeployment.Settings.Service.GCB = instanceTriggerDeployment.Settings.Service.GCB
+	deployment = triggerDeployment
+	return deployment.Deploy()
 }

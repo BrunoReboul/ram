@@ -12,24 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package deploy
+package ramcli
 
 import (
 	"context"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"google.golang.org/api/cloudresourcemanager/v1"
 )
 
-// Core structure common to all deployments
-type Core struct {
-	SolutionSettings ram.SolutionSettings
-	Ctx              context.Context `yaml:"-"`
-	EnvironmentName  string
-	InstanceName     string
-	ServiceName      string
-	ProjectNumber    int64
-	RepositoryPath   string
-	RAMVersion       string
-	GoVersion        string
-	Dump             bool
+func getProjectNumber(ctx context.Context, cloudresourcemanagerService *cloudresourcemanager.Service, projectID string) (projectNumber int64, err error) {
+	projectService := cloudresourcemanagerService.Projects
+	project, err := projectService.Get(projectID).Context(ctx).Do()
+	if err != nil {
+		return projectNumber, err
+	}
+	return project.ProjectNumber, nil
 }

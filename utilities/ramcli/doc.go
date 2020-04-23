@@ -12,24 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package deploy
-
-import (
-	"context"
-
-	"github.com/BrunoReboul/ram/utilities/ram"
-)
-
-// Core structure common to all deployments
-type Core struct {
-	SolutionSettings ram.SolutionSettings
-	Ctx              context.Context `yaml:"-"`
-	EnvironmentName  string
-	InstanceName     string
-	ServiceName      string
-	ProjectNumber    int64
-	RepositoryPath   string
-	RAMVersion       string
-	GoVersion        string
-	Dump             bool
-}
+// Package ramcli Real-time Asset Monitor command line cli
+package ramcli
