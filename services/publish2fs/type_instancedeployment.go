@@ -48,7 +48,31 @@ type InstanceSettings struct {
 	GCF gcf.Event
 }
 
-// NewInstanceDeployment create deployment structure
+// NewInstanceDeployment create deployment structure with default settings set
 func NewInstanceDeployment() *InstanceDeployment {
-	return &InstanceDeployment{}
+	var instanceDeployment InstanceDeployment
+	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 128
+	instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds = 600
+	instanceDeployment.Settings.Service.GCF.Timeout = "60s"
+	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.ResourceManager.RolesOnRAMProject = []string{
+		"roles/datastore.owner"}
+	instanceDeployment.Settings.Service.GCB.BuildTimeout = "600s"
+	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager.RolesOnRAMProject = []string{
+		"roles/serviceusage.serviceUsageAdmin",
+		"roles/resourcemanager.projectIamAdmin",
+		"roles/iam.serviceAccountAdmin",
+		"roles/cloudfunctions.admin"}
+	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.IAM.RolesOnServiceAccounts = []string{
+		"roles/iam.serviceAccountUser"}
+	instanceDeployment.Settings.Service.GSU.APIList = []string{
+		"cloudbuild.googleapis.com",
+		"cloudfunctions.googleapis.com",
+		"cloudresourcemanager.googleapis.com",
+		"containerregistry.googleapis.com",
+		"firestore.googleapis.com",
+		"iam.googleapis.com",
+		"pubsub.googleapis.com",
+		"sourcerepo.googleapis.com"}
+	instanceDeployment.Settings.Service.GSU.APIList = append(deploy.GetCommonAPIlist(), instanceDeployment.Settings.Service.GSU.APIList...)
+	return &instanceDeployment
 }

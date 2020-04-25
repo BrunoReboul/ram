@@ -17,6 +17,7 @@ package publish2fs
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/BrunoReboul/ram/utilities/gcf"
@@ -59,14 +60,18 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 
 func (instanceDeployment *InstanceDeployment) readValidate() (err error) {
 	serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, ram.ServiceSettingsFileName)
-	err = ram.ReadValidate(instanceDeployment.Core.ServiceName, "ServiceSettings", serviceConfigFilePath, &instanceDeployment.Settings.Service)
-	if err != nil {
-		return err
+	if _, err := os.Stat(serviceConfigFilePath); !os.IsNotExist(err) {
+		err = ram.ReadValidate(instanceDeployment.Core.ServiceName, "ServiceSettings", serviceConfigFilePath, &instanceDeployment.Settings.Service)
+		if err != nil {
+			return err
+		}
 	}
 	instanceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, ram.InstancesFolderName, instanceDeployment.Core.InstanceName, ram.InstanceSettingsFileName)
-	err = ram.ReadValidate(instanceDeployment.Core.InstanceName, "InstanceSettings", instanceConfigFilePath, &instanceDeployment.Settings.Instance)
-	if err != nil {
-		return err
+	if _, err := os.Stat(instanceConfigFilePath); !os.IsNotExist(err) {
+		err = ram.ReadValidate(instanceDeployment.Core.InstanceName, "InstanceSettings", instanceConfigFilePath, &instanceDeployment.Settings.Instance)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
