@@ -33,7 +33,7 @@ func TestGetRunTime(t *testing.T) {
 	for _, test := range tests {
 		testName := fmt.Sprintf(" %s => %s", test.input, test.expectedOutput)
 		t.Run(testName, func(t *testing.T) {
-			result, err := GetRunTime(test.input)
+			result, err := getRunTime(test.input)
 			if test.expectedOutput == "Unsupported" {
 				if err == nil {
 					t.Errorf("Should send back an error and is NOT")

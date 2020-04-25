@@ -18,8 +18,8 @@ import (
 	"fmt"
 )
 
-// GetRunTime returns the GCF runtime string for a given Go version. Error is version not supported
-func GetRunTime(goVersion string) (runTime string, err error) {
+// getRunTime returns the GCF runtime string for a given Go version. Error is version not supported
+func getRunTime(goVersion string) (runTime string, err error) {
 	switch goVersion {
 	case "1.11":
 		return "go111", nil

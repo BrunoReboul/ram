@@ -20,15 +20,17 @@ import (
 	"google.golang.org/api/cloudfunctions/v1"
 )
 
-// GetUploadURL returns the URL where to upload the cloud function source Zip
-func (goGCFArtifacts *GoGCFArtifacts) GetUploadURL(projectID, region string) (err error) {
-	parent := fmt.Sprintf("projects/%s/locations/%s", projectID, region)
+// getUploadURL returns the URL where to upload the cloud function source Zip
+func (functionDeployment *FunctionDeployment) getUploadURL() (err error) {
+	parent := fmt.Sprintf("projects/%s/locations/%s", functionDeployment.Core.SolutionSettings.Hosting.ProjectID,
+		functionDeployment.Core.SolutionSettings.Hosting.GCF.Region)
 	// The request body must be empty https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/generateUploadUrl
 	var generateUploadURLRequest cloudfunctions.GenerateUploadUrlRequest
-	generateUploadURLResponse, err := goGCFArtifacts.ProjectsLocationsFunctionsService.GenerateUploadUrl(parent, &generateUploadURLRequest).Context(goGCFArtifacts.Ctx).Do()
+	generateUploadURLResponse, err := functionDeployment.Artifacts.ProjectsLocationsFunctionsService.GenerateUploadUrl(parent,
+		&generateUploadURLRequest).Context(functionDeployment.Core.Ctx).Do()
 	if err != nil {
 		return err
 	}
-	goGCFArtifacts.CloudFunction.SourceUploadUrl = generateUploadURLResponse.UploadUrl
+	functionDeployment.Artifacts.CloudFunction.SourceUploadUrl = generateUploadURLResponse.UploadUrl
 	return nil
 }

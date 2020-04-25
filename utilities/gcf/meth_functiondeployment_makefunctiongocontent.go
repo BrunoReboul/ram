@@ -21,7 +21,7 @@ import (
 )
 
 // BackgroundPubSubFunctionGo function.go code skeleton, replace <serviceName> by serviceName
-const BackgroundPubSubFunctionGo = `
+const backgroundPubSubFunctionGo = `
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the 'License');
@@ -61,12 +61,13 @@ func init() {
 }
 `
 
-// MakeFunctionGoContent craft the content of a cloud function function.go file for a RAM microservice instance
-func MakeFunctionGoContent(gcfType, serviceName string) (functionGoContent string, err error) {
-	switch gcfType {
+// makeFunctionGoContent craft the content of a cloud function function.go file for a RAM microservice instance
+func (functionDeployment *FunctionDeployment) makeFunctionGoContent() (functionGoContent string, err error) {
+	switch functionDeployment.Settings.Service.GCF.FunctionType {
 	case "backgroundPubSub":
-		return fmt.Sprintf(strings.Replace(BackgroundPubSubFunctionGo, "<serviceName>", serviceName, -1), time.Now()), nil
+		return fmt.Sprintf(strings.Replace(backgroundPubSubFunctionGo,
+			"<serviceName>", functionDeployment.Core.ServiceName, -1), time.Now()), nil
 	default:
-		return "", fmt.Errorf("gcfType provided not managed: %s", gcfType)
+		return "", fmt.Errorf("functionType provided not managed: %s", functionDeployment.Settings.Service.GCF.FunctionType)
 	}
 }

@@ -32,9 +32,6 @@ type Global struct {
 	retryTimeOutSeconds int64
 	collectionID        string
 	firestoreClient     *firestore.Client
-	solution            ram.SolutionSettings
-	service             ServiceSettings
-	instance            InstanceSettings
 }
 
 // feedMessage Cloud Asset Inventory feed message
@@ -64,18 +61,18 @@ func Initialize(ctx context.Context, global *Global) {
 	var err error
 	// var ok bool
 	var projectID string
-	var settings InstanceDeployment
+	var instanceDeployment InstanceDeployment
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &settings)
+	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
 	if err != nil {
 		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
-	global.collectionID = settings.Settings.Solution.Hosting.FireStore.CollectionIDs.Assets
-	global.retryTimeOutSeconds = settings.Settings.Service.GCF.RetryTimeOutSeconds
-	projectID = settings.Settings.Solution.Hosting.ProjectID
+	global.collectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
+	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
+	projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 
 	// global.collectionID = os.Getenv("COLLECTION_ID")
 	// projectID = os.Getenv("GCP_PROJECT")

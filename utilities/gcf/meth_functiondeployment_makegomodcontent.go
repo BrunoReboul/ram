@@ -15,19 +15,22 @@
 package gcf
 
 import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iam"
+	"fmt"
+	"time"
 )
 
-// Parameters structure
-type Parameters struct {
-	AvailableMemoryMb      int64 `yaml:"availableMemoryMb" valid:"isAvailableMemory"`
-	Description            string
-	FunctionType           string `yaml:"functionType"`
-	RetryTimeOutSeconds    int64  `yaml:"retryTimeOutSeconds"`
-	Timeout                string
-	ServiceAccountBindings struct {
-		ResourceManager grm.Bindings `yaml:"resourceManager"`
-		IAM             iam.Bindings
-	} `yaml:"serviceAccountBindings"`
+// goMod go.mod skeleton, replace first %s goVersion, second by ramVersion
+const goMod = `
+// generated code %v
+
+module example.com/cloudfunction
+
+go %s
+
+require github.com/BrunoReboul/ram %s
+`
+
+// MakeGoModContent craft the content of a cloud function go.mod file for a RAM microservice instance
+func (functionDeployment *FunctionDeployment) makeGoModContent() (goModContent string) {
+	return fmt.Sprintf(goMod, time.Now(), functionDeployment.Core.GoVersion, functionDeployment.Core.RAMVersion)
 }

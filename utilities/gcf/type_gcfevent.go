@@ -14,23 +14,7 @@
 
 package gcf
 
-import (
-	"fmt"
-	"time"
-)
-
-// GoMod go.mod skeleton, replace first %s goVersion, second by ramVersion
-const GoMod = `
-// generated code %v
-
-module example.com/cloudfunction
-
-go %s
-
-require github.com/BrunoReboul/ram %s
-`
-
-// MakeGoModContent craft the content of a cloud function go.mod file for a RAM microservice instance
-func MakeGoModContent(goVersion, ramVersion string) (goModContent string) {
-	return fmt.Sprintf(GoMod, time.Now(), goVersion, ramVersion)
+// Event structure
+type Event struct {
+	TriggerTopic string `yaml:"triggerTopic"`
 }

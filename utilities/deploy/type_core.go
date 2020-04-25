@@ -37,14 +37,14 @@ type Core struct {
 	RAMVersion                  string
 	GoVersion                   string
 	Dump                        bool
-	InstanceFolderRelativePaths []string
+	InstanceFolderRelativePaths []string `yaml:"-"`
 	Services                    struct {
 		CloudbuildService           *cloudbuild.Service           `yaml:"-"`
 		CloudfunctionsService       *cloudfunctions.Service       `yaml:"-"`
 		CloudresourcemanagerService *cloudresourcemanager.Service `yaml:"-"`
 		IAMService                  *iam.Service                  `yaml:"-"`
 		ServiceusageService         *serviceusage.Service         `yaml:"-"`
-	}
+	} `yaml:"-"`
 	Commands struct {
 		// Makeyaml     bool
 		Maketrigger  bool

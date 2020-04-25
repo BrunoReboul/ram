@@ -16,7 +16,11 @@ package publish2fs
 
 import (
 	"fmt"
+	"log"
 	"time"
+
+	"github.com/BrunoReboul/ram/utilities/gcf"
+	"gopkg.in/yaml.v2"
 
 	"github.com/BrunoReboul/ram/utilities/grm"
 	"github.com/BrunoReboul/ram/utilities/gsu"
@@ -30,6 +34,7 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	if err = instanceDeployment.readValidate(); err != nil {
 		return err
 	}
+	instanceDeployment.situate()
 	if err = instanceDeployment.deployGSUAPI(); err != nil {
 		return err
 	}
@@ -42,25 +47,35 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	if err = instanceDeployment.deployIAMBindings(); err != nil {
 		return err
 	}
-	// if err = instanceDeployment.deployGCFFunction(); err != nil {
-	// 	return err
-	// }
-	_ = start
+	if err = instanceDeployment.deployGCFFunction(); err != nil {
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
 	return nil
 }
 
 func (instanceDeployment *InstanceDeployment) readValidate() (err error) {
-	serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName, ram.ServiceSettingsFileName)
-	err = ram.ReadValidate(serviceName, "ServiceSettings", serviceConfigFilePath, &instanceDeployment.Settings.Service)
+	serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, ram.ServiceSettingsFileName)
+	err = ram.ReadValidate(instanceDeployment.Core.ServiceName, "ServiceSettings", serviceConfigFilePath, &instanceDeployment.Settings.Service)
 	if err != nil {
 		return err
 	}
-	instanceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName, ram.InstancesFolderName, instanceDeployment.Core.InstanceName, ram.InstanceSettingsFileName)
+	instanceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, ram.InstancesFolderName, instanceDeployment.Core.InstanceName, ram.InstanceSettingsFileName)
 	err = ram.ReadValidate(instanceDeployment.Core.InstanceName, "InstanceSettings", instanceConfigFilePath, &instanceDeployment.Settings.Instance)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (instanceDeployment *InstanceDeployment) situate() {
+	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
+	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("publish %s assets resource feeds as FireStore documents in collection %s",
+		instanceDeployment.Settings.Instance.GCF.TriggerTopic,
+		instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets)
 }
 
 func (instanceDeployment *InstanceDeployment) deployGSUAPI() (err error) {
@@ -101,11 +116,17 @@ func (instanceDeployment *InstanceDeployment) deployIAMBindings() (err error) {
 }
 
 func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
+	instanceDeployment.DumpTimestamp = time.Now()
+	instanceDeploymentYAMLBytes, err := yaml.Marshal(instanceDeployment)
+	if err != nil {
+		return err
+	}
 	var deployment ram.Deployment
-	// triggerDeployment := gcb.NewTriggerDeployment()
-	// triggerDeployment.Core = instanceDeployment.Core
-	// triggerDeployment.Artifacts.CloudbuildService = instanceDeployment.Artifacts.CloudbuildService
-	// triggerDeployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
-	// deployment = triggerDeployment
+	functionDeployment := gcf.NewFunctionDeployment()
+	functionDeployment.Core = instanceDeployment.Core
+	functionDeployment.Artifacts.InstanceDeploymentYAMLContent = string(instanceDeploymentYAMLBytes)
+	functionDeployment.Settings.Service.GCF = instanceDeployment.Settings.Service.GCF
+	functionDeployment.Settings.Instance.GCF = instanceDeployment.Settings.Instance.GCF
+	deployment = functionDeployment
 	return deployment.Deploy()
 }

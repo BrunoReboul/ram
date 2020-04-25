@@ -21,29 +21,17 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gsu"
-	"github.com/BrunoReboul/ram/utilities/ram"
-)
-
-const (
-	description  = "publish %s assets resource feeds as FireStore documents in collection %s"
-	eventService = "pubsub.googleapis.com"
-	eventType    = "google.pubsub.topic.publish"
-	gcfType      = "backgroundPubSub"
-	serviceName  = "publish2fs"
 )
 
 // InstanceDeployment settings and artifacts structure
 type InstanceDeployment struct {
-	Artifacts struct {
-		DumpTimestamp time.Time
-	}
-	Core     *deploy.Core
-	Settings Settings
+	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
+	Core          *deploy.Core
+	Settings      Settings
 }
 
 // Settings flat settings structure: solution - service - instance
 type Settings struct {
-	Solution ram.SolutionSettings
 	Service  ServiceSettings
 	Instance InstanceSettings
 }
@@ -57,9 +45,7 @@ type ServiceSettings struct {
 
 // InstanceSettings instance specific settings
 type InstanceSettings struct {
-	GCF struct {
-		TriggerTopic string `yaml:"triggerTopic"`
-	}
+	GCF gcf.Event
 }
 
 // NewInstanceDeployment create deployment structure
