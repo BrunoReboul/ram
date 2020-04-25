@@ -31,83 +31,89 @@ const Retries = 5
 // Deploy BindingsDeployment use retries on a read-modify-write cycle
 func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 	log.Printf("%s grm Resource Manager bindings on 1)RAM project 2) targeted organizations", bindingsDeployment.Core.InstanceName)
-	if err = bindingsDeployment.deployRAMProjectBindings(); err != nil {
-		return err
+	if len(bindingsDeployment.Settings.Service.GRM.RolesOnRAMProject) > 0 {
+		if err = bindingsDeployment.deployRAMProjectBindings(); err != nil {
+			return err
+		}
 	}
-	if err = bindingsDeployment.deployOrganizationsBindings(); err != nil {
-		return err
+	if len(bindingsDeployment.Settings.Service.GRM.RolesOnOrganizations) > 0 {
+		if err = bindingsDeployment.deployOrganizationsBindings(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (bindingsDeployment *BindingsDeployment) deployRAMProjectBindings() (err error) {
-	projectsService := bindingsDeployment.Core.Services.CloudresourcemanagerService.Projects
-	for i := 0; i < Retries; i++ {
-		if i > 0 {
-			log.Printf("%s grm retrying a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
-		}
-		// READ
-		var policy *cloudresourcemanager.Policy
-		var getPolicyOptions cloudresourcemanager.GetPolicyOptions
-		var getRequest cloudresourcemanager.GetIamPolicyRequest
-		getRequest.Options = &getPolicyOptions
-		policy, err = projectsService.GetIamPolicy(bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID, &getRequest).Context(bindingsDeployment.Core.Ctx).Do()
-		if err != nil {
-			return err
-		}
-		// MODIFY
-		policyIsToBeUpdated := false
-		existingRoles := make([]string, 0)
-		for _, binding := range policy.Bindings {
-			existingRoles = append(existingRoles, binding.Role)
-			if ram.Find(bindingsDeployment.Settings.Service.GRM.RolesOnRAMProject, binding.Role) {
-				isAlreadyMemberOf := false
-				for _, member := range binding.Members {
-					if member == bindingsDeployment.Artifacts.Member {
-						isAlreadyMemberOf = true
+	if len(bindingsDeployment.Settings.Service.GRM.RolesOnRAMProject) > 0 {
+		projectsService := bindingsDeployment.Core.Services.CloudresourcemanagerService.Projects
+		for i := 0; i < Retries; i++ {
+			if i > 0 {
+				log.Printf("%s grm retrying a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
+			}
+			// READ
+			var policy *cloudresourcemanager.Policy
+			var getPolicyOptions cloudresourcemanager.GetPolicyOptions
+			var getRequest cloudresourcemanager.GetIamPolicyRequest
+			getRequest.Options = &getPolicyOptions
+			policy, err = projectsService.GetIamPolicy(bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID, &getRequest).Context(bindingsDeployment.Core.Ctx).Do()
+			if err != nil {
+				return err
+			}
+			// MODIFY
+			policyIsToBeUpdated := false
+			existingRoles := make([]string, 0)
+			for _, binding := range policy.Bindings {
+				existingRoles = append(existingRoles, binding.Role)
+				if ram.Find(bindingsDeployment.Settings.Service.GRM.RolesOnRAMProject, binding.Role) {
+					isAlreadyMemberOf := false
+					for _, member := range binding.Members {
+						if member == bindingsDeployment.Artifacts.Member {
+							isAlreadyMemberOf = true
+						}
+					}
+					if isAlreadyMemberOf {
+						log.Printf("%s grm member %s already have %s on project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
+					} else {
+						log.Printf("%s grm add member %s to existing %s on project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
+						binding.Members = append(binding.Members, bindingsDeployment.Artifacts.Member)
+						policyIsToBeUpdated = true
 					}
 				}
-				if isAlreadyMemberOf {
-					log.Printf("%s grm member %s already have %s on project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
-				} else {
-					log.Printf("%s grm add member %s to existing %s on project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.Member, binding.Role, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
-					binding.Members = append(binding.Members, bindingsDeployment.Artifacts.Member)
+			}
+			for _, role := range bindingsDeployment.Settings.Service.GRM.RolesOnRAMProject {
+				if !ram.Find(existingRoles, role) {
+					var binding cloudresourcemanager.Binding
+					binding.Role = role
+					binding.Members = []string{bindingsDeployment.Artifacts.Member}
+					log.Printf("%s grm add new %s with solo member %s on project %s", bindingsDeployment.Core.InstanceName, binding.Role, bindingsDeployment.Artifacts.Member, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
+					policy.Bindings = append(policy.Bindings, &binding)
 					policyIsToBeUpdated = true
 				}
 			}
-		}
-		for _, role := range bindingsDeployment.Settings.Service.GRM.RolesOnRAMProject {
-			if !ram.Find(existingRoles, role) {
-				var binding cloudresourcemanager.Binding
-				binding.Role = role
-				binding.Members = []string{bindingsDeployment.Artifacts.Member}
-				log.Printf("%s grm add new %s with solo member %s on project %s", bindingsDeployment.Core.InstanceName, binding.Role, bindingsDeployment.Artifacts.Member, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
-				policy.Bindings = append(policy.Bindings, &binding)
-				policyIsToBeUpdated = true
-			}
-		}
-		// WRITE
-		if policyIsToBeUpdated {
-			var setRequest cloudresourcemanager.SetIamPolicyRequest
-			setRequest.Policy = policy
+			// WRITE
+			if policyIsToBeUpdated {
+				var setRequest cloudresourcemanager.SetIamPolicyRequest
+				setRequest.Policy = policy
 
-			var updatedPolicy *cloudresourcemanager.Policy
-			updatedPolicy, err = projectsService.SetIamPolicy(bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID, &setRequest).Context(bindingsDeployment.Core.Ctx).Do()
-			if err != nil {
-				if !strings.Contains(err.Error(), "There were concurrent policy changes") {
-					return err
+				var updatedPolicy *cloudresourcemanager.Policy
+				updatedPolicy, err = projectsService.SetIamPolicy(bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID, &setRequest).Context(bindingsDeployment.Core.Ctx).Do()
+				if err != nil {
+					if !strings.Contains(err.Error(), "There were concurrent policy changes") {
+						return err
+					}
+					log.Printf("%s grm there were concurrent policy changes, wait 5 sec and retry a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
+					time.Sleep(5 * time.Second)
+				} else {
+					// ram.JSONMarshalIndentPrint(updatedPolicy)
+					_ = updatedPolicy
+					log.Printf("%s grm iam policy updated for project %s iteration %d", bindingsDeployment.Core.InstanceName, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID, i)
+					break
 				}
-				log.Printf("%s grm there were concurrent policy changes, wait 5 sec and retry a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
-				time.Sleep(5 * time.Second)
 			} else {
-				// ram.JSONMarshalIndentPrint(updatedPolicy)
-				_ = updatedPolicy
-				log.Printf("%s grm iam policy updated for project %s iteration %d", bindingsDeployment.Core.InstanceName, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID, i)
+				log.Printf("%s grm NO need to update iam policy for project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
 				break
 			}
-		} else {
-			log.Printf("%s grm NO need to update iam policy for project %s", bindingsDeployment.Core.InstanceName, bindingsDeployment.Core.SolutionSettings.Hosting.ProjectID)
-			break
 		}
 	}
 	return err
