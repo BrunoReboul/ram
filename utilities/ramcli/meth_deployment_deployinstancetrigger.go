@@ -23,7 +23,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/iam"
 )
 
-// Deploy an instance trigger
+// deployInstanceTrigger an instance trigger
 func (deployment *Deployment) deployInstanceTrigger() (err error) {
 	if err = deployment.deployGRMFolder(); err != nil {
 		return err
