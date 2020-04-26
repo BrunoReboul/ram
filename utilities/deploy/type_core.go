@@ -17,6 +17,7 @@ package deploy
 import (
 	"context"
 
+	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudfunctions/v1"
@@ -43,6 +44,7 @@ type Core struct {
 		CloudfunctionsService       *cloudfunctions.Service       `yaml:"-"`
 		CloudresourcemanagerService *cloudresourcemanager.Service `yaml:"-"`
 		IAMService                  *iam.Service                  `yaml:"-"`
+		PubsubPublisherClient       *pubsub.PublisherClient       `yaml:"-"`
 		ServiceusageService         *serviceusage.Service         `yaml:"-"`
 	} `yaml:"-"`
 	Commands struct {

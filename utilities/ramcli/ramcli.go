@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 
+	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"github.com/BrunoReboul/ram/services/publish2fs"
 	"github.com/BrunoReboul/ram/utilities/deploy"
 
@@ -63,6 +64,10 @@ func Initialize(ctx context.Context, global *Global) {
 		log.Fatalln(err)
 	}
 	global.core.Services.ServiceusageService, err = serviceusage.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	global.core.Services.PubsubPublisherClient, err = pubsub.NewPublisherClient(ctx)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -29,6 +29,7 @@ import (
 
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/storage"
+	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
@@ -151,7 +152,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 	teeStorageObjectReader := io.TeeReader(storageObjectReader, &buffer)
 
 	var topicList []string
-	err = ram.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &topicList)
+	err = gps.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &topicList)
 	if err != nil {
 		return fmt.Errorf("getTopicList: %v", err) // RETRY
 	}
@@ -310,7 +311,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 				topicName = "cai-rces-" + getAssetShortTypeName(asset)
 			}
 			// log.Println("topicName", topicName)
-			if err = ram.CreateTopic(global.ctx, global.pubsubPublisherClient, topicListPointer, topicName, global.projectID); err != nil {
+			if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, topicListPointer, topicName, global.projectID); err != nil {
 				log.Printf("Ignored dump line: no topic %s to publish %s %v", topicName, dumpline, err)
 			} else {
 				feedMessageJSON, err := json.Marshal(getFeedMessage(asset, startTime))

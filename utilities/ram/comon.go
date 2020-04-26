@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,8 +30,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
-	pubsubold "cloud.google.com/go/pubsub"
-	pubsub "cloud.google.com/go/pubsub/apiv1"
+	"cloud.google.com/go/pubsub"
 	"gopkg.in/yaml.v2"
 
 	"golang.org/x/oauth2/google"
@@ -42,9 +40,7 @@ import (
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/iam/v1"
-	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
-	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
 // AssetGroup CAI like format
@@ -205,43 +201,6 @@ func BuildAncestryPath(ancestors []string) string {
 	var ancestryPath string
 	ancestryPath = makeCompatible(strings.Join(revAncestors, "/"))
 	return ancestryPath
-}
-
-// CreateTopic check if a topic already exist, if not create it
-func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, topicListPointer *[]string, topicName string, projectID string) error {
-	if Find(*topicListPointer, topicName) {
-		return nil
-	}
-	// refresh topic list
-	err := GetTopicList(ctx, pubSubPulisherClient, projectID, topicListPointer)
-	if err != nil {
-		return fmt.Errorf("getTopicList: %v", err)
-	}
-	if Find(*topicListPointer, topicName) {
-		return nil
-	}
-	var topicRequested pubsubpb.Topic
-	topicRequested.Name = fmt.Sprintf("projects/%s/topics/%s", projectID, topicName)
-	topicRequested.Labels = map[string]string{"name": strings.ToLower(topicName)}
-
-	log.Printf("topicRequested %v", topicRequested)
-
-	topic, err := pubSubPulisherClient.CreateTopic(ctx, &topicRequested)
-	if err != nil {
-		matched, _ := regexp.Match(`.*AlreadyExists.*`, []byte(err.Error()))
-		if !matched {
-			return fmt.Errorf("pubSubPulisherClient.CreateTopic: %v", err)
-		}
-		log.Println("Try to create but already exist:", topicName)
-	} else {
-		log.Println("Created topic:", topic.Name)
-	}
-	// refresh topic list
-	err = GetTopicList(ctx, pubSubPulisherClient, projectID, topicListPointer)
-	if err != nil {
-		return fmt.Errorf("getTopicList: %v", err)
-	}
-	return nil
 }
 
 // DumpToYAMLFile Marchal to YAML format, add disclaimer and write as a file
@@ -538,7 +497,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string,
 }
 
 // GetPublishCallResult func to be used in go routine to scale pubsub event publish
-func GetPublishCallResult(ctx context.Context, publishResult *pubsubold.PublishResult, waitgroup *sync.WaitGroup, msgInfo string, pubSubErrNumber *uint64, pubSubMsgNumber *uint64, logEventEveryXPubSubMsg uint64) {
+func GetPublishCallResult(ctx context.Context, publishResult *pubsub.PublishResult, waitgroup *sync.WaitGroup, msgInfo string, pubSubErrNumber *uint64, pubSubMsgNumber *uint64, logEventEveryXPubSubMsg uint64) {
 	defer waitgroup.Done()
 	id, err := publishResult.Get(ctx)
 	if err != nil {
@@ -551,32 +510,6 @@ func GetPublishCallResult(ctx context.Context, publishResult *pubsubold.PublishR
 		log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
 	}
 	// log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
-}
-
-// GetTopicList retreive the list of existing pubsub topics
-func GetTopicList(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, projectID string, topicListPointer *[]string) error {
-	var topicList []string
-	var listTopicRequest pubsubpb.ListTopicsRequest
-	listTopicRequest.Project = fmt.Sprintf("projects/%s", projectID)
-
-	topicsIterator := pubSubPulisherClient.ListTopics(ctx, &listTopicRequest)
-	for {
-		topic, err := topicsIterator.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("topicsIterator.Next: %v", err)
-		}
-		// log.Printf("topic.Name %v", topic.Name)
-		nameParts := strings.Split(topic.Name, "/")
-		topicShortName := nameParts[len(nameParts)-1]
-		// log.Printf("topicShortName %s", topicShortName)
-		topicList = append(topicList, topicShortName)
-	}
-	// log.Printf("topicList %v", topicList)
-	*topicListPointer = topicList
-	return nil
 }
 
 // IntialRetryCheck performs intitial controls

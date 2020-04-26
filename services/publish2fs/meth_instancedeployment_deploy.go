@@ -20,6 +20,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/gps"
+
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"gopkg.in/yaml.v2"
 
@@ -48,10 +50,10 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	if err = instanceDeployment.deployIAMBindings(); err != nil {
 		return err
 	}
-	if err = instanceDeployment.deployGCFFunction(); err != nil {
+	if err = instanceDeployment.deployGPSTopic(); err != nil {
 		return err
 	}
-	if err != nil {
+	if err = instanceDeployment.deployGCFFunction(); err != nil {
 		return err
 	}
 	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
@@ -117,6 +119,15 @@ func (instanceDeployment *InstanceDeployment) deployIAMBindings() (err error) {
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s@%s.iam.gserviceaccount.com", instanceDeployment.Core.ServiceName, instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 	bindingsDeployment.Settings.Service.IAM = instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.IAM
 	deployment = bindingsDeployment
+	return deployment.Deploy()
+}
+
+func (instanceDeployment *InstanceDeployment) deployGPSTopic() (err error) {
+	var deployment ram.Deployment
+	topicDeployment := gps.NewTopicDeployment()
+	topicDeployment.Core = instanceDeployment.Core
+	topicDeployment.Settings.TopicName = instanceDeployment.Settings.Instance.GCF.TriggerTopic
+	deployment = topicDeployment
 	return deployment.Deploy()
 }
 
