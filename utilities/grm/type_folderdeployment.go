@@ -12,4 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package grm
+
+import (
+	"github.com/BrunoReboul/ram/utilities/deploy"
+)
+
+// FolderDeployment struct
+type FolderDeployment struct {
+	Core *deploy.Core
+}
+
+// NewFolderDeployment create deployment structure
+func NewFolderDeployment() *FolderDeployment {
+	return &FolderDeployment{}
+}

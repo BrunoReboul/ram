@@ -20,18 +20,13 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gsu"
 )
 
-// InstanceTriggerDeployment structure
-type InstanceTriggerDeployment struct {
-	Core     *deploy.Core
+// Deployment structure
+type Deployment struct {
+	Core     deploy.Core
 	Settings struct {
 		Service struct {
 			GSU gsu.Parameters
 			GCB gcb.Parameters
 		}
 	}
-}
-
-// NewInstanceTrigger create deployment structure
-func NewInstanceTrigger() *InstanceTriggerDeployment {
-	return &InstanceTriggerDeployment{}
 }

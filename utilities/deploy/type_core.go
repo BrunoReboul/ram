@@ -22,6 +22,7 @@ import (
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudfunctions/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
+	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/serviceusage/v1"
 )
@@ -40,12 +41,13 @@ type Core struct {
 	Dump                        bool
 	InstanceFolderRelativePaths []string `yaml:"-"`
 	Services                    struct {
-		CloudbuildService           *cloudbuild.Service           `yaml:"-"`
-		CloudfunctionsService       *cloudfunctions.Service       `yaml:"-"`
-		CloudresourcemanagerService *cloudresourcemanager.Service `yaml:"-"`
-		IAMService                  *iam.Service                  `yaml:"-"`
-		PubsubPublisherClient       *pubsub.PublisherClient       `yaml:"-"`
-		ServiceusageService         *serviceusage.Service         `yaml:"-"`
+		CloudbuildService             *cloudbuild.Service             `yaml:"-"`
+		CloudfunctionsService         *cloudfunctions.Service         `yaml:"-"`
+		CloudresourcemanagerService   *cloudresourcemanager.Service   `yaml:"-"`
+		CloudresourcemanagerServicev2 *cloudresourcemanagerv2.Service `yaml:"-"`
+		IAMService                    *iam.Service                    `yaml:"-"`
+		PubsubPublisherClient         *pubsub.PublisherClient         `yaml:"-"`
+		ServiceusageService           *serviceusage.Service           `yaml:"-"`
 	} `yaml:"-"`
 	Commands struct {
 		// Makeyaml     bool

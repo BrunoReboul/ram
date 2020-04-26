@@ -18,12 +18,12 @@ package ram
 type SolutionSettings struct {
 	Hosting struct {
 		BillingAccountID string            `yaml:"billingAccountID"`
-		FolderID         string            `yaml:",omitempty"`
+		FolderID         string            `yaml:"folderID,omitempty"`
 		FolderIDs        map[string]string `yaml:"folderIDs"`
-		ProjectID        string            `yaml:",omitempty"`
+		ProjectID        string            `yaml:"projectID,omitempty"`
 		ProjectIDs       map[string]string `yaml:"projectIDs"`
 		Stackdriver      struct {
-			ProjectID  string            `yaml:",omitempty"`
+			ProjectID  string            `yaml:"projectID,omitempty"`
 			ProjectIDs map[string]string `yaml:"projectIDs"`
 		}
 		Repository struct {
@@ -83,15 +83,4 @@ type SolutionSettings struct {
 // NewSolutionSettings create a solution settings structure
 func NewSolutionSettings() *SolutionSettings {
 	return &SolutionSettings{}
-}
-
-// Situate set settings from settings based on a given situation
-// Situation is the environment name (string)
-// Set settings are: folderID, projectID, Stackdriver projectID, Buckets names
-func (settings *SolutionSettings) Situate(environmentName string) {
-	settings.Hosting.FolderID = settings.Hosting.FolderIDs[environmentName]
-	settings.Hosting.ProjectID = settings.Hosting.ProjectIDs[environmentName]
-	settings.Hosting.Stackdriver.ProjectID = settings.Hosting.Stackdriver.ProjectIDs[environmentName]
-	settings.Hosting.GCS.Buckets.CAIExport.Name = settings.Hosting.GCS.Buckets.CAIExport.Names[environmentName]
-	settings.Hosting.GCS.Buckets.AssetsJSONFile.Name = settings.Hosting.GCS.Buckets.AssetsJSONFile.Names[environmentName]
 }

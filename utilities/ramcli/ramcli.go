@@ -21,7 +21,6 @@ import (
 
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"github.com/BrunoReboul/ram/services/publish2fs"
-	"github.com/BrunoReboul/ram/utilities/deploy"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
 
@@ -29,96 +28,91 @@ import (
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudfunctions/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
+	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceusage/v1"
 )
 
-// Global structure for global variables
-type Global struct {
-	core deploy.Core
-}
-
 // Initialize is to be executed in the init()
-func Initialize(ctx context.Context, global *Global) {
-	global.core.Ctx = ctx
+func Initialize(ctx context.Context, deployment *Deployment) {
+	deployment.Core.Ctx = ctx
 	var err error
 	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
 	}
-	global.core.Services.CloudbuildService, err = cloudbuild.NewService(ctx, option.WithCredentials(creds))
+	deployment.Core.Services.CloudbuildService, err = cloudbuild.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
-	global.core.Services.CloudfunctionsService, err = cloudfunctions.NewService(ctx, option.WithCredentials(creds))
+	deployment.Core.Services.CloudfunctionsService, err = cloudfunctions.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
-	global.core.Services.CloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx, option.WithCredentials(creds))
+	deployment.Core.Services.CloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
-	global.core.Services.IAMService, err = iam.NewService(ctx, option.WithCredentials(creds))
+	deployment.Core.Services.CloudresourcemanagerServicev2, err = cloudresourcemanagerv2.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
-	global.core.Services.ServiceusageService, err = serviceusage.NewService(ctx, option.WithCredentials(creds))
+	deployment.Core.Services.IAMService, err = iam.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
-	global.core.Services.PubsubPublisherClient, err = pubsub.NewPublisherClient(ctx)
+	deployment.Core.Services.ServiceusageService, err = serviceusage.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	deployment.Core.Services.PubsubPublisherClient, err = pubsub.NewPublisherClient(ctx)
 	if err != nil {
 		log.Fatalln(err)
 	}
 }
 
 // RAMCli Real-time Asset Monitor cli
-func RAMCli(global *Global) (err error) {
-	var deployment ram.Deployment
-	global.CheckArguments()
-
-	solutionConfigFilePath := fmt.Sprintf("%s/%s", global.core.RepositoryPath, ram.SolutionSettingsFileName)
-	err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &global.core.SolutionSettings)
+func RAMCli(deployment *Deployment) (err error) {
+	deployment.CheckArguments()
+	solutionConfigFilePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, ram.SolutionSettingsFileName)
+	err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &deployment.Core.SolutionSettings)
 	if err != nil {
 		log.Fatal(err)
 	}
-	global.core.SolutionSettings.Situate(global.core.EnvironmentName)
-	global.core.ProjectNumber, err = getProjectNumber(global.core.Ctx, global.core.Services.CloudresourcemanagerService, global.core.SolutionSettings.Hosting.ProjectID)
-	log.Printf("found %d instance(s)", len(global.core.InstanceFolderRelativePaths))
+	deployment.Core.SolutionSettings.Situate(deployment.Core.EnvironmentName)
+	deployment.Core.ProjectNumber, err = getProjectNumber(deployment.Core.Ctx, deployment.Core.Services.CloudresourcemanagerService, deployment.Core.SolutionSettings.Hosting.ProjectID)
+	log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
 
-	if global.core.Commands.Deploy {
-		for _, instanceFolderRelativePath := range global.core.InstanceFolderRelativePaths {
-			global.core.ServiceName, global.core.InstanceName = GetServiceAndInstanceNames(instanceFolderRelativePath)
-
-			switch global.core.ServiceName {
-			case "publish2fs":
-				instanceDeployment := publish2fs.NewInstanceDeployment()
-				instanceDeployment.Core = &global.core
-				deployment = instanceDeployment
-				if err := deployment.Deploy(); err != nil {
-					log.Fatal(err)
-				}
-			}
-		}
-	}
-	if global.core.Commands.Maketrigger {
-		instanceTriggerDeployment := NewInstanceTrigger()
-		instanceTriggerDeployment.Core = &global.core
-
-		for _, instanceFolderRelativePath := range global.core.InstanceFolderRelativePaths {
-			global.core.ServiceName, global.core.InstanceName = GetServiceAndInstanceNames(instanceFolderRelativePath)
-			serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", global.core.RepositoryPath, ram.MicroserviceParentFolderName, global.core.ServiceName, ram.ServiceSettingsFileName)
-			if err = ram.ReadValidate(global.core.ServiceName, "ServiceSettings", serviceConfigFilePath,
-				&instanceTriggerDeployment.Settings.Service); err != nil {
-				log.Fatal(err)
-			}
-			deployment = instanceTriggerDeployment
-			if err = deployment.Deploy(); err != nil {
-				log.Fatal(err)
-			}
+	for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
+		deployment.Core.ServiceName, deployment.Core.InstanceName = GetServiceAndInstanceNames(instanceFolderRelativePath)
+		switch deployment.Core.ServiceName {
+		case "publish2fs":
+			deployment.deployPublish2fs()
 		}
 	}
 	log.Println("ramcli done")
 	return nil
+}
+
+func (deployment *Deployment) deployPublish2fs() {
+	instanceDeployment := publish2fs.NewInstanceDeployment()
+	instanceDeployment.Core = &deployment.Core
+	err := instanceDeployment.ReadValidate()
+	if err != nil {
+		log.Fatal(err)
+	}
+	instanceDeployment.Situate()
+	if deployment.Core.Commands.Maketrigger {
+		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
+		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+		err = deployment.deployInstanceTrigger()
+	} else {
+		if deployment.Core.Commands.Deploy {
+			err = instanceDeployment.Deploy()
+		}
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
 }

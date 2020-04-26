@@ -34,10 +34,6 @@ import (
 // Deploy a service instance
 func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	start := time.Now()
-	if err = instanceDeployment.readValidate(); err != nil {
-		return err
-	}
-	instanceDeployment.situate()
 	if err = instanceDeployment.deployGSUAPI(); err != nil {
 		return err
 	}
@@ -60,7 +56,8 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	return nil
 }
 
-func (instanceDeployment *InstanceDeployment) readValidate() (err error) {
+// ReadValidate reads and validates service and instance settings
+func (instanceDeployment *InstanceDeployment) ReadValidate() (err error) {
 	serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, ram.ServiceSettingsFileName)
 	if _, err := os.Stat(serviceConfigFilePath); !os.IsNotExist(err) {
 		err = ram.ReadValidate(instanceDeployment.Core.ServiceName, "ServiceSettings", serviceConfigFilePath, &instanceDeployment.Settings.Service)
@@ -78,7 +75,8 @@ func (instanceDeployment *InstanceDeployment) readValidate() (err error) {
 	return nil
 }
 
-func (instanceDeployment *InstanceDeployment) situate() {
+// Situate complement settings taking in account the situation for service and instance settings
+func (instanceDeployment *InstanceDeployment) Situate() {
 	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
 	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("publish %s assets resource feeds as FireStore documents in collection %s",
 		instanceDeployment.Settings.Instance.GCF.TriggerTopic,
@@ -86,49 +84,39 @@ func (instanceDeployment *InstanceDeployment) situate() {
 }
 
 func (instanceDeployment *InstanceDeployment) deployGSUAPI() (err error) {
-	var deployment ram.Deployment
 	apiDeployment := gsu.NewAPIDeployment()
 	apiDeployment.Core = instanceDeployment.Core
 	apiDeployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
-	deployment = apiDeployment
-	return deployment.Deploy()
+	return apiDeployment.Deploy()
 }
 
 func (instanceDeployment *InstanceDeployment) deployIAMServiceAccount() (err error) {
-	var deployment ram.Deployment
 	serviceAccountDeployment := iam.NewServiceaccountDeployment()
 	serviceAccountDeployment.Core = instanceDeployment.Core
-	deployment = serviceAccountDeployment
-	return deployment.Deploy()
+	return serviceAccountDeployment.Deploy()
 }
 
 func (instanceDeployment *InstanceDeployment) deployGRMBindings() (err error) {
-	var deployment ram.Deployment
 	bindingsDeployment := grm.NewBindingsDeployment()
 	bindingsDeployment.Core = instanceDeployment.Core
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s@%s.iam.gserviceaccount.com", instanceDeployment.Core.ServiceName, instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 	bindingsDeployment.Settings.Service.GRM = instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.ResourceManager
-	deployment = bindingsDeployment
-	return deployment.Deploy()
+	return bindingsDeployment.Deploy()
 }
 
 func (instanceDeployment *InstanceDeployment) deployIAMBindings() (err error) {
-	var deployment ram.Deployment
 	bindingsDeployment := iam.NewBindingsDeployment()
 	bindingsDeployment.Core = instanceDeployment.Core
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s@%s.iam.gserviceaccount.com", instanceDeployment.Core.ServiceName, instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 	bindingsDeployment.Settings.Service.IAM = instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.IAM
-	deployment = bindingsDeployment
-	return deployment.Deploy()
+	return bindingsDeployment.Deploy()
 }
 
 func (instanceDeployment *InstanceDeployment) deployGPSTopic() (err error) {
-	var deployment ram.Deployment
 	topicDeployment := gps.NewTopicDeployment()
 	topicDeployment.Core = instanceDeployment.Core
 	topicDeployment.Settings.TopicName = instanceDeployment.Settings.Instance.GCF.TriggerTopic
-	deployment = topicDeployment
-	return deployment.Deploy()
+	return topicDeployment.Deploy()
 }
 
 func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
@@ -137,12 +125,10 @@ func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
 	if err != nil {
 		return err
 	}
-	var deployment ram.Deployment
 	functionDeployment := gcf.NewFunctionDeployment()
 	functionDeployment.Core = instanceDeployment.Core
 	functionDeployment.Artifacts.InstanceDeploymentYAMLContent = string(instanceDeploymentYAMLBytes)
 	functionDeployment.Settings.Service.GCF = instanceDeployment.Settings.Service.GCF
 	functionDeployment.Settings.Instance.GCF = instanceDeployment.Settings.Instance.GCF
-	deployment = functionDeployment
-	return deployment.Deploy()
+	return functionDeployment.Deploy()
 }
