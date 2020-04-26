@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
+	"google.golang.org/genproto/protobuf/field_mask"
 )
 
 // Deploy topic
@@ -34,13 +35,17 @@ func (topicDeployment *TopicDeployment) Deploy() (err error) {
 	nameLabelToBeUpdated := false
 	topic, err := topicDeployment.Core.Services.PubsubPublisherClient.GetTopic(topicDeployment.Core.Ctx, &getTopicRequest)
 	if err != nil {
-		if strings.Contains(err.Error(), "404") && strings.Contains(err.Error(), "notFound") {
+		if strings.Contains(strings.ToLower(err.Error()), "notfound") {
 			topicNotFound = true
 		} else {
 			return err
 		}
 	} else {
-		if topic.Labels["name"] != strings.ToLower(topicDeployment.Settings.TopicName) {
+		if topic.Labels != nil {
+			if topic.Labels["name"] != strings.ToLower(topicDeployment.Settings.TopicName) {
+				nameLabelToBeUpdated = true
+			}
+		} else {
 			nameLabelToBeUpdated = true
 		}
 	}
@@ -58,11 +63,12 @@ func (topicDeployment *TopicDeployment) Deploy() (err error) {
 		log.Printf("%s gps topic created %s", topicDeployment.Core.InstanceName, topicDeployment.Settings.TopicName)
 	} else {
 		if nameLabelToBeUpdated {
+			var fieldMask field_mask.FieldMask
+			fieldMask.Paths = []string{"labels"}
+			topic.Labels = map[string]string{"name": strings.ToLower(topicDeployment.Settings.TopicName)}
 			var updateTopicRequest pubsubpb.UpdateTopicRequest
-			updateTopicRequest.Topic.Name = fmt.Sprintf("projects/%s/topics/%s",
-				topicDeployment.Core.SolutionSettings.Hosting.ProjectID,
-				topicDeployment.Settings.TopicName)
-			updateTopicRequest.Topic.Labels = map[string]string{"name": strings.ToLower(topicDeployment.Settings.TopicName)}
+			updateTopicRequest.Topic = topic
+			updateTopicRequest.UpdateMask = &fieldMask
 			_, err = topicDeployment.Core.Services.PubsubPublisherClient.UpdateTopic(topicDeployment.Core.Ctx, &updateTopicRequest)
 			if err != nil {
 				return err
