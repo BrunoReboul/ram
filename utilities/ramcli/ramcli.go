@@ -20,7 +20,6 @@ import (
 	"log"
 
 	pubsub "cloud.google.com/go/pubsub/apiv1"
-	"github.com/BrunoReboul/ram/services/publish2fs"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
 
@@ -33,6 +32,7 @@ import (
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceusage/v1"
+	"google.golang.org/api/sourcerepo/v1"
 )
 
 // Initialize is to be executed in the init()
@@ -75,6 +75,10 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	deployment.Core.Services.SourcerepoService, err = sourcerepo.NewService(ctx)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 // RAMCli Real-time Asset Monitor cli
@@ -87,37 +91,21 @@ func RAMCli(deployment *Deployment) (err error) {
 	}
 	deployment.Core.SolutionSettings.Situate(deployment.Core.EnvironmentName)
 	deployment.Core.ProjectNumber, err = getProjectNumber(deployment.Core.Ctx, deployment.Core.Services.CloudresourcemanagerService, deployment.Core.SolutionSettings.Hosting.ProjectID)
-	log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
 
-	for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
-		deployment.Core.ServiceName, deployment.Core.InstanceName = GetServiceAndInstanceNames(instanceFolderRelativePath)
-		switch deployment.Core.ServiceName {
-		case "publish2fs":
-			deployment.deployPublish2fs()
+	if deployment.Core.Commands.Init {
+		deployment.Core.InstanceName = "initial setup"
+		deployment.initialize()
+	} else {
+		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
+
+		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
+			deployment.Core.ServiceName, deployment.Core.InstanceName = GetServiceAndInstanceNames(instanceFolderRelativePath)
+			switch deployment.Core.ServiceName {
+			case "publish2fs":
+				deployment.deployPublish2fs()
+			}
 		}
 	}
 	log.Println("ramcli done")
 	return nil
-}
-
-func (deployment *Deployment) deployPublish2fs() {
-	instanceDeployment := publish2fs.NewInstanceDeployment()
-	instanceDeployment.Core = &deployment.Core
-	err := instanceDeployment.ReadValidate()
-	if err != nil {
-		log.Fatal(err)
-	}
-	instanceDeployment.Situate()
-	if deployment.Core.Commands.Maketrigger {
-		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
-		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
-		err = deployment.deployInstanceTrigger()
-	} else {
-		if deployment.Core.Commands.Deploy {
-			err = instanceDeployment.Deploy()
-		}
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
 }

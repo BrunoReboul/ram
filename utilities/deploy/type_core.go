@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"google.golang.org/api/cloudbilling/v1"
+	"google.golang.org/api/sourcerepo/v1"
 
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"github.com/BrunoReboul/ram/utilities/solution"
@@ -51,9 +52,11 @@ type Core struct {
 		IAMService                    *iam.Service                    `yaml:"-"`
 		PubsubPublisherClient         *pubsub.PublisherClient         `yaml:"-"`
 		ServiceusageService           *serviceusage.Service           `yaml:"-"`
+		SourcerepoService             *sourcerepo.Service             `yaml:"-"`
 	} `yaml:"-"`
 	Commands struct {
 		// Makeyaml     bool
+		Init         bool
 		Maketrigger  bool
 		Deploy       bool
 		Dumpsettings bool

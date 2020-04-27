@@ -19,9 +19,12 @@ func GetCommonAPIlist() []string {
 	return []string{
 		"bigquery.googleapis.com",
 		"cloudapis.googleapis.com",
+		"firestore.googleapis.com", // keep firestore in common, to have it activated in initial setup, has their is a namual step then to choose native mode
 		"logging.googleapis.com",
 		"monitoring.googleapis.com",
 		"serviceusage.googleapis.com",
 		"storage-api.googleapis.com",
-		"storage-component.googleapis.com"}
+		"storage-component.googleapis.com",
+		"stackdriver.googleapis.com", // keep stackdriver in common, to have it activated in initial setup, has their is a namual step then to attach the project with a stackdriver workspace
+		"sourcerepo.googleapis.com"}  // keep source repo in common, to have it activated in initial setup, has their may be a namual step then to mirror the repo from an external source
 }

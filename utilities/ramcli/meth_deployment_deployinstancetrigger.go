@@ -20,6 +20,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/bil"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/grm"
+	"github.com/BrunoReboul/ram/utilities/gsr"
 	"github.com/BrunoReboul/ram/utilities/gsu"
 	"github.com/BrunoReboul/ram/utilities/iam"
 )
@@ -45,6 +46,9 @@ func (deployment *Deployment) deployInstanceTrigger() (err error) {
 		return err
 	}
 	if err = deployment.deployIAMBindings(); err != nil {
+		return err
+	}
+	if err = deployment.deployGSRRepo(); err != nil {
 		return err
 	}
 	if err = deployment.deployGCBTrigger(); err != nil {
@@ -98,6 +102,12 @@ func (deployment *Deployment) deployIAMBindings() (err error) {
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", deployment.Core.ProjectNumber)
 	bindingsDeployment.Settings.Service.IAM = deployment.Settings.Service.GCB.ServiceAccountBindings.IAM
 	return bindingsDeployment.Deploy()
+}
+
+func (deployment *Deployment) deployGSRRepo() (err error) {
+	repoDeployment := gsr.NewRepoDeployment()
+	repoDeployment.Core = &deployment.Core
+	return repoDeployment.Deploy()
 }
 
 func (deployment *Deployment) deployGCBTrigger() (err error) {

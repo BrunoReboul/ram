@@ -35,7 +35,7 @@ func (projectBillingAccount *ProjectBillingAccount) Enable() (err error) {
 	if projectBillingInfo.BillingEnabled {
 		log.Printf("%s project billing is enable on %s", projectBillingAccount.Core.InstanceName, projectBillingInfo.BillingAccountName)
 	} else {
-		billingAccount := projectBillingAccount.Core.SolutionSettings.Hosting.ProjectBillingAccount
+		billingAccount := projectBillingAccount.Core.SolutionSettings.Hosting.BillingAccountID
 		if billingAccount == "" {
 			return fmt.Errorf("Project billing not enable and 'projectBillingAccount' settings is null string in %s", ram.SolutionSettingsFileName)
 		}
@@ -50,7 +50,7 @@ func (projectBillingAccount *ProjectBillingAccount) Enable() (err error) {
 			log.Printf("%s project billing has been enabled on %s", projectBillingAccount.Core.InstanceName, projectBillingInfo.BillingAccountName)
 		} else {
 			return fmt.Errorf("Enabling billing account %s on project %s failed",
-				projectBillingAccount.Core.SolutionSettings.Hosting.ProjectBillingAccount,
+				projectBillingAccount.Core.SolutionSettings.Hosting.BillingAccountID,
 				projectBillingAccount.Core.SolutionSettings.Hosting.ProjectID)
 		}
 	}

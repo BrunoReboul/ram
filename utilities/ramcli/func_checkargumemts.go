@@ -26,6 +26,7 @@ import (
 func (deployment *Deployment) CheckArguments() {
 	deployment.Core.GoVersion, deployment.Core.RAMVersion = GetVersions()
 	// flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
+	flag.BoolVar(&deployment.Core.Commands.Init, "init", false, "initial setup to be launched first, before manual, aka not automatable setup tasks")
 	flag.BoolVar(&deployment.Core.Commands.Maketrigger, "make-trigger", false, "make cloud build triggers to deploy one instance, one microservice, or all")
 	flag.BoolVar(&deployment.Core.Commands.Deploy, "deploy", false, "deploy one microservice instance")
 	flag.BoolVar(&deployment.Core.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.SettingsFileName))
