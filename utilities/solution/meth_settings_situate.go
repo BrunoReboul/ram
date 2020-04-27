@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package solution
 
 // Situate set settings from settings based on a given situation
 // Situation is the environment name (string)
 // Set settings are: folderID, projectID, Stackdriver projectID, Buckets names
-func (settings *SolutionSettings) Situate(environmentName string) {
+func (settings *Settings) Situate(environmentName string) {
 	settings.Hosting.FolderID = settings.Hosting.FolderIDs[environmentName]
 	settings.Hosting.ProjectID = settings.Hosting.ProjectIDs[environmentName]
 	settings.Hosting.Stackdriver.ProjectID = settings.Hosting.Stackdriver.ProjectIDs[environmentName]

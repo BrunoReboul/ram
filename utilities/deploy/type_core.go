@@ -18,7 +18,7 @@ import (
 	"context"
 
 	pubsub "cloud.google.com/go/pubsub/apiv1"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudfunctions/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -29,7 +29,7 @@ import (
 
 // Core structure common to all deployments
 type Core struct {
-	SolutionSettings            ram.SolutionSettings
+	SolutionSettings            solution.Settings
 	Ctx                         context.Context `yaml:"-"`
 	EnvironmentName             string
 	InstanceName                string

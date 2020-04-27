@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package solution
 
-// SolutionSettings settings common to all services / all instances
-type SolutionSettings struct {
+// Settings settings common to all services / all instances
+type Settings struct {
 	Hosting struct {
 		BillingAccountID string            `yaml:"billingAccountID"`
 		FolderID         string            `yaml:"folderID,omitempty"`
 		FolderIDs        map[string]string `yaml:"folderIDs"`
 		ProjectID        string            `yaml:"projectID,omitempty"`
+		ProjectLabels    map[string]string `yaml:"projectLabels"`
 		ProjectIDs       map[string]string `yaml:"projectIDs"`
 		Stackdriver      struct {
 			ProjectID  string            `yaml:"projectID,omitempty"`
@@ -78,9 +79,4 @@ type SolutionSettings struct {
 			Resources   []string `yaml:"resources"`
 		} `yaml:"assetTypes"`
 	}
-}
-
-// NewSolutionSettings create a solution settings structure
-func NewSolutionSettings() *SolutionSettings {
-	return &SolutionSettings{}
 }

@@ -28,6 +28,9 @@ func (deployment *Deployment) deployInstanceTrigger() (err error) {
 	if err = deployment.deployGRMFolder(); err != nil {
 		return err
 	}
+	if err = deployment.deployGRMProject(); err != nil {
+		return err
+	}
 	if err = deployment.deployGSUAPI(); err != nil {
 		return err
 	}
@@ -44,6 +47,12 @@ func (deployment *Deployment) deployInstanceTrigger() (err error) {
 		return err
 	}
 	return nil
+}
+
+func (deployment *Deployment) deployGRMProject() (err error) {
+	projectDeployment := grm.NewProjectDeployment()
+	projectDeployment.Core = &deployment.Core
+	return projectDeployment.Deploy()
 }
 
 func (deployment *Deployment) deployGRMFolder() (err error) {

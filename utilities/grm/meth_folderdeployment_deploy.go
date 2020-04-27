@@ -32,7 +32,7 @@ func (folderDeployment *FolderDeployment) Deploy() (err error) {
 		return fmt.Errorf("%s grm folder %s %s is in state %s while it should be ACTIVE", folderDeployment.Core.InstanceName,
 			folder.Name,
 			folder.DisplayName,
-			folder.Parent)
+			folder.LifecycleState)
 	}
 	log.Printf("%s grm folder found %s %s parent %s", folderDeployment.Core.InstanceName,
 		folder.Name,
