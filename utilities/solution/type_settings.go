@@ -17,13 +17,14 @@ package solution
 // Settings settings common to all services / all instances
 type Settings struct {
 	Hosting struct {
-		BillingAccountID string            `yaml:"billingAccountID"`
-		FolderID         string            `yaml:"folderID,omitempty"`
-		FolderIDs        map[string]string `yaml:"folderIDs"`
-		ProjectID        string            `yaml:"projectID,omitempty"`
-		ProjectLabels    map[string]string `yaml:"projectLabels"`
-		ProjectIDs       map[string]string `yaml:"projectIDs"`
-		Stackdriver      struct {
+		BillingAccountID      string            `yaml:"billingAccountID"`
+		FolderID              string            `yaml:"folderID,omitempty"`
+		FolderIDs             map[string]string `yaml:"folderIDs"`
+		ProjectID             string            `yaml:"projectID,omitempty"`
+		ProjectLabels         map[string]string `yaml:"projectLabels"`
+		ProjectBillingAccount string            `yaml:"projectBillingAccount"`
+		ProjectIDs            map[string]string `yaml:"projectIDs"`
+		Stackdriver           struct {
 			ProjectID  string            `yaml:"projectID,omitempty"`
 			ProjectIDs map[string]string `yaml:"projectIDs"`
 		}

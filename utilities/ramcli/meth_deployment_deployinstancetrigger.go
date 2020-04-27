@@ -17,6 +17,7 @@ package ramcli
 import (
 	"fmt"
 
+	"github.com/BrunoReboul/ram/utilities/bil"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/grm"
 	"github.com/BrunoReboul/ram/utilities/gsu"
@@ -29,6 +30,9 @@ func (deployment *Deployment) deployInstanceTrigger() (err error) {
 		return err
 	}
 	if err = deployment.deployGRMProject(); err != nil {
+		return err
+	}
+	if err = deployment.enableBILBillingAccountOnProject(); err != nil {
 		return err
 	}
 	if err = deployment.deployGSUAPI(); err != nil {
@@ -49,16 +53,22 @@ func (deployment *Deployment) deployInstanceTrigger() (err error) {
 	return nil
 }
 
+func (deployment *Deployment) deployGRMFolder() (err error) {
+	folderDeployment := grm.NewFolderDeployment()
+	folderDeployment.Core = &deployment.Core
+	return folderDeployment.Deploy()
+}
+
 func (deployment *Deployment) deployGRMProject() (err error) {
 	projectDeployment := grm.NewProjectDeployment()
 	projectDeployment.Core = &deployment.Core
 	return projectDeployment.Deploy()
 }
 
-func (deployment *Deployment) deployGRMFolder() (err error) {
-	folderDeployment := grm.NewFolderDeployment()
-	folderDeployment.Core = &deployment.Core
-	return folderDeployment.Deploy()
+func (deployment *Deployment) enableBILBillingAccountOnProject() (err error) {
+	projectBillingAccount := bil.NewProjectBillingAccount()
+	projectBillingAccount.Core = &deployment.Core
+	return projectBillingAccount.Enable()
 }
 
 func (deployment *Deployment) deployGSUAPI() (err error) {

@@ -25,6 +25,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ram"
 
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/cloudbilling/v1"
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudfunctions/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -41,6 +42,10 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
+	}
+	deployment.Core.Services.Cloudbillingservice, err = cloudbilling.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
 	}
 	deployment.Core.Services.CloudbuildService, err = cloudbuild.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
