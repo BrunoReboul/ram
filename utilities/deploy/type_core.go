@@ -20,6 +20,7 @@ import (
 	"google.golang.org/api/cloudbilling/v1"
 	"google.golang.org/api/sourcerepo/v1"
 
+	asset "cloud.google.com/go/asset/apiv1"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/cloudbuild/v1"
@@ -44,6 +45,7 @@ type Core struct {
 	Dump                        bool
 	InstanceFolderRelativePaths []string `yaml:"-"`
 	Services                    struct {
+		AssetClient                   *asset.Client
 		Cloudbillingservice           *cloudbilling.APIService        `yaml:"-"`
 		CloudbuildService             *cloudbuild.Service             `yaml:"-"`
 		CloudfunctionsService         *cloudfunctions.Service         `yaml:"-"`

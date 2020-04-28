@@ -27,25 +27,16 @@ import (
 type InstanceDeployment struct {
 	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
 	Core          *deploy.Core
-	Settings      Settings
-}
-
-// Settings flat settings structure: solution - service - instance
-type Settings struct {
-	Service  ServiceSettings
-	Instance InstanceSettings
-}
-
-// ServiceSettings defines service settings common to all service instances
-type ServiceSettings struct {
-	GSU gsu.Parameters
-	GCB gcb.Parameters
-	GCF gcf.Parameters
-}
-
-// InstanceSettings instance specific settings
-type InstanceSettings struct {
-	GCF gcf.Event
+	Settings      struct {
+		Service struct {
+			GSU gsu.Parameters
+			GCB gcb.Parameters
+			GCF gcf.Parameters
+		}
+		Instance struct {
+			GCF gcf.Event
+		}
+	}
 }
 
 // NewInstanceDeployment create deployment structure with default settings set

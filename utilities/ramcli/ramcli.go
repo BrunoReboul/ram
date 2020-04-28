@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 
+	asset "cloud.google.com/go/asset/apiv1"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
@@ -42,6 +43,10 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
+	}
+	deployment.Core.Services.AssetClient, err = asset.NewClient(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
 	}
 	deployment.Core.Services.Cloudbillingservice, err = cloudbilling.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
