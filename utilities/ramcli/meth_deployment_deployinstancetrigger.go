@@ -99,9 +99,24 @@ func (deployment *Deployment) deployIAMServiceAccount() (err error) {
 func (deployment *Deployment) deployIAMBindings() (err error) {
 	bindingsDeployment := iam.NewBindingsDeployment()
 	bindingsDeployment.Core = &deployment.Core
+	bindingsDeployment.Artifacts.ServiceAccountName = fmt.Sprintf("projects/%s/serviceAccounts/%s@%s.iam.gserviceaccount.com",
+		deployment.Core.SolutionSettings.Hosting.ProjectID,
+		deployment.Core.ServiceName,
+		deployment.Core.SolutionSettings.Hosting.ProjectID)
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", deployment.Core.ProjectNumber)
 	bindingsDeployment.Settings.Service.IAM = deployment.Settings.Service.GCB.ServiceAccountBindings.IAM
-	return bindingsDeployment.Deploy()
+	err = bindingsDeployment.Deploy()
+	if err != nil {
+		return err
+	}
+	bindingsDeployment.Artifacts.ServiceAccountName = fmt.Sprintf("projects/%s/serviceAccounts/%s@appspot.gserviceaccount.com",
+		deployment.Core.SolutionSettings.Hosting.ProjectID,
+		deployment.Core.SolutionSettings.Hosting.ProjectID)
+	err = bindingsDeployment.Deploy()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (deployment *Deployment) deployGSRRepo() (err error) {

@@ -21,7 +21,8 @@ import (
 // BindingsDeployment struct
 type BindingsDeployment struct {
 	Artifacts struct {
-		Member string
+		ServiceAccountName string
+		Member             string
 	}
 	Core     *deploy.Core
 	Settings struct {

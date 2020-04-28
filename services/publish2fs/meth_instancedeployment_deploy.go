@@ -107,6 +107,7 @@ func (instanceDeployment *InstanceDeployment) deployGRMBindings() (err error) {
 func (instanceDeployment *InstanceDeployment) deployIAMBindings() (err error) {
 	bindingsDeployment := iam.NewBindingsDeployment()
 	bindingsDeployment.Core = instanceDeployment.Core
+	bindingsDeployment.Artifacts.ServiceAccountName = fmt.Sprintf("projects/%s/serviceAccounts/%s@%s.iam.gserviceaccount.com", instanceDeployment.Core.SolutionSettings.Hosting.ProjectID, instanceDeployment.Core.ServiceName, instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s@%s.iam.gserviceaccount.com", instanceDeployment.Core.ServiceName, instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 	bindingsDeployment.Settings.Service.IAM = instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.IAM
 	return bindingsDeployment.Deploy()
