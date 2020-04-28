@@ -61,6 +61,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 		"roles/serviceusage.serviceUsageAdmin",
 		"roles/resourcemanager.projectIamAdmin",
 		"roles/iam.serviceAccountAdmin",
+		"roles/pubsub.editor",
 		"roles/cloudfunctions.admin"}
 	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.IAM.RolesOnServiceAccounts = []string{
 		"roles/iam.serviceAccountUser"}
