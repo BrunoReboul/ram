@@ -28,7 +28,7 @@ func (instanceDeployment *InstanceDeployment) Situate() (err error) {
 			return fmt.Errorf("There must be one an only one assetType when ContentType is RESOURCE")
 		}
 		assetShortName := cai.GetAssetShortTypeName(instanceDeployment.Settings.Instance.CAI.AssetTypes[0])
-		instanceDeployment.Artifacts.FeedName = fmt.Sprintf("ram-%s-rces-%s",
+		instanceDeployment.Artifacts.FeedName = fmt.Sprintf("ram-%s-rce-%s",
 			instanceDeployment.Core.EnvironmentName,
 			assetShortName)
 		instanceDeployment.Artifacts.TopicName = fmt.Sprintf("cai-rces-%s", assetShortName)
