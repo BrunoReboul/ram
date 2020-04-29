@@ -17,7 +17,6 @@ package publish2fs
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/BrunoReboul/ram/utilities/gps"
@@ -28,7 +27,6 @@ import (
 	"github.com/BrunoReboul/ram/utilities/grm"
 	"github.com/BrunoReboul/ram/utilities/gsu"
 	"github.com/BrunoReboul/ram/utilities/iam"
-	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
 // Deploy a service instance
@@ -54,33 +52,6 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	}
 	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
 	return nil
-}
-
-// ReadValidate reads and validates service and instance settings
-func (instanceDeployment *InstanceDeployment) ReadValidate() (err error) {
-	serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, ram.ServiceSettingsFileName)
-	if _, err := os.Stat(serviceConfigFilePath); !os.IsNotExist(err) {
-		err = ram.ReadValidate(instanceDeployment.Core.ServiceName, "ServiceSettings", serviceConfigFilePath, &instanceDeployment.Settings.Service)
-		if err != nil {
-			return err
-		}
-	}
-	instanceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, ram.InstancesFolderName, instanceDeployment.Core.InstanceName, ram.InstanceSettingsFileName)
-	if _, err := os.Stat(instanceConfigFilePath); !os.IsNotExist(err) {
-		err = ram.ReadValidate(instanceDeployment.Core.InstanceName, "InstanceSettings", instanceConfigFilePath, &instanceDeployment.Settings.Instance)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Situate complement settings taking in account the situation for service and instance settings
-func (instanceDeployment *InstanceDeployment) Situate() {
-	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
-	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("publish %s assets resource feeds as FireStore documents in collection %s",
-		instanceDeployment.Settings.Instance.GCF.TriggerTopic,
-		instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets)
 }
 
 func (instanceDeployment *InstanceDeployment) deployGSUAPI() (err error) {

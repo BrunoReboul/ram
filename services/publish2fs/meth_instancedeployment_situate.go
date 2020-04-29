@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package publish2fs
 
 import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iam"
+	"fmt"
 )
 
-// Parameters structure
-type Parameters struct {
-	BuildTimeout           string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	ServiceAccountBindings struct {
-		ResourceManager grm.Bindings `yaml:"resourceManager"`
-		IAM             iam.Bindings
-	} `yaml:"serviceAccountBindings"`
+// Situate complement settings taking in account the situation for service and instance settings
+func (instanceDeployment *InstanceDeployment) Situate() (err error) {
+	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
+	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("publish %s assets resource feeds as FireStore documents in collection %s",
+		instanceDeployment.Settings.Instance.GCF.TriggerTopic,
+		instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets)
+	return nil
 }

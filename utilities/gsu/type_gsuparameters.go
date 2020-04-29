@@ -16,5 +16,5 @@ package gsu
 
 // Parameters structure
 type Parameters struct {
-	APIList []string `yaml:"apiList"`
+	APIList []string `yaml:"apiList" valid:"isNotZeroValue"`
 }

@@ -12,18 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+/*
+Package setfeeds set Cloud Asset Inventory feeds at organization level
 
-import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iam"
-)
+Instances per targeted GCP organization, per environment
 
-// Parameters structure
-type Parameters struct {
-	BuildTimeout           string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	ServiceAccountBindings struct {
-		ResourceManager grm.Bindings `yaml:"resourceManager"`
-		IAM             iam.Bindings
-	} `yaml:"serviceAccountBindings"`
-}
+- one feed for all iam policies
+
+- one feed per asset type for resource metadata.
+
+Output
+
+Cloud Asset Inventory feeds set up.
+
+
+Notes
+
+- The default quota is 100 feeds at organization level.
+
+- It may be too small to accomodate multiple environments.
+
+- Request additional quotas when needed.
+
+*/
+package setfeeds

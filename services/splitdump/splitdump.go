@@ -27,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/cai"
+
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/BrunoReboul/ram/utilities/gps"
@@ -308,7 +310,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 			if asset.IamPolicy != nil {
 				topicName = global.iamTopicName
 			} else {
-				topicName = "cai-rces-" + getAssetShortTypeName(asset)
+				topicName = "cai-rces-" + cai.GetAssetShortTypeName(asset.AssetType)
 			}
 			// log.Println("topicName", topicName)
 			if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, topicListPointer, topicName, global.projectID); err != nil {
@@ -358,24 +360,4 @@ func transposeAsset(assetLegacy assetLegacy) asset {
 	asset.Resource = assetLegacy.Resource
 	asset.Ancestors = assetLegacy.Ancestors
 	return asset
-}
-
-func getAssetShortTypeName(asset asset) string {
-	var serviceName string
-	tmpArr := strings.Split(asset.AssetType, "/")
-	assetTypeName := tmpArr[len(tmpArr)-1]
-	serviceTypeName := tmpArr[0]
-	switch serviceTypeName {
-	case "rbac.authorization.k8s.io":
-		serviceName = "k8srbac"
-	case "extensions.k8s.io":
-		serviceName = "k8sextensions"
-	case "networking.k8s.io":
-		serviceName = "k8snetworking"
-	default:
-		tmpArr := strings.Split(asset.AssetType, ".")
-		serviceName = tmpArr[0]
-	}
-	assetShortTypeName := serviceName + "-" + assetTypeName
-	return assetShortTypeName
 }

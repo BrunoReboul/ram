@@ -12,18 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package cai
 
 import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iam"
+	"github.com/BrunoReboul/ram/utilities/deploy"
+	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 )
 
-// Parameters structure
-type Parameters struct {
-	BuildTimeout           string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	ServiceAccountBindings struct {
-		ResourceManager grm.Bindings `yaml:"resourceManager"`
-		IAM             iam.Bindings
-	} `yaml:"serviceAccountBindings"`
+// FeedDeployment settings and artifacts structure
+type FeedDeployment struct {
+	Artifacts struct {
+		CreateFeedRequest assetpb.CreateFeedRequest
+		TopicName         string `yaml:"topicName"`
+		FeedName          string `yaml:"feedName"`
+	}
+	Core     *deploy.Core
+	Settings struct {
+		Instance struct {
+			CAI Parameters
+		}
+	}
+}
+
+// NewFeedDeployment create deployment structure
+func NewFeedDeployment() *FeedDeployment {
+	return &FeedDeployment{}
 }

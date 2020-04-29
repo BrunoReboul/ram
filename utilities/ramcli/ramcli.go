@@ -106,6 +106,8 @@ func RAMCli(deployment *Deployment) (err error) {
 		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
 			deployment.Core.ServiceName, deployment.Core.InstanceName = GetServiceAndInstanceNames(instanceFolderRelativePath)
 			switch deployment.Core.ServiceName {
+			case "setfeeds":
+				deployment.deploySetFeeds()
 			case "publish2fs":
 				deployment.deployPublish2fs()
 			}

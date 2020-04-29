@@ -17,7 +17,7 @@ package cai
 // Parameters structure
 type Parameters struct {
 	Parent       string
-	ContentType  string   `yaml:"contentType"`
-	AssetTypes   []string `yaml:"asset_types"`
+	ContentType  string   `yaml:"contentType" valid:"isNotZeroValue"`
+	AssetTypes   []string `yaml:"assetTypes" valid:"isNotZeroValue"`
 	CronSchedule string   `yaml:"cronSchedule,omitempty"`
 }

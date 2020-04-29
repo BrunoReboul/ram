@@ -12,18 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
-
-import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iam"
-)
-
-// Parameters structure
-type Parameters struct {
-	BuildTimeout           string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	ServiceAccountBindings struct {
-		ResourceManager grm.Bindings `yaml:"resourceManager"`
-		IAM             iam.Bindings
-	} `yaml:"serviceAccountBindings"`
-}
+// Package cai helps with Cloud Asset Inventory
+package cai

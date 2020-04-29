@@ -17,11 +17,11 @@ package ramcli
 import (
 	"log"
 
-	"github.com/BrunoReboul/ram/services/publish2fs"
+	"github.com/BrunoReboul/ram/services/setfeeds"
 )
 
-func (deployment *Deployment) deployPublish2fs() {
-	instanceDeployment := publish2fs.NewInstanceDeployment()
+func (deployment *Deployment) deploySetFeeds() {
+	instanceDeployment := setfeeds.NewInstanceDeployment()
 	instanceDeployment.Core = &deployment.Core
 	err := instanceDeployment.ReadValidate()
 	if err != nil {

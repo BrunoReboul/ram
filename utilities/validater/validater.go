@@ -56,6 +56,11 @@ func (v isNotZeroValueValidater) validate(value interface{}) (bool, error) {
 		if value.(int64) == 0 {
 			return false, fmt.Errorf("Should NOT be a zero value %s", kind)
 		}
+	case reflect.Slice:
+		if reflect.ValueOf(value).Len() == 0 {
+			return false, fmt.Errorf("Should NOT be a zero value %s", kind)
+		}
+
 	default:
 		return false, fmt.Errorf("Unmanaged kind by 'isNotZeroValueValidater' %s", kind)
 	}

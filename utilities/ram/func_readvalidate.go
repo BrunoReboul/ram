@@ -26,6 +26,7 @@ func ReadValidate(serviceName, settingsType, path string, settings interface{}) 
 	if err != nil {
 		return err
 	}
+	// JSONMarshalIndentPrint(settings)
 	err = validater.ValidateStruct(settings, fmt.Sprintf("%s%s", serviceName, settingsType))
 	if err != nil {
 		return err
