@@ -16,6 +16,24 @@ package grm
 
 // Bindings structure
 type Bindings struct {
-	RolesOnOrganizations []string `yaml:"rolesOnOrganizations"`
-	RolesOnRAMProject    []string `yaml:"rolesOnRAMProject"`
+	Hosting struct {
+		Org struct {
+			CustomRoles []string `yaml:"orgCustomRoles"`
+			Roles       []string `yaml:"orgRoles"`
+		}
+		Folder struct {
+			CustomRoles []string `yaml:"orgCustomRoles"`
+			Roles       []string `yaml:"orgRoles"`
+		}
+		Project struct {
+			CustomRoles []string `yaml:"projectCustomRoles"`
+			Roles       []string `yaml:"projectRoles"`
+		}
+	}
+	Monitoring struct {
+		Org struct {
+			CustomRoles []string `yaml:"orgCustomRoles"`
+			Roles       []string `yaml:"orgRoles"`
+		}
+	}
 }

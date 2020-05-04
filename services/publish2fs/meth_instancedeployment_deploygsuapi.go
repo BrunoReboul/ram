@@ -12,27 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package iam
+package publish2fs
 
 import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
+	"github.com/BrunoReboul/ram/utilities/gsu"
 )
 
-// BindingsDeployment struct
-type BindingsDeployment struct {
-	Artifacts struct {
-		ServiceAccountName string
-		Member             string
-	}
-	Core     *deploy.Core
-	Settings struct {
-		Service struct {
-			IAM Bindings
-		}
-	}
-}
-
-// NewBindingsDeployment create deployment structure
-func NewBindingsDeployment() *BindingsDeployment {
-	return &BindingsDeployment{}
+func (instanceDeployment *InstanceDeployment) deployGSUAPI() (err error) {
+	apiDeployment := gsu.NewAPIDeployment()
+	apiDeployment.Core = instanceDeployment.Core
+	apiDeployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+	return apiDeployment.Deploy()
 }

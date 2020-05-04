@@ -59,6 +59,7 @@ func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
 	topicDeployment.Core = instanceDeployment.Core
 	topicDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
 	topicDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
+	topicDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
 	topicDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
 	return topicDeployment.Deploy()
 }

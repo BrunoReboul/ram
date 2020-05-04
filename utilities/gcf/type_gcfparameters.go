@@ -16,7 +16,7 @@ package gcf
 
 import (
 	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iam"
+	"github.com/BrunoReboul/ram/utilities/iamgt"
 )
 
 // Parameters structure
@@ -27,7 +27,7 @@ type Parameters struct {
 	RetryTimeOutSeconds    int64  `yaml:"retryTimeOutSeconds"`
 	Timeout                string
 	ServiceAccountBindings struct {
-		ResourceManager grm.Bindings `yaml:"resourceManager"`
-		IAM             iam.Bindings
+		GRM grm.Bindings
+		IAM iamgt.Bindings
 	} `yaml:"serviceAccountBindings"`
 }

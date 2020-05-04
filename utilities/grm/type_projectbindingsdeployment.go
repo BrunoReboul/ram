@@ -12,20 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package grm
 
 import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iamgt"
+	"github.com/BrunoReboul/ram/utilities/deploy"
 )
 
-// Parameters structure
-type Parameters struct {
-	BuildTimeout            string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	DeployIAMServiceAccount bool
-	DeployIAMBindings       bool
-	ServiceAccountBindings  struct {
-		GRM grm.Bindings
-		IAM iamgt.Bindings
-	} `yaml:"serviceAccountBindings"`
+// ProjectBindingsDeployment struct
+type ProjectBindingsDeployment struct {
+	Artifacts struct {
+		Member    string
+		ProjectID string `yaml:"projectID"`
+	}
+	Core     *deploy.Core
+	Settings struct {
+		CustomRoles []string `yaml:"customRoles"`
+		Roles       []string
+	}
+}
+
+// NewProjectBindingsDeployment create deployment structure
+func NewProjectBindingsDeployment() *ProjectBindingsDeployment {
+	return &ProjectBindingsDeployment{}
 }

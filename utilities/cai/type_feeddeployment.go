@@ -22,9 +22,10 @@ import (
 // FeedDeployment settings and artifacts structure
 type FeedDeployment struct {
 	Artifacts struct {
-		CreateFeedRequest assetpb.CreateFeedRequest
-		TopicName         string `yaml:"topicName"`
-		FeedName          string `yaml:"feedName"`
+		TopicName    string `yaml:"topicName"`
+		FeedName     string `yaml:"feedName"`
+		ContentType  assetpb.ContentType
+		FeedFullName string `yaml:"FeedFullName"`
 	}
 	Core     *deploy.Core
 	Settings struct {

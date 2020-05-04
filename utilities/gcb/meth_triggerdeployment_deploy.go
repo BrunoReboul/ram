@@ -24,8 +24,9 @@ import (
 
 var globalTriggerDeployment *TriggerDeployment
 
-// Deploy create or update a cloud build trigger to deploy a microservice instance
+// Deploy delete is exist, then create a cloud build trigger to deploy a microservice instance
 func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
+	log.Printf("%s gcb cloud build trigger", triggerDeployment.Core.InstanceName)
 	triggerDeployment.Artifacts.ProjectsTriggersService = triggerDeployment.Core.Services.CloudbuildService.Projects.Triggers
 	triggerDeployment.situate()
 	// ram.JSONMarshalIndentPrint(&triggerDeployment.Artifacts.BuildTrigger)
@@ -44,7 +45,7 @@ func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
 func (triggerDeployment *TriggerDeployment) deleteTriggers() (err error) {
 	err = triggerDeployment.Artifacts.ProjectsTriggersService.List(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID).Pages(triggerDeployment.Core.Ctx, browseTriggerToDelete)
 	if err != nil {
-		return err
+		return fmt.Errorf("ProjectsTriggersService.List %v", err)
 	}
 	return nil
 }

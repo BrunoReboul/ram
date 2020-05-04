@@ -21,14 +21,16 @@ import (
 	"github.com/BrunoReboul/ram/utilities/deploy"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/gsu"
+	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 )
 
 // InstanceDeployment settings and artifacts structure
 type InstanceDeployment struct {
 	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
 	Artifacts     struct {
-		TopicName string `yaml:"topicName"`
-		FeedName  string `yaml:"feedName"`
+		TopicName   string `yaml:"topicName"`
+		FeedName    string `yaml:"feedName"`
+		ContentType assetpb.ContentType
 	}
 	Core     *deploy.Core
 	Settings struct {
@@ -46,12 +48,14 @@ type InstanceDeployment struct {
 func NewInstanceDeployment() *InstanceDeployment {
 	var instanceDeployment InstanceDeployment
 	instanceDeployment.Settings.Service.GCB.BuildTimeout = "6000s"
-	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager.RolesOnOrganizations = []string{
-		"roles/cloudasset.owner"}
-	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager.RolesOnRAMProject = []string{
-		"roles/serviceusage.serviceUsageAdmin",
-		"roles/resourcemanager.projectIamAdmin",
-		"roles/pubsub.editor"}
+	instanceDeployment.Settings.Service.GCB.DeployIAMServiceAccount = false
+	instanceDeployment.Settings.Service.GCB.DeployIAMBindings = false
+	// instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager.CustomRolesOnOrganization = []string{
+	// 	"ram_cli_org_core"}
+	// instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager.CustomRolesOnProject = []string{
+	// 	"roles/serviceusage.serviceUsageAdmin",
+	// 	"roles/resourcemanager.projectIamAdmin",
+	// 	"roles/pubsub.editor"}
 	instanceDeployment.Settings.Service.GSU.APIList = []string{
 		"cloudasset.googleapis.com",
 		"cloudbuild.googleapis.com",

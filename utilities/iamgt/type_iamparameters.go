@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package iamgt
 
-import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iamgt"
-)
+import "google.golang.org/api/iam/v1"
 
 // Parameters structure
 type Parameters struct {
-	BuildTimeout            string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	DeployIAMServiceAccount bool
-	DeployIAMBindings       bool
-	ServiceAccountBindings  struct {
-		GRM grm.Bindings
-		IAM iamgt.Bindings
-	} `yaml:"serviceAccountBindings"`
+	RunRoles struct {
+		HostingOrg    []iam.Role `yaml:"hostingOrgRoles"`
+		MonitoringOrg []iam.Role `yaml:"monitoringOrgRoles"`
+		Project       []iam.Role `yaml:"ProjectRoles"`
+	}
+	DeployRoles struct {
+		HostingOrg    []iam.Role `yaml:"hostingOrgRoles"`
+		MonitoringOrg []iam.Role `yaml:"monitoringOrgRoles"`
+		Project       []iam.Role `yaml:"ProjectRoles"`
+	}
 }

@@ -12,5 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package iam helps with Google Identity Access Management, aka Service Accounts and their roles bindings
-package iam
+package iamgt
+
+import (
+	"github.com/BrunoReboul/ram/utilities/deploy"
+)
+
+// ServiceaccountDeployment struct
+type ServiceaccountDeployment struct {
+	Core *deploy.Core
+}
+
+// NewServiceaccountDeployment create deployment structure
+func NewServiceaccountDeployment() *ServiceaccountDeployment {
+	return &ServiceaccountDeployment{}
+}

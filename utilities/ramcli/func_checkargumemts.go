@@ -31,6 +31,7 @@ func (deployment *Deployment) CheckArguments() {
 	flag.BoolVar(&deployment.Core.Commands.Deploy, "deploy", false, "deploy one microservice instance")
 	flag.BoolVar(&deployment.Core.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.SettingsFileName))
 	flag.StringVar(&deployment.Core.RepositoryPath, "repo", ".", "Path to the root of the code repository")
+	flag.StringVar(&deployment.Core.RamcliServiceAccount, "ramclisa", "", "Email of Service Account used when running ramcli")
 	var microserviceFolderName = flag.String("service", "", "Microservice folder name")
 	var instanceFolderName = flag.String("instance", "", "Instance folder name")
 	flag.StringVar(&deployment.Core.EnvironmentName, "environment", ram.DevelopmentEnvironmentName, "Environment name")

@@ -25,6 +25,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ram"
 
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/appengine/v1"
 	"google.golang.org/api/cloudbilling/v1"
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudfunctions/v1"
@@ -43,6 +44,10 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
+	}
+	deployment.Core.Services.AppengineAPIService, err = appengine.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
 	}
 	deployment.Core.Services.AssetClient, err = asset.NewClient(ctx, option.WithCredentials(creds))
 	if err != nil {
@@ -99,7 +104,10 @@ func RAMCli(deployment *Deployment) (err error) {
 
 	if deployment.Core.Commands.Init {
 		deployment.Core.InstanceName = "initial setup"
-		deployment.initialize()
+		err = deployment.initialize()
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
 

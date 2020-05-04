@@ -17,6 +17,7 @@ package grm
 import (
 	"fmt"
 	"log"
+	"strings"
 )
 
 // Deploy FolderDeployment for now, only check the folder exist and is ACTIVE: It does NOT create the folder.
@@ -26,7 +27,11 @@ func (folderDeployment *FolderDeployment) Deploy() (err error) {
 	folderName := fmt.Sprintf("folders/%s", folderDeployment.Core.SolutionSettings.Hosting.FolderID)
 	folder, err := foldersService.Get(folderName).Context(folderDeployment.Core.Ctx).Do()
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "403") {
+			log.Printf("%s grm WARNING impossible to GET folder %v", folderDeployment.Core.InstanceName, err)
+			return nil
+		}
+		return fmt.Errorf("grm foldersService.Get(folderName) %v", err)
 	}
 	if folder.LifecycleState != "ACTIVE" {
 		return fmt.Errorf("%s grm folder %s %s is in state %s while it should be ACTIVE", folderDeployment.Core.InstanceName,

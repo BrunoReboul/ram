@@ -12,20 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package publish2fs
 
 import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iamgt"
+	"github.com/BrunoReboul/ram/utilities/gae"
 )
 
-// Parameters structure
-type Parameters struct {
-	BuildTimeout            string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	DeployIAMServiceAccount bool
-	DeployIAMBindings       bool
-	ServiceAccountBindings  struct {
-		GRM grm.Bindings
-		IAM iamgt.Bindings
-	} `yaml:"serviceAccountBindings"`
+func (instanceDeployment *InstanceDeployment) deployGAEApp() (err error) {
+	appDeployment := gae.NewAppDeployment()
+	appDeployment.Core = instanceDeployment.Core
+	return appDeployment.Deploy()
 }

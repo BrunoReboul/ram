@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package ramcli
 
 import (
-	"github.com/BrunoReboul/ram/utilities/grm"
 	"github.com/BrunoReboul/ram/utilities/iamgt"
 )
 
-// Parameters structure
-type Parameters struct {
-	BuildTimeout            string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	DeployIAMServiceAccount bool
-	DeployIAMBindings       bool
-	ServiceAccountBindings  struct {
-		GRM grm.Bindings
-		IAM iamgt.Bindings
-	} `yaml:"serviceAccountBindings"`
+func (deployment *Deployment) deployIAMProjectRoles() (err error) {
+	if len(deployment.Settings.Service.IAM.DeployRoles.Project) > 0 {
+		projectRolesDeployment := iamgt.NewProjectRolesDeployment()
+		projectRolesDeployment.Core = &deployment.Core
+		projectRolesDeployment.Settings.Roles = deployment.Settings.Service.IAM.DeployRoles.Project
+		projectRolesDeployment.Artifacts.ProjectID = deployment.Core.SolutionSettings.Hosting.ProjectID
+		return projectRolesDeployment.Deploy()
+	}
+	return nil
 }

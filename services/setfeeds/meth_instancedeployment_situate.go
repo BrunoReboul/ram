@@ -18,12 +18,14 @@ import (
 	"fmt"
 
 	"github.com/BrunoReboul/ram/utilities/cai"
+	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 )
 
 // Situate complement settings taking in account the situation for service and instance settings
 func (instanceDeployment *InstanceDeployment) Situate() (err error) {
 	switch instanceDeployment.Settings.Instance.CAI.ContentType {
 	case "RESOURCE":
+		instanceDeployment.Artifacts.ContentType = assetpb.ContentType_RESOURCE
 		if len(instanceDeployment.Settings.Instance.CAI.AssetTypes) != 1 {
 			return fmt.Errorf("There must be one an only one assetType when ContentType is RESOURCE")
 		}
@@ -34,6 +36,7 @@ func (instanceDeployment *InstanceDeployment) Situate() (err error) {
 		instanceDeployment.Artifacts.TopicName = fmt.Sprintf("cai-rces-%s", assetShortName)
 		return nil
 	case "IAM_POLICY":
+		instanceDeployment.Artifacts.ContentType = assetpb.ContentType_IAM_POLICY
 		instanceDeployment.Artifacts.FeedName = fmt.Sprintf("ram-%s-iam-policies", instanceDeployment.Core.EnvironmentName)
 		instanceDeployment.Artifacts.TopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
 		return nil

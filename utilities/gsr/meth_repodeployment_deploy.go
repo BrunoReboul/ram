@@ -35,11 +35,11 @@ func (repoDeployment *RepoDeployment) Deploy() (err error) {
 			repoToCreate.Name = repoName
 			repo, err = projectsService.Repos.Create(projectName, &repoToCreate).Context(repoDeployment.Core.Ctx).Do()
 			if err != nil {
-				return err
+				return fmt.Errorf("gsr projectsService.Repos.Create %v", err)
 			}
 			log.Printf("%s gsr source repo created %s", repoDeployment.Core.InstanceName, repo.Name)
 		} else {
-			return err
+			return fmt.Errorf("gsr projectsService.Repos.Get(repoName) %v", err)
 		}
 	}
 	log.Printf("%s gsr found source repo %s", repoDeployment.Core.InstanceName, repo.Name)

@@ -17,6 +17,7 @@ package deploy
 import (
 	"context"
 
+	"google.golang.org/api/appengine/v1"
 	"google.golang.org/api/cloudbilling/v1"
 	"google.golang.org/api/sourcerepo/v1"
 
@@ -42,10 +43,12 @@ type Core struct {
 	RepositoryPath              string
 	RAMVersion                  string
 	GoVersion                   string
+	RamcliServiceAccount        string
 	Dump                        bool
 	InstanceFolderRelativePaths []string `yaml:"-"`
 	Services                    struct {
-		AssetClient                   *asset.Client
+		AppengineAPIService           *appengine.APIService           `yaml:"-"`
+		AssetClient                   *asset.Client                   `yaml:"-"`
 		Cloudbillingservice           *cloudbilling.APIService        `yaml:"-"`
 		CloudbuildService             *cloudbuild.Service             `yaml:"-"`
 		CloudfunctionsService         *cloudfunctions.Service         `yaml:"-"`

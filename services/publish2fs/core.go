@@ -74,12 +74,6 @@ func Initialize(ctx context.Context, global *Global) {
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 	projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 
-	// global.collectionID = os.Getenv("COLLECTION_ID")
-	// projectID = os.Getenv("GCP_PROJECT")
-	// if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
-	// 	return
-	// }
-
 	global.firestoreClient, err = firestore.NewClient(ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - firestore.NewClient: %v", err)

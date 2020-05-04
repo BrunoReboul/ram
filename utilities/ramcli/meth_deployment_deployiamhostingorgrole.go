@@ -12,26 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package grm
+package ramcli
 
-import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
-)
+import "github.com/BrunoReboul/ram/utilities/iamgt"
 
-// BindingsDeployment struct
-type BindingsDeployment struct {
-	Artifacts struct {
-		Member string
+func (deployment *Deployment) deployIAMHostingOrgRole() (err error) {
+	if len(deployment.Settings.Service.IAM.DeployRoles.HostingOrg) > 0 {
+		orgRoleDeployment := iamgt.NewOrgRolesDeployment()
+		orgRoleDeployment.Core = &deployment.Core
+		orgRoleDeployment.Settings.Roles = deployment.Settings.Service.IAM.DeployRoles.HostingOrg
+		orgRoleDeployment.Artifacts.OrganizationID = deployment.Core.SolutionSettings.Hosting.OrganizationID
+		return orgRoleDeployment.Deploy()
 	}
-	Core     *deploy.Core
-	Settings struct {
-		Service struct {
-			GRM Bindings
-		}
-	}
-}
-
-// NewBindingsDeployment create deployment structure
-func NewBindingsDeployment() *BindingsDeployment {
-	return &BindingsDeployment{}
+	return nil
 }

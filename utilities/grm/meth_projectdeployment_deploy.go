@@ -33,7 +33,6 @@ func (projectDeployment *ProjectDeployment) Deploy() (err error) {
 	if err != nil {
 		// When a project is not found the API returns 403 forbiden instead of 404 not found
 		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "403") {
-			log.Println("hello")
 			var parent cloudresourcemanager.ResourceId
 			parent.Type = "folder"
 			parent.Id = projectDeployment.Core.SolutionSettings.Hosting.FolderID
@@ -44,7 +43,11 @@ func (projectDeployment *ProjectDeployment) Deploy() (err error) {
 			projectToCreate.Labels = projectDeployment.Core.SolutionSettings.Hosting.ProjectLabels
 			operation, err := projectsService.Create(&projectToCreate).Context(projectDeployment.Core.Ctx).Do()
 			if err != nil {
-				return err
+				if strings.Contains(err.Error(), "403") {
+					log.Printf("%s grm WARNING impossible to CREATE project %v", projectDeployment.Core.InstanceName, err)
+					return nil
+				}
+				return fmt.Errorf("grm projectsService.Create(&projectToCreate) %v", err)
 			}
 			operationName := operation.Name
 			log.Printf("%s grm create project %s operation started", projectDeployment.Core.InstanceName, projectDeployment.Core.SolutionSettings.Hosting.ProjectID)

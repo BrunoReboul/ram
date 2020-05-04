@@ -17,6 +17,8 @@ package solution
 // Settings settings common to all services / all instances
 type Settings struct {
 	Hosting struct {
+		OrganizationID   string            `yaml:"organizationID,omitempty"`
+		OrganizationIDs  map[string]string `yaml:"organizationIDs"`
 		BillingAccountID string            `yaml:"billingAccountID"`
 		FolderID         string            `yaml:"folderID,omitempty"`
 		FolderIDs        map[string]string `yaml:"folderIDs"`

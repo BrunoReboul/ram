@@ -12,9 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package iam
+package iamgt
 
-// Bindings structure
-type Bindings struct {
-	RolesOnServiceAccounts []string `yaml:"rolesOnServiceAccounts"`
+import (
+	"github.com/BrunoReboul/ram/utilities/deploy"
+)
+
+// BindingsDeployment struct
+type BindingsDeployment struct {
+	Artifacts struct {
+		ServiceAccountName string
+		Member             string
+	}
+	Core     *deploy.Core
+	Settings struct {
+		Service struct {
+			IAM Bindings
+		}
+	}
+}
+
+// NewBindingsDeployment create deployment structure
+func NewBindingsDeployment() *BindingsDeployment {
+	return &BindingsDeployment{}
 }

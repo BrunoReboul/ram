@@ -18,6 +18,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/deploy"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/gsu"
+	"github.com/BrunoReboul/ram/utilities/iamgt"
 )
 
 // Deployment structure
@@ -26,6 +27,7 @@ type Deployment struct {
 	Settings struct {
 		Service struct {
 			GSU gsu.Parameters
+			IAM iamgt.Parameters
 			GCB gcb.Parameters
 		}
 	}

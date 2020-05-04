@@ -18,6 +18,7 @@ package solution
 // Situation is the environment name (string)
 // Set settings are: folderID, projectID, Stackdriver projectID, Buckets names
 func (settings *Settings) Situate(environmentName string) {
+	settings.Hosting.OrganizationID = settings.Hosting.OrganizationIDs[environmentName]
 	settings.Hosting.FolderID = settings.Hosting.FolderIDs[environmentName]
 	settings.Hosting.ProjectID = settings.Hosting.ProjectIDs[environmentName]
 	settings.Hosting.Stackdriver.ProjectID = settings.Hosting.Stackdriver.ProjectIDs[environmentName]

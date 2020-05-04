@@ -12,20 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package gae
 
 import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iamgt"
+	"github.com/BrunoReboul/ram/utilities/deploy"
 )
 
-// Parameters structure
-type Parameters struct {
-	BuildTimeout            string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	DeployIAMServiceAccount bool
-	DeployIAMBindings       bool
-	ServiceAccountBindings  struct {
-		GRM grm.Bindings
-		IAM iamgt.Bindings
-	} `yaml:"serviceAccountBindings"`
+// AppDeployment struct
+type AppDeployment struct {
+	Core *deploy.Core
+}
+
+// NewAppDeployment create deployment structure
+func NewAppDeployment() *AppDeployment {
+	return &AppDeployment{}
 }

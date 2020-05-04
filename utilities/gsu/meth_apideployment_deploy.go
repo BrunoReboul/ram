@@ -34,9 +34,14 @@ func (apiDeployment *APIDeployment) Deploy() (err error) {
 	apiDeployment.Artifacts.OperationsService = apiDeployment.Core.Services.ServiceusageService.Operations
 	activeAPIs = make([]string, 0)
 	parent := fmt.Sprintf("projects/%s", apiDeployment.Core.SolutionSettings.Hosting.ProjectID)
+	// log.Println(parent)
 	err = apiDeployment.Artifacts.ServicesService.List(parent).Filter("state:ENABLED").PageSize(200).Pages(apiDeployment.Core.Ctx, browseActiveAPIs)
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "403") {
+			log.Printf("%s gsu WARNING impossible to LIST APIs %v", apiDeployment.Core.InstanceName, err)
+			return nil
+		}
+		return fmt.Errorf("gsu ServicesService.List %v", err)
 	}
 
 	for _, apiName := range apiDeployment.Settings.Service.GSU.APIList {

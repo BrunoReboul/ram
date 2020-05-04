@@ -14,19 +14,21 @@
 
 package ramcli
 
-import (
-	"fmt"
-
-	"github.com/BrunoReboul/ram/utilities/bil"
-	"github.com/BrunoReboul/ram/utilities/gcb"
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/gsr"
-	"github.com/BrunoReboul/ram/utilities/gsu"
-	"github.com/BrunoReboul/ram/utilities/iam"
-)
-
 // deployInstanceTrigger an instance trigger
 func (deployment *Deployment) deployInstanceTrigger() (err error) {
+	// Optional
+	if err = deployment.deployIAMHostingOrgRole(); err != nil {
+		return err
+	}
+	if err = deployment.deployIAMMonitoringOrgRole(); err != nil {
+		return err
+	}
+	if err = deployment.deployGRMHostingOrgBindings(); err != nil {
+		return err
+	}
+	if err = deployment.deployGRMMonitoringOrgBindings(); err != nil {
+		return err
+	}
 	if err = deployment.deployGRMFolder(); err != nil {
 		return err
 	}
@@ -36,10 +38,13 @@ func (deployment *Deployment) deployInstanceTrigger() (err error) {
 	if err = deployment.enableBILBillingAccountOnProject(); err != nil {
 		return err
 	}
+	if err = deployment.deployIAMProjectRoles(); err != nil {
+		return err
+	}
 	if err = deployment.deployGSUAPI(); err != nil {
 		return err
 	}
-	if err = deployment.deployGRMBindings(); err != nil {
+	if err = deployment.deployGRMProjectBindings(); err != nil {
 		return err
 	}
 	if err = deployment.deployIAMServiceAccount(); err != nil {
@@ -48,6 +53,7 @@ func (deployment *Deployment) deployInstanceTrigger() (err error) {
 	if err = deployment.deployIAMBindings(); err != nil {
 		return err
 	}
+	// Core
 	if err = deployment.deployGSRRepo(); err != nil {
 		return err
 	}
@@ -55,79 +61,4 @@ func (deployment *Deployment) deployInstanceTrigger() (err error) {
 		return err
 	}
 	return nil
-}
-
-func (deployment *Deployment) deployGRMFolder() (err error) {
-	folderDeployment := grm.NewFolderDeployment()
-	folderDeployment.Core = &deployment.Core
-	return folderDeployment.Deploy()
-}
-
-func (deployment *Deployment) deployGRMProject() (err error) {
-	projectDeployment := grm.NewProjectDeployment()
-	projectDeployment.Core = &deployment.Core
-	return projectDeployment.Deploy()
-}
-
-func (deployment *Deployment) enableBILBillingAccountOnProject() (err error) {
-	projectBillingAccount := bil.NewProjectBillingAccount()
-	projectBillingAccount.Core = &deployment.Core
-	return projectBillingAccount.Enable()
-}
-
-func (deployment *Deployment) deployGSUAPI() (err error) {
-	apiDeployment := gsu.NewAPIDeployment()
-	apiDeployment.Core = &deployment.Core
-	apiDeployment.Settings.Service.GSU = deployment.Settings.Service.GSU
-	return apiDeployment.Deploy()
-}
-
-func (deployment *Deployment) deployGRMBindings() (err error) {
-	bindingsDeployment := grm.NewBindingsDeployment()
-	bindingsDeployment.Core = &deployment.Core
-	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", deployment.Core.ProjectNumber)
-	bindingsDeployment.Settings.Service.GRM = deployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager
-	return bindingsDeployment.Deploy()
-}
-
-func (deployment *Deployment) deployIAMServiceAccount() (err error) {
-	serviceAccountDeployment := iam.NewServiceaccountDeployment()
-	serviceAccountDeployment.Core = &deployment.Core
-	return serviceAccountDeployment.Deploy()
-}
-
-func (deployment *Deployment) deployIAMBindings() (err error) {
-	bindingsDeployment := iam.NewBindingsDeployment()
-	bindingsDeployment.Core = &deployment.Core
-	bindingsDeployment.Artifacts.ServiceAccountName = fmt.Sprintf("projects/%s/serviceAccounts/%s@%s.iam.gserviceaccount.com",
-		deployment.Core.SolutionSettings.Hosting.ProjectID,
-		deployment.Core.ServiceName,
-		deployment.Core.SolutionSettings.Hosting.ProjectID)
-	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", deployment.Core.ProjectNumber)
-	bindingsDeployment.Settings.Service.IAM = deployment.Settings.Service.GCB.ServiceAccountBindings.IAM
-	err = bindingsDeployment.Deploy()
-	if err != nil {
-		return err
-	}
-	bindingsDeployment.Artifacts.ServiceAccountName = fmt.Sprintf("projects/%s/serviceAccounts/%s@appspot.gserviceaccount.com",
-		deployment.Core.SolutionSettings.Hosting.ProjectID,
-		deployment.Core.SolutionSettings.Hosting.ProjectID)
-	err = bindingsDeployment.Deploy()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (deployment *Deployment) deployGSRRepo() (err error) {
-	repoDeployment := gsr.NewRepoDeployment()
-	repoDeployment.Core = &deployment.Core
-	return repoDeployment.Deploy()
-}
-
-func (deployment *Deployment) deployGCBTrigger() (err error) {
-	triggerDeployment := gcb.NewTriggerDeployment()
-	triggerDeployment.Core = &deployment.Core
-	triggerDeployment.Settings.Service.GCB = deployment.Settings.Service.GCB
-	return triggerDeployment.Deploy()
 }

@@ -12,18 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package iam
+package publish2fs
 
 import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
+	"github.com/BrunoReboul/ram/utilities/gps"
 )
 
-// ServiceaccountDeployment struct
-type ServiceaccountDeployment struct {
-	Core *deploy.Core
-}
-
-// NewServiceaccountDeployment create deployment structure
-func NewServiceaccountDeployment() *ServiceaccountDeployment {
-	return &ServiceaccountDeployment{}
+func (instanceDeployment *InstanceDeployment) deployGPSTopic() (err error) {
+	topicDeployment := gps.NewTopicDeployment()
+	topicDeployment.Core = instanceDeployment.Core
+	topicDeployment.Settings.TopicName = instanceDeployment.Settings.Instance.GCF.TriggerTopic
+	return topicDeployment.Deploy()
 }

@@ -15,18 +15,8 @@
 package publish2fs
 
 import (
-	"fmt"
 	"log"
 	"time"
-
-	"github.com/BrunoReboul/ram/utilities/gps"
-
-	"github.com/BrunoReboul/ram/utilities/gcf"
-	"gopkg.in/yaml.v2"
-
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/gsu"
-	"github.com/BrunoReboul/ram/utilities/iam"
 )
 
 // Deploy a service instance
@@ -35,15 +25,16 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	if err = instanceDeployment.deployGSUAPI(); err != nil {
 		return err
 	}
+	if err = instanceDeployment.deployGAEApp(); err != nil {
+		return err
+	}
 	if err = instanceDeployment.deployIAMServiceAccount(); err != nil {
 		return err
 	}
-	if err = instanceDeployment.deployGRMBindings(); err != nil {
+	if err = instanceDeployment.deployGRMProjectBindings(); err != nil {
 		return err
 	}
-	if err = instanceDeployment.deployIAMBindings(); err != nil {
-		return err
-	}
+	// // Core
 	if err = instanceDeployment.deployGPSTopic(); err != nil {
 		return err
 	}
@@ -52,55 +43,4 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	}
 	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
 	return nil
-}
-
-func (instanceDeployment *InstanceDeployment) deployGSUAPI() (err error) {
-	apiDeployment := gsu.NewAPIDeployment()
-	apiDeployment.Core = instanceDeployment.Core
-	apiDeployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
-	return apiDeployment.Deploy()
-}
-
-func (instanceDeployment *InstanceDeployment) deployIAMServiceAccount() (err error) {
-	serviceAccountDeployment := iam.NewServiceaccountDeployment()
-	serviceAccountDeployment.Core = instanceDeployment.Core
-	return serviceAccountDeployment.Deploy()
-}
-
-func (instanceDeployment *InstanceDeployment) deployGRMBindings() (err error) {
-	bindingsDeployment := grm.NewBindingsDeployment()
-	bindingsDeployment.Core = instanceDeployment.Core
-	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s@%s.iam.gserviceaccount.com", instanceDeployment.Core.ServiceName, instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
-	bindingsDeployment.Settings.Service.GRM = instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.ResourceManager
-	return bindingsDeployment.Deploy()
-}
-
-func (instanceDeployment *InstanceDeployment) deployIAMBindings() (err error) {
-	bindingsDeployment := iam.NewBindingsDeployment()
-	bindingsDeployment.Core = instanceDeployment.Core
-	bindingsDeployment.Artifacts.ServiceAccountName = fmt.Sprintf("projects/%s/serviceAccounts/%s@%s.iam.gserviceaccount.com", instanceDeployment.Core.SolutionSettings.Hosting.ProjectID, instanceDeployment.Core.ServiceName, instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
-	bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s@%s.iam.gserviceaccount.com", instanceDeployment.Core.ServiceName, instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
-	bindingsDeployment.Settings.Service.IAM = instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.IAM
-	return bindingsDeployment.Deploy()
-}
-
-func (instanceDeployment *InstanceDeployment) deployGPSTopic() (err error) {
-	topicDeployment := gps.NewTopicDeployment()
-	topicDeployment.Core = instanceDeployment.Core
-	topicDeployment.Settings.TopicName = instanceDeployment.Settings.Instance.GCF.TriggerTopic
-	return topicDeployment.Deploy()
-}
-
-func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
-	instanceDeployment.DumpTimestamp = time.Now()
-	instanceDeploymentYAMLBytes, err := yaml.Marshal(instanceDeployment)
-	if err != nil {
-		return err
-	}
-	functionDeployment := gcf.NewFunctionDeployment()
-	functionDeployment.Core = instanceDeployment.Core
-	functionDeployment.Artifacts.InstanceDeploymentYAMLContent = string(instanceDeploymentYAMLBytes)
-	functionDeployment.Settings.Service.GCF = instanceDeployment.Settings.Service.GCF
-	functionDeployment.Settings.Instance.GCF = instanceDeployment.Settings.Instance.GCF
-	return functionDeployment.Deploy()
 }

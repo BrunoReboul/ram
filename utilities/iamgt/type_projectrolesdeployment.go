@@ -12,20 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package iamgt
 
 import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iamgt"
+	"github.com/BrunoReboul/ram/utilities/deploy"
+	"google.golang.org/api/iam/v1"
 )
 
-// Parameters structure
-type Parameters struct {
-	BuildTimeout            string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	DeployIAMServiceAccount bool
-	DeployIAMBindings       bool
-	ServiceAccountBindings  struct {
-		GRM grm.Bindings
-		IAM iamgt.Bindings
-	} `yaml:"serviceAccountBindings"`
+// ProjectRolesDeployment struct
+type ProjectRolesDeployment struct {
+	Core      *deploy.Core
+	Artifacts struct {
+		ProjectID string
+	}
+	Settings struct {
+		Roles []iam.Role
+	}
+}
+
+// NewProjectRolesDeployment create deployment structure
+func NewProjectRolesDeployment() *ProjectRolesDeployment {
+	return &ProjectRolesDeployment{}
 }

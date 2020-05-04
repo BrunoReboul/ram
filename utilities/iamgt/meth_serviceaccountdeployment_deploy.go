@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package iam
+package iamgt
 
 import (
 	"fmt"
@@ -47,12 +47,20 @@ func (serviceaccountDeployment *ServiceaccountDeployment) Deploy() (err error) {
 					}
 					log.Printf("%s iam eventually found service account %s", serviceaccountDeployment.Core.InstanceName, retreivedServiceAccount.Email)
 				} else {
-					return err
+					if strings.Contains(err.Error(), "403") {
+						log.Printf("%s iam WARNING impossible to CREATE service account %v", serviceaccountDeployment.Core.InstanceName, err)
+						return nil
+					}
+					return fmt.Errorf("iam projectServiceAccountService.Create %v", err)
 				}
 			}
 			log.Printf("%s iam service account created %s", serviceaccountDeployment.Core.InstanceName, retreivedServiceAccount.Email)
 		} else {
-			return err
+			if strings.Contains(err.Error(), "403") {
+				log.Printf("%s iam WARNING impossible to GET service account %v", serviceaccountDeployment.Core.InstanceName, err)
+				return nil
+			}
+			return fmt.Errorf("iam projectServiceAccountService.Get %v", err)
 		}
 	} else {
 		log.Printf("%s iam found service account %s", serviceaccountDeployment.Core.InstanceName, retreivedServiceAccount.Email)

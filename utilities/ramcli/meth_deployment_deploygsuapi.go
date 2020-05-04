@@ -12,20 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcb
+package ramcli
 
 import (
-	"github.com/BrunoReboul/ram/utilities/grm"
-	"github.com/BrunoReboul/ram/utilities/iamgt"
+	"github.com/BrunoReboul/ram/utilities/gsu"
 )
 
-// Parameters structure
-type Parameters struct {
-	BuildTimeout            string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
-	DeployIAMServiceAccount bool
-	DeployIAMBindings       bool
-	ServiceAccountBindings  struct {
-		GRM grm.Bindings
-		IAM iamgt.Bindings
-	} `yaml:"serviceAccountBindings"`
+func (deployment *Deployment) deployGSUAPI() (err error) {
+	apiDeployment := gsu.NewAPIDeployment()
+	apiDeployment.Core = &deployment.Core
+	apiDeployment.Settings.Service.GSU = deployment.Settings.Service.GSU
+	return apiDeployment.Deploy()
 }
