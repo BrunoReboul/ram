@@ -24,6 +24,8 @@ import (
 
 var globalTriggerDeployment *TriggerDeployment
 
+// Permission cloudbuild.builds.get is required in complemenet of cloudbuild.builds.list, event if 'get' API is not used
+
 // Deploy delete is exist, then create a cloud build trigger to deploy a microservice instance
 func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
 	log.Printf("%s gcb cloud build trigger", triggerDeployment.Core.InstanceName)

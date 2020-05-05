@@ -16,19 +16,21 @@ package ramcli
 
 // deployInstanceTrigger an instance trigger
 func (deployment *Deployment) deployInstanceTrigger() (err error) {
-	// Optional
+	// Extended hosting org
 	if err = deployment.deployIAMHostingOrgRole(); err != nil {
-		return err
-	}
-	if err = deployment.deployIAMMonitoringOrgRole(); err != nil {
 		return err
 	}
 	if err = deployment.deployGRMHostingOrgBindings(); err != nil {
 		return err
 	}
+	// Extended monitoring org
+	if err = deployment.deployIAMMonitoringOrgRole(); err != nil {
+		return err
+	}
 	if err = deployment.deployGRMMonitoringOrgBindings(); err != nil {
 		return err
 	}
+	// Extended folder
 	if err = deployment.deployGRMFolder(); err != nil {
 		return err
 	}
@@ -53,7 +55,7 @@ func (deployment *Deployment) deployInstanceTrigger() (err error) {
 	if err = deployment.deployIAMBindings(); err != nil {
 		return err
 	}
-	// Core
+	// Core folder
 	if err = deployment.deployGSRRepo(); err != nil {
 		return err
 	}

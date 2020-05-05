@@ -22,6 +22,7 @@ import (
 // Deploy a service instance
 func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	start := time.Now()
+	// Extended project
 	if err = instanceDeployment.deployGSUAPI(); err != nil {
 		return err
 	}
@@ -34,7 +35,7 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	if err = instanceDeployment.deployGRMProjectBindings(); err != nil {
 		return err
 	}
-	// // Core
+	// Core project
 	if err = instanceDeployment.deployGPSTopic(); err != nil {
 		return err
 	}

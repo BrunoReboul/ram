@@ -37,7 +37,7 @@ func (deployment *Deployment) CheckArguments() {
 	flag.StringVar(&deployment.Core.EnvironmentName, "environment", ram.DevelopmentEnvironmentName, "Environment name")
 	flag.Parse()
 
-	// case the one instance
+	// case one instance
 	if *instanceFolderName != "" {
 		if *microserviceFolderName == "" {
 			log.Fatalln("Missing service argument")
@@ -50,7 +50,7 @@ func (deployment *Deployment) CheckArguments() {
 	}
 
 	if *microserviceFolderName != "" {
-		// case the one microservice
+		// case one microservice
 		deployment.Core.InstanceFolderRelativePaths = ram.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s/%s", ram.MicroserviceParentFolderName, *microserviceFolderName, ram.InstancesFolderName))
 	} else {
 		// case all

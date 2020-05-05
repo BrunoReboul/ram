@@ -25,7 +25,20 @@ func (deployment *Deployment) deployGRMHostingOrgBindings() (err error) {
 	orgBindingsDeployment.Core = &deployment.Core
 	orgBindingsDeployment.Settings.Roles = deployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Org.Roles
 	orgBindingsDeployment.Settings.CustomRoles = deployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Org.CustomRoles
-	orgBindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", deployment.Core.ProjectNumber)
 	orgBindingsDeployment.Artifacts.OrganizationID = orgBindingsDeployment.Core.SolutionSettings.Hosting.OrganizationID
-	return orgBindingsDeployment.Deploy()
+
+	orgBindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", deployment.Core.ProjectNumber)
+	err = orgBindingsDeployment.Deploy()
+	if err != nil {
+		return err
+	}
+
+	if orgBindingsDeployment.Core.RamcliServiceAccount != "" {
+		orgBindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s", orgBindingsDeployment.Core.RamcliServiceAccount)
+		err = orgBindingsDeployment.Deploy()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
