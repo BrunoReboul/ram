@@ -95,6 +95,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 func projectDeployCoreRole() (role iam.Role) {
 	role.Title = "ram_publish2fs_deploy_core"
 	role.Description = "Real-time Asset Monitor publish to firestore microservice core permissions to deploy"
+	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"pubsub.topics.get",
 		"pubsub.topics.create",
@@ -110,6 +111,7 @@ func projectDeployCoreRole() (role iam.Role) {
 func projectDeployExtendedRole() (role iam.Role) {
 	role.Title = "ram_publish2fs_deploy_extended"
 	role.Description = "Real-time Asset Monitor publish to firestore microservice core permissions to deploy"
+	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"serviceusage.services.list",
 		"serviceusage.services.enable",

@@ -24,24 +24,45 @@ func (deployment *Deployment) deployIAMBindings() (err error) {
 	if deployment.Settings.Service.GCB.DeployIAMBindings {
 		bindingsDeployment := iamgt.NewBindingsDeployment()
 		bindingsDeployment.Core = &deployment.Core
-		bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", deployment.Core.ProjectNumber)
 		bindingsDeployment.Settings.Service.IAM = deployment.Settings.Service.GCB.ServiceAccountBindings.IAM
 
+		// target = microservice service account
 		bindingsDeployment.Artifacts.ServiceAccountName = fmt.Sprintf("projects/%s/serviceAccounts/%s@%s.iam.gserviceaccount.com",
 			deployment.Core.SolutionSettings.Hosting.ProjectID,
 			deployment.Core.ServiceName,
 			deployment.Core.SolutionSettings.Hosting.ProjectID)
+		// Member = Cloud Build service account
+		bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", deployment.Core.ProjectNumber)
 		err = bindingsDeployment.Deploy()
 		if err != nil {
 			return err
 		}
+		if bindingsDeployment.Core.RamcliServiceAccount != "" {
+			// Member = ram cli service account
+			bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s", bindingsDeployment.Core.RamcliServiceAccount)
+			err = bindingsDeployment.Deploy()
+			if err != nil {
+				return err
+			}
+		}
 
+		// target = app engine servuce account
 		bindingsDeployment.Artifacts.ServiceAccountName = fmt.Sprintf("projects/%s/serviceAccounts/%s@appspot.gserviceaccount.com",
 			deployment.Core.SolutionSettings.Hosting.ProjectID,
 			deployment.Core.SolutionSettings.Hosting.ProjectID)
+		// Member = Cloud Build service account
+		bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%d@cloudbuild.gserviceaccount.com", deployment.Core.ProjectNumber)
 		err = bindingsDeployment.Deploy()
 		if err != nil {
 			return err
+		}
+		if bindingsDeployment.Core.RamcliServiceAccount != "" {
+			// Member = ram cli service account
+			bindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s", bindingsDeployment.Core.RamcliServiceAccount)
+			err = bindingsDeployment.Deploy()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

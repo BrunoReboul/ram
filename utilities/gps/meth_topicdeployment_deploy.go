@@ -38,7 +38,7 @@ func (topicDeployment *TopicDeployment) Deploy() (err error) {
 		if strings.Contains(strings.ToLower(err.Error()), "notfound") {
 			topicNotFound = true
 		} else {
-			return err
+			return fmt.Errorf("topicDeployment.Core.Services.PubsubPublisherClient.GetTopic %s", err)
 		}
 	} else {
 		if topic.Labels != nil {
@@ -56,7 +56,7 @@ func (topicDeployment *TopicDeployment) Deploy() (err error) {
 		_, err = topicDeployment.Core.Services.PubsubPublisherClient.CreateTopic(topicDeployment.Core.Ctx, &topicToCreate)
 		if err != nil {
 			if !strings.Contains(strings.ToLower(err.Error()), "alreadyexists") {
-				return err
+				return fmt.Errorf("topicDeployment.Core.Services.PubsubPublisherClient.CreateTopic %s", err)
 			}
 			log.Printf("%s gps try to create topic but already exist %s", topicDeployment.Core.InstanceName, topicDeployment.Settings.TopicName)
 		}
@@ -71,7 +71,7 @@ func (topicDeployment *TopicDeployment) Deploy() (err error) {
 			updateTopicRequest.UpdateMask = &fieldMask
 			_, err = topicDeployment.Core.Services.PubsubPublisherClient.UpdateTopic(topicDeployment.Core.Ctx, &updateTopicRequest)
 			if err != nil {
-				return err
+				return fmt.Errorf("topicDeployment.Core.Services.PubsubPublisherClient.UpdateTopic %s", err)
 			}
 			log.Printf("%s gps topic found, label updated %s", topicDeployment.Core.InstanceName, topicDeployment.Settings.TopicName)
 		} else {

@@ -21,23 +21,30 @@ import (
 	"time"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
+	"google.golang.org/api/cloudfunctions/v1"
 )
 
 // createPatchCloudFunction looks for and existing cloud function
 func (functionDeployment *FunctionDeployment) createPatchCloudFunction() (err error) {
+	var operation *cloudfunctions.Operation
 	location := fmt.Sprintf("projects/%s/locations/%s", functionDeployment.Core.SolutionSettings.Hosting.ProjectID, functionDeployment.Core.SolutionSettings.Hosting.GCF.Region)
-	operation, err := functionDeployment.Artifacts.ProjectsLocationsFunctionsService.Create(location,
-		&functionDeployment.Artifacts.CloudFunction).Context(functionDeployment.Core.Ctx).Do()
+	retreivedCloudFunction, err := functionDeployment.Artifacts.ProjectsLocationsFunctionsService.Get(functionDeployment.Artifacts.CloudFunction.Name).Context(functionDeployment.Core.Ctx).Do()
 	if err != nil {
-		if strings.Contains(err.Error(), "alreadyExists") {
-			log.Printf("%s gcf patch existing cloud function", functionDeployment.Core.InstanceName)
-			operation, err = functionDeployment.Artifacts.ProjectsLocationsFunctionsService.Patch(functionDeployment.Artifacts.CloudFunction.Name,
+		if strings.Contains(err.Error(), "404") {
+			operation, err = functionDeployment.Artifacts.ProjectsLocationsFunctionsService.Create(location,
 				&functionDeployment.Artifacts.CloudFunction).Context(functionDeployment.Core.Ctx).Do()
 			if err != nil {
-				return err
+				return fmt.Errorf("ProjectsLocationsFunctionsService.Create %v", err)
 			}
 		} else {
-			return err
+			return fmt.Errorf("ProjectsLocationsFunctionsService.Get %v", err)
+		}
+	} else {
+		log.Printf("%s gcf patch existing cloud function %s", functionDeployment.Core.InstanceName, retreivedCloudFunction.Name)
+		operation, err = functionDeployment.Artifacts.ProjectsLocationsFunctionsService.Patch(functionDeployment.Artifacts.CloudFunction.Name,
+			&functionDeployment.Artifacts.CloudFunction).Context(functionDeployment.Core.Ctx).Do()
+		if err != nil {
+			return fmt.Errorf("ProjectsLocationsFunctionsService.Patch %v", err)
 		}
 	}
 
