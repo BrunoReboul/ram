@@ -15,25 +15,15 @@
 package setfeeds
 
 import (
-	"log"
-	"time"
+	"github.com/BrunoReboul/ram/utilities/cai"
 )
 
-// Deploy a service instance
-func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
-	start := time.Now()
-	// Extended project
-	if err = instanceDeployment.deployGSUAPI(); err != nil {
-		return err
-	}
-	// Core project
-	if err = instanceDeployment.deployGPSTopic(); err != nil {
-		return err
-	}
-	// Core monitoring orgs
-	if err = instanceDeployment.deployCAIFeed(); err != nil {
-		return err
-	}
-	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
-	return nil
+func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
+	topicDeployment := cai.NewFeedDeployment()
+	topicDeployment.Core = instanceDeployment.Core
+	topicDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
+	topicDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
+	topicDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
+	topicDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
+	return topicDeployment.Deploy()
 }

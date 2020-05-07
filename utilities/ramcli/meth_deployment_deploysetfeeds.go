@@ -33,6 +33,7 @@ func (deployment *Deployment) deploySetFeeds() {
 	}
 	if deployment.Core.Commands.Maketrigger {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
+		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
 		err = deployment.deployInstanceTrigger()
 	} else {

@@ -110,7 +110,7 @@ func projectDeployCoreRole() (role iam.Role) {
 
 func projectDeployExtendedRole() (role iam.Role) {
 	role.Title = "ram_publish2fs_deploy_extended"
-	role.Description = "Real-time Asset Monitor publish to firestore microservice core permissions to deploy"
+	role.Description = "Real-time Asset Monitor publish to firestore microservice extended permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"serviceusage.services.list",
@@ -118,9 +118,6 @@ func projectDeployExtendedRole() (role iam.Role) {
 		"serviceusage.services.get",
 		"appengine.applications.get",
 		"appengine.applications.create",
-		"iam.roles.get",
-		"iam.roles.create",
-		"iam.roles.update",
 		"iam.serviceAccounts.get",
 		"iam.serviceAccounts.create",
 		"resourcemanager.projects.getIamPolicy",

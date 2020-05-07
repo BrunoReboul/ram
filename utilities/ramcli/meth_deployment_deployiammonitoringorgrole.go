@@ -14,13 +14,15 @@
 
 package ramcli
 
-import "github.com/BrunoReboul/ram/utilities/iamgt"
+import (
+	"github.com/BrunoReboul/ram/utilities/iamgt"
+)
 
 func (deployment *Deployment) deployIAMMonitoringOrgRole() (err error) {
-	if len(deployment.Settings.Service.IAM.DeployRoles.HostingOrg) > 0 {
+	if len(deployment.Settings.Service.IAM.DeployRoles.MonitoringOrg) > 0 {
 		orgRoleDeployment := iamgt.NewOrgRolesDeployment()
 		orgRoleDeployment.Core = &deployment.Core
-		orgRoleDeployment.Settings.Roles = deployment.Settings.Service.IAM.DeployRoles.HostingOrg
+		orgRoleDeployment.Settings.Roles = deployment.Settings.Service.IAM.DeployRoles.MonitoringOrg
 		for _, organizationID := range deployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
 			orgRoleDeployment.Artifacts.OrganizationID = organizationID
 			err = orgRoleDeployment.Deploy()

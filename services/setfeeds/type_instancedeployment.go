@@ -21,6 +21,8 @@ import (
 	"github.com/BrunoReboul/ram/utilities/deploy"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/gsu"
+	"github.com/BrunoReboul/ram/utilities/iamgt"
+	"google.golang.org/api/iam/v1"
 	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 )
 
@@ -36,6 +38,7 @@ type InstanceDeployment struct {
 	Settings struct {
 		Service struct {
 			GSU gsu.Parameters
+			IAM iamgt.Parameters
 			GCB gcb.Parameters
 		}
 		Instance struct {
@@ -47,15 +50,6 @@ type InstanceDeployment struct {
 // NewInstanceDeployment create deployment structure with default settings set
 func NewInstanceDeployment() *InstanceDeployment {
 	var instanceDeployment InstanceDeployment
-	instanceDeployment.Settings.Service.GCB.BuildTimeout = "6000s"
-	instanceDeployment.Settings.Service.GCB.DeployIAMServiceAccount = false
-	instanceDeployment.Settings.Service.GCB.DeployIAMBindings = false
-	// instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager.CustomRolesOnOrganization = []string{
-	// 	"ram_cli_org_core"}
-	// instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.ResourceManager.CustomRolesOnProject = []string{
-	// 	"roles/serviceusage.serviceUsageAdmin",
-	// 	"roles/resourcemanager.projectIamAdmin",
-	// 	"roles/pubsub.editor"}
 	instanceDeployment.Settings.Service.GSU.APIList = []string{
 		"cloudasset.googleapis.com",
 		"cloudbuild.googleapis.com",
@@ -64,5 +58,52 @@ func NewInstanceDeployment() *InstanceDeployment {
 		"iam.googleapis.com",
 		"pubsub.googleapis.com"}
 	instanceDeployment.Settings.Service.GSU.APIList = append(deploy.GetCommonAPIlist(), instanceDeployment.Settings.Service.GSU.APIList...)
+
+	instanceDeployment.Settings.Service.IAM.DeployRoles.Project = []iam.Role{
+		projectDeployCoreRole(),
+		projectDeployExtendedRole()}
+	instanceDeployment.Settings.Service.IAM.DeployRoles.MonitoringOrg = []iam.Role{monitoringOrgDeployCoreRole()}
+
+	instanceDeployment.Settings.Service.GCB.BuildTimeout = "6000s"
+	instanceDeployment.Settings.Service.GCB.DeployIAMServiceAccount = false
+	instanceDeployment.Settings.Service.GCB.DeployIAMBindings = false
+	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Monitoring.Org.CustomRoles = []string{
+		monitoringOrgDeployCoreRole().Title}
+	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
+		projectDeployCoreRole().Title,
+		projectDeployExtendedRole().Title}
 	return &instanceDeployment
+}
+
+func projectDeployExtendedRole() (role iam.Role) {
+	role.Title = "ram_setfeeds_deploy_extended"
+	role.Description = "Real-time Asset Monitor set feeds microservice extended permissions to deploy"
+	role.Stage = "GA"
+	role.IncludedPermissions = []string{
+		"serviceusage.services.list",
+		"serviceusage.services.enable",
+		"serviceusage.services.get"}
+	return role
+}
+
+func projectDeployCoreRole() (role iam.Role) {
+	role.Title = "ram_setfeeds_deploy_core"
+	role.Description = "Real-time Asset Monitor set feeds microservice core permissions to deploy"
+	role.Stage = "GA"
+	role.IncludedPermissions = []string{
+		"pubsub.topics.get",
+		"pubsub.topics.create",
+		"pubsub.topics.update"}
+	return role
+}
+
+func monitoringOrgDeployCoreRole() (role iam.Role) {
+	role.Title = "ram_setfeeds_deploy_core"
+	role.Description = "Real-time Asset Monitor set feeds microservice core permissions to deploy"
+	role.Stage = "GA"
+	role.IncludedPermissions = []string{
+		"cloudasset.feeds.get",
+		"cloudasset.feeds.create",
+		"cloudasset.feeds.update"}
+	return role
 }

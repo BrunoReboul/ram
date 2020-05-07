@@ -36,7 +36,7 @@ func (feedDeployment *FeedDeployment) Deploy() (err error) {
 		if strings.Contains(err.Error(), "notFound") {
 			feedFound = false
 		} else {
-			return err
+			return fmt.Errorf("AssetClient.GetFeed %v", err)
 		}
 	}
 	if feedFound {
@@ -78,13 +78,23 @@ func (feedDeployment *FeedDeployment) createFeed() (err error) {
 
 	feed, err := feedDeployment.Core.Services.AssetClient.CreateFeed(feedDeployment.Core.Ctx, &createFeedRequest)
 	if err != nil {
-		return nil
+		return fmt.Errorf("AssetClient.CreateFeed %v", err)
 	}
 	log.Printf("%s cai feed created %s", feedDeployment.Core.InstanceName, feed.Name)
 	return nil
 }
 
-func (feedDeployment *FeedDeployment) updateFeed(feed *assetpb.Feed) (err error) {
-	log.Printf("%s cai feed found, starting update as type is IAM_POLICY %s", feedDeployment.Core.InstanceName, feed.Name)
+func (feedDeployment *FeedDeployment) updateFeed(existingFeed *assetpb.Feed) (err error) {
+	log.Printf("%s cai feed found, starting update as type is IAM_POLICY %s", feedDeployment.Core.InstanceName, existingFeed.Name)
+	existingFeed.AssetTypes = feedDeployment.Settings.Instance.CAI.AssetTypes
+
+	var updateFeedRequest assetpb.UpdateFeedRequest
+	updateFeedRequest.Feed = existingFeed
+
+	feed, err := feedDeployment.Core.Services.AssetClient.UpdateFeed(feedDeployment.Core.Ctx, &updateFeedRequest)
+	if err != nil {
+		return fmt.Errorf("AssetClient.UpdateFeed %v", err)
+	}
+	log.Printf("%s cai feed updated %s", feedDeployment.Core.InstanceName, feed.Name)
 	return nil
 }

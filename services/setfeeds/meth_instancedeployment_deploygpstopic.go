@@ -14,26 +14,11 @@
 
 package setfeeds
 
-import (
-	"log"
-	"time"
-)
+import "github.com/BrunoReboul/ram/utilities/gps"
 
-// Deploy a service instance
-func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
-	start := time.Now()
-	// Extended project
-	if err = instanceDeployment.deployGSUAPI(); err != nil {
-		return err
-	}
-	// Core project
-	if err = instanceDeployment.deployGPSTopic(); err != nil {
-		return err
-	}
-	// Core monitoring orgs
-	if err = instanceDeployment.deployCAIFeed(); err != nil {
-		return err
-	}
-	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
-	return nil
+func (instanceDeployment *InstanceDeployment) deployGPSTopic() (err error) {
+	topicDeployment := gps.NewTopicDeployment()
+	topicDeployment.Core = instanceDeployment.Core
+	topicDeployment.Settings.TopicName = instanceDeployment.Artifacts.TopicName
+	return topicDeployment.Deploy()
 }

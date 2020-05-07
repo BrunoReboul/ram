@@ -15,25 +15,12 @@
 package setfeeds
 
 import (
-	"log"
-	"time"
+	"github.com/BrunoReboul/ram/utilities/gsu"
 )
 
-// Deploy a service instance
-func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
-	start := time.Now()
-	// Extended project
-	if err = instanceDeployment.deployGSUAPI(); err != nil {
-		return err
-	}
-	// Core project
-	if err = instanceDeployment.deployGPSTopic(); err != nil {
-		return err
-	}
-	// Core monitoring orgs
-	if err = instanceDeployment.deployCAIFeed(); err != nil {
-		return err
-	}
-	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
-	return nil
+func (instanceDeployment *InstanceDeployment) deployGSUAPI() (err error) {
+	apiDeployment := gsu.NewAPIDeployment()
+	apiDeployment.Core = instanceDeployment.Core
+	apiDeployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+	return apiDeployment.Deploy()
 }
