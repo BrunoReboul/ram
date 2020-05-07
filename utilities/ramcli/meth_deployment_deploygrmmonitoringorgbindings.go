@@ -23,8 +23,8 @@ import (
 func (deployment *Deployment) deployGRMMonitoringOrgBindings() (err error) {
 	orgBindingsDeployment := grm.NewOrgBindingsDeployment()
 	orgBindingsDeployment.Core = &deployment.Core
-	orgBindingsDeployment.Settings.Roles = deployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Org.Roles
-	orgBindingsDeployment.Settings.CustomRoles = deployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Org.CustomRoles
+	orgBindingsDeployment.Settings.Roles = deployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Monitoring.Org.Roles
+	orgBindingsDeployment.Settings.CustomRoles = deployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Monitoring.Org.CustomRoles
 	for _, organizationID := range orgBindingsDeployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
 		orgBindingsDeployment.Artifacts.OrganizationID = organizationID
 

@@ -30,8 +30,8 @@ const Retries = 5
 
 // Deploy use retries on a read-modify-write cycle
 func (orgBindingsDeployment *OrgBindingsDeployment) Deploy() (err error) {
-	if len(orgBindingsDeployment.Settings.CustomRoles) > 0 && orgBindingsDeployment.Artifacts.OrganizationID != "" {
-		log.Printf("%s grm Resource Manager bindings on organization", orgBindingsDeployment.Core.InstanceName)
+	if len(orgBindingsDeployment.Settings.Roles)+len(orgBindingsDeployment.Settings.CustomRoles) > 0 && orgBindingsDeployment.Artifacts.OrganizationID != "" {
+		log.Printf("%s grm organization bindings", orgBindingsDeployment.Core.InstanceName)
 		organizationsService := orgBindingsDeployment.Core.Services.CloudresourcemanagerService.Organizations
 		for i := 0; i < Retries; i++ {
 			if i > 0 {
@@ -57,9 +57,7 @@ func (orgBindingsDeployment *OrgBindingsDeployment) Deploy() (err error) {
 			existingRoles := make([]string, 0)
 			for _, binding := range policy.Bindings {
 				existingRoles = append(existingRoles, binding.Role)
-				parts := strings.Split(binding.Role, "/")
-				role := parts[len(parts)-1]
-				if ram.Find(orgBindingsDeployment.Settings.Roles, role) {
+				if ram.Find(orgBindingsDeployment.Settings.Roles, binding.Role) {
 					isAlreadyMemberOf := false
 					for _, member := range binding.Members {
 						if member == orgBindingsDeployment.Artifacts.Member {
@@ -74,9 +72,36 @@ func (orgBindingsDeployment *OrgBindingsDeployment) Deploy() (err error) {
 						policyIsToBeUpdated = true
 					}
 				}
+				parts := strings.Split(binding.Role, "/")
+				customRole := parts[len(parts)-1]
+				if ram.Find(orgBindingsDeployment.Settings.CustomRoles, customRole) {
+					isAlreadyMemberOf := false
+					for _, member := range binding.Members {
+						if member == orgBindingsDeployment.Artifacts.Member {
+							isAlreadyMemberOf = true
+						}
+					}
+					if isAlreadyMemberOf {
+						log.Printf("%s grm member %s already have %s on organization %s", orgBindingsDeployment.Core.InstanceName, orgBindingsDeployment.Artifacts.Member, customRole, orgBindingsDeployment.Artifacts.OrganizationID)
+					} else {
+						log.Printf("%s grm add member %s to existing %s on organization %s", orgBindingsDeployment.Core.InstanceName, orgBindingsDeployment.Artifacts.Member, customRole, orgBindingsDeployment.Artifacts.OrganizationID)
+						binding.Members = append(binding.Members, orgBindingsDeployment.Artifacts.Member)
+						policyIsToBeUpdated = true
+					}
+				}
 			}
 			for _, role := range orgBindingsDeployment.Settings.Roles {
-				role = fmt.Sprintf("organizations/%s/roles/%s", orgBindingsDeployment.Artifacts.OrganizationID, role)
+				if !ram.Find(existingRoles, role) {
+					var binding cloudresourcemanager.Binding
+					binding.Role = role
+					binding.Members = []string{orgBindingsDeployment.Artifacts.Member}
+					log.Printf("%s grm add new %s with solo member %s on organization %s", orgBindingsDeployment.Core.InstanceName, binding.Role, orgBindingsDeployment.Artifacts.Member, orgBindingsDeployment.Artifacts.OrganizationID)
+					policy.Bindings = append(policy.Bindings, &binding)
+					policyIsToBeUpdated = true
+				}
+			}
+			for _, customRole := range orgBindingsDeployment.Settings.CustomRoles {
+				role := fmt.Sprintf("organizations/%s/roles/%s", orgBindingsDeployment.Artifacts.OrganizationID, customRole)
 				if !ram.Find(existingRoles, role) {
 					var binding cloudresourcemanager.Binding
 					binding.Role = role
