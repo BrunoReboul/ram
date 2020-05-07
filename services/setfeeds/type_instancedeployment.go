@@ -91,9 +91,13 @@ func projectDeployCoreRole() (role iam.Role) {
 	role.Description = "Real-time Asset Monitor set feeds microservice core permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
+		"pubsub.topics.list",
 		"pubsub.topics.get",
 		"pubsub.topics.create",
-		"pubsub.topics.update"}
+		"pubsub.topics.update",
+		"pubsub.topics.getIamPolicy",
+		"pubsub.topics.setIamPolicy",
+		"pubsub.topics.publish"}
 	return role
 }
 
@@ -104,6 +108,8 @@ func monitoringOrgDeployCoreRole() (role iam.Role) {
 	role.IncludedPermissions = []string{
 		"cloudasset.feeds.get",
 		"cloudasset.feeds.create",
-		"cloudasset.feeds.update"}
+		"cloudasset.feeds.update",
+		"cloudasset.assets.exportResource",
+		"cloudasset.assets.exportIamPolicy"}
 	return role
 }

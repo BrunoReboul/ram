@@ -19,6 +19,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/BrunoReboul/ram/utilities/ram"
 	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 )
 
@@ -33,7 +34,7 @@ func (feedDeployment *FeedDeployment) Deploy() (err error) {
 	// GET
 	feed, err := feedDeployment.Core.Services.AssetClient.GetFeed(feedDeployment.Core.Ctx, &getFeedRequest)
 	if err != nil {
-		if strings.Contains(err.Error(), "notFound") {
+		if strings.Contains(strings.ToLower(err.Error()), "notfound") {
 			feedFound = false
 		} else {
 			return fmt.Errorf("AssetClient.GetFeed %v", err)
@@ -55,6 +56,7 @@ func (feedDeployment *FeedDeployment) Deploy() (err error) {
 }
 
 func (feedDeployment *FeedDeployment) createFeed() (err error) {
+
 	var pubsubDestination assetpb.PubsubDestination
 	pubsubDestination.Topic = fmt.Sprintf("projects/%s/topics/%s",
 		feedDeployment.Core.SolutionSettings.Hosting.ProjectID,
@@ -70,11 +72,13 @@ func (feedDeployment *FeedDeployment) createFeed() (err error) {
 	feedToCreate.Name = feedDeployment.Artifacts.FeedFullName
 	feedToCreate.ContentType = feedDeployment.Artifacts.ContentType
 	feedToCreate.AssetTypes = feedDeployment.Settings.Instance.CAI.AssetTypes
+	feedToCreate.FeedOutputConfig = &feedOuputConfig
 
 	var createFeedRequest assetpb.CreateFeedRequest
 	createFeedRequest.Parent = feedDeployment.Settings.Instance.CAI.Parent
 	createFeedRequest.FeedId = feedDeployment.Artifacts.FeedFullName
 	createFeedRequest.Feed = &feedToCreate
+	ram.JSONMarshalIndentPrint(&createFeedRequest)
 
 	feed, err := feedDeployment.Core.Services.AssetClient.CreateFeed(feedDeployment.Core.Ctx, &createFeedRequest)
 	if err != nil {
