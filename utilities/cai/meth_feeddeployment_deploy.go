@@ -69,14 +69,17 @@ func (feedDeployment *FeedDeployment) createFeed() (err error) {
 	feedOuputConfig.Destination = &feedOutputConfigPubsubDestination
 
 	var feedToCreate assetpb.Feed
-	feedToCreate.Name = feedDeployment.Artifacts.FeedFullName
+	// The field name must be empty and it will be generated
+	// feedToCreate.Name = feedDeployment.Artifacts.FeedFullName
 	feedToCreate.ContentType = feedDeployment.Artifacts.ContentType
 	feedToCreate.AssetTypes = feedDeployment.Settings.Instance.CAI.AssetTypes
 	feedToCreate.FeedOutputConfig = &feedOuputConfig
 
 	var createFeedRequest assetpb.CreateFeedRequest
 	createFeedRequest.Parent = feedDeployment.Settings.Instance.CAI.Parent
-	createFeedRequest.FeedId = feedDeployment.Artifacts.FeedFullName
+	// createFeedRequest.FeedId = feedDeployment.Artifacts.FeedFullName
+	// This is the client-assigned asset feed identifier and it needs to be unique under a specific parent project/folder/organization
+	createFeedRequest.FeedId = feedDeployment.Artifacts.FeedName
 	createFeedRequest.Feed = &feedToCreate
 	ram.JSONMarshalIndentPrint(&createFeedRequest)
 
