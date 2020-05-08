@@ -44,7 +44,7 @@ func (deployment *Deployment) configureSetFeedsAssetTypes() (err error) {
 		setfeedInstance.CAI.Parent = fmt.Sprintf("organizations/%s", organizationID)
 		setfeedInstance.CAI.ContentType = "IAM_POLICY"
 		setfeedInstance.CAI.AssetTypes = deployment.Core.SolutionSettings.Monitoring.AssetTypes.IAMPolicies
-		instanceFolderPath := fmt.Sprintf("%s/%s-org-%s-iam-policies", instancesFolderPath, serviceName, organizationID)
+		instanceFolderPath := fmt.Sprintf("%s/%s-org%s-iam-policies", instancesFolderPath, serviceName, organizationID)
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
@@ -57,7 +57,7 @@ func (deployment *Deployment) configureSetFeedsAssetTypes() (err error) {
 		for _, assetType := range deployment.Core.SolutionSettings.Monitoring.AssetTypes.Resources {
 			setfeedInstance.CAI.ContentType = "RESOURCE"
 			setfeedInstance.CAI.AssetTypes = []string{assetType}
-			instanceFolderPath := fmt.Sprintf("%s/%s-org-%s-rces-%s", instancesFolderPath, serviceName, organizationID, cai.GetAssetShortTypeName(assetType))
+			instanceFolderPath := fmt.Sprintf("%s/%s-org%s-%s", instancesFolderPath, serviceName, organizationID, cai.GetAssetShortTypeName(assetType))
 			if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 				os.Mkdir(instanceFolderPath, 0755)
 			}

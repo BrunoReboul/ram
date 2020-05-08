@@ -72,9 +72,7 @@ func deleteBuildTrigger(triggerID string) {
 }
 
 func (triggerDeployment *TriggerDeployment) situate() {
-	triggerDeployment.Artifacts.BuildTrigger.Name = fmt.Sprintf("%s-%s-cd",
-		triggerDeployment.Core.EnvironmentName,
-		triggerDeployment.Core.InstanceName)
+	triggerDeployment.Artifacts.BuildTrigger.Name = triggerDeployment.Core.InstanceName
 	triggerDeployment.Artifacts.BuildTrigger.Description = fmt.Sprintf("Environment %s, Instance %s, Phase continuous deployment",
 		triggerDeployment.Core.EnvironmentName,
 		triggerDeployment.Core.InstanceName)
