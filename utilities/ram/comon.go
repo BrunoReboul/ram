@@ -31,7 +31,6 @@ import (
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
-	"gopkg.in/yaml.v2"
 
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
@@ -201,19 +200,6 @@ func BuildAncestryPath(ancestors []string) string {
 	var ancestryPath string
 	ancestryPath = makeCompatible(strings.Join(revAncestors, "/"))
 	return ancestryPath
-}
-
-// DumpToYAMLFile Marchal to YAML format, add disclaimer and write as a file
-func DumpToYAMLFile(iface interface{}, path string) (err error) {
-	contentBytes, err := yaml.Marshal(iface)
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(path, append([]byte(YAMLDisclaimer), contentBytes...), 0644)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // Find a string in a slice of string. Return true when found else false

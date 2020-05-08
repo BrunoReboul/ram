@@ -61,9 +61,10 @@ type Core struct {
 	} `yaml:"-"`
 	Commands struct {
 		// Makeyaml     bool
-		Init         bool
-		Maketrigger  bool
-		Deploy       bool
-		Dumpsettings bool
+		Initialize          bool
+		ConfigureAssetTypes bool
+		MakeReleasePipeline bool
+		Deploy              bool
+		Dumpsettings        bool
 	} `yaml:"-"`
 }

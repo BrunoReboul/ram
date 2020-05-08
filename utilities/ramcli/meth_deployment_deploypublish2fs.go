@@ -31,7 +31,7 @@ func (deployment *Deployment) deployPublish2fs() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if deployment.Core.Commands.Maketrigger {
+	if deployment.Core.Commands.MakeReleasePipeline {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU

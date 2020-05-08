@@ -102,15 +102,18 @@ func RAMCli(deployment *Deployment) (err error) {
 	deployment.Core.SolutionSettings.Situate(deployment.Core.EnvironmentName)
 	deployment.Core.ProjectNumber, err = getProjectNumber(deployment.Core.Ctx, deployment.Core.Services.CloudresourcemanagerService, deployment.Core.SolutionSettings.Hosting.ProjectID)
 
-	if deployment.Core.Commands.Init {
-		deployment.Core.InstanceName = "initial setup"
-		err = deployment.initialize()
-		if err != nil {
+	switch true {
+	case deployment.Core.Commands.Initialize:
+		if err = deployment.initialize(); err != nil {
 			log.Fatal(err)
 		}
-	} else {
+	case deployment.Core.Commands.ConfigureAssetTypes:
+		if err = deployment.configureSetFeedsAssetTypes(); err != nil {
+			log.Fatal(err)
+		}
+		// TODO add deployment.configureDumpInventoryAssetTypes()
+	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
-
 		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
 			deployment.Core.ServiceName, deployment.Core.InstanceName = GetServiceAndInstanceNames(instanceFolderRelativePath)
 			switch deployment.Core.ServiceName {

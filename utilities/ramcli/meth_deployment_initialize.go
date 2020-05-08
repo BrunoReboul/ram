@@ -22,16 +22,7 @@ import (
 
 // initialize intitial setup steps before manual, aka not automatable, setup tasks
 func (deployment *Deployment) initialize() (err error) {
-	// if err = deployment.deployIAMOrgRole(); err != nil {
-	// 	return err
-	// }
-	// if deployment.Core.RamcliServiceAccount == "" {
-	// 	log.Printf("%s iam WARNING RamcliServiceAccount has not been specified when launching ram cli", deployment.Core.InstanceName)
-	// 	log.Printf("%s iam WARNING ram cli custom roles will not be binding to any service account", deployment.Core.InstanceName)
-	// } else {
-	// 	log.Printf("%s iam ram cli custom roles will not be binding to any service account", deployment.Core.InstanceName)
-
-	// }
+	deployment.Core.InstanceName = "initial setup"
 	if err = deployment.deployGRMFolder(); err != nil {
 		return err
 	}

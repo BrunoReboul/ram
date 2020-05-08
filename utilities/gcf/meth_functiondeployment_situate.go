@@ -60,7 +60,7 @@ func (functionDeployment *FunctionDeployment) situate() (err error) {
 	functionDeployment.Artifacts.ZipFiles[ram.SettingsFileName] = functionDeployment.Artifacts.InstanceDeploymentYAMLContent
 
 	if functionDeployment.Core.Commands.Dumpsettings {
-		err := ram.DumpToYAMLFile(functionDeployment, fmt.Sprintf("%s/%s", functionDeployment.Core.RepositoryPath, "function_deployment.yaml"))
+		err := ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", functionDeployment.Core.RepositoryPath, "function_deployment.yaml"), functionDeployment)
 		if err != nil {
 			return err
 		}
