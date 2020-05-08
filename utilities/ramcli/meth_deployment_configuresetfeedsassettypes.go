@@ -26,7 +26,7 @@ import (
 
 // configureSetFeedsAssetTypes for assets types defined in solution.yaml writes setfeeds instance.yaml files and subfolders
 func (deployment *Deployment) configureSetFeedsAssetTypes() (err error) {
-	log.Println("configure asset types")
+	log.Println("configure setfeeds asset types")
 	var setfeedsInstanceDeployment setfeeds.InstanceDeployment
 	serviceName := "setfeeds"
 	setfeedInstance := setfeedsInstanceDeployment.Settings.Instance
@@ -38,6 +38,7 @@ func (deployment *Deployment) configureSetFeedsAssetTypes() (err error) {
 	if _, err := os.Stat(instancesFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instancesFolderPath, 0755)
 	}
+
 	for _, organizationID := range deployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
 		// one and only one iam policy feed for all asset types
 		setfeedInstance.CAI.Parent = fmt.Sprintf("organizations/%s", organizationID)
@@ -50,6 +51,7 @@ func (deployment *Deployment) configureSetFeedsAssetTypes() (err error) {
 		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), setfeedInstance); err != nil {
 			return err
 		}
+		log.Printf("done %s", instanceFolderPath)
 
 		// one resource feed per asset type
 		for _, assetType := range deployment.Core.SolutionSettings.Monitoring.AssetTypes.Resources {
@@ -62,6 +64,7 @@ func (deployment *Deployment) configureSetFeedsAssetTypes() (err error) {
 			if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), setfeedInstance); err != nil {
 				return err
 			}
+			log.Printf("done %s", instanceFolderPath)
 		}
 	}
 	return nil
