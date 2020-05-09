@@ -13,3 +13,14 @@
 // limitations under the License.
 
 package dumpinventory
+
+import (
+	"github.com/BrunoReboul/ram/utilities/gps"
+)
+
+func (instanceDeployment *InstanceDeployment) deployGPSTopic() (err error) {
+	topicDeployment := gps.NewTopicDeployment()
+	topicDeployment.Core = instanceDeployment.Core
+	topicDeployment.Settings.TopicName = instanceDeployment.Settings.Instance.GCF.TriggerTopic
+	return topicDeployment.Deploy()
+}

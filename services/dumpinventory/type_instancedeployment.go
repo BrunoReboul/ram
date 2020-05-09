@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package publish2fs
+package dumpinventory
 
 import (
 	"time"
@@ -52,9 +52,11 @@ func NewInstanceDeployment() *InstanceDeployment {
 		"cloudresourcemanager.googleapis.com",
 		"containerregistry.googleapis.com",
 		"iam.googleapis.com",
-		"pubsub.googleapis.com"}
+		"pubsub.googleapis.com",
+		"cloudscheduler.googleapis.com"}
 	instanceDeployment.Settings.Service.GSU.APIList = append(deploy.GetCommonAPIlist(), instanceDeployment.Settings.Service.GSU.APIList...)
 
+	instanceDeployment.Settings.Service.IAM.RunRoles.MonitoringOrg = []iam.Role{monitoringOrgRunRole()}
 	instanceDeployment.Settings.Service.IAM.DeployRoles.Project = []iam.Role{
 		projectDeployCoreRole(),
 		projectDeployExtendedRole()}
@@ -79,22 +81,30 @@ func NewInstanceDeployment() *InstanceDeployment {
 	return &instanceDeployment
 }
 
-// Data store permissions are not supported in custom roles
-// https://cloud.google.com/iam/docs/custom-roles-permissions-support
-// func projectRunRole() (role iam.Role) {
-// 	role.Title = "ram_publish2fs_run"
-// 	role.Description = "Real-time Asset Monitor publish to firestore microservice permissions to run"
-// 	role.IncludedPermissions = []string{
-// 		"datastore.databases.get",
-// 		"datastore.entities.create",
-// 		"datastore.entities.delete",
-// 		"datastore.entities.update"}
-// 	return role
-// }
+func monitoringOrgRunRole() (role iam.Role) {
+	role.Title = "ram_dumpinventory_monitoring_org_run"
+	role.Description = "Real-time Asset Monitor dump inventory microservice permissions to run on monitoring org"
+	role.IncludedPermissions = []string{
+		"cloudasset.assets.exportResource",
+		"cloudasset.assets.exportIamPolicy"}
+	return role
+}
+
+func monitoringOrgDeployCoreRole() (role iam.Role) {
+	role.Title = "ram_dumpinventory_monitoring_org_deploy_extended"
+	role.Description = "Real-time Asset Monitor dump inventory microservice extended permissions to deploy on monitoring org"
+	role.Stage = "GA"
+	role.IncludedPermissions = []string{
+		"iam.roles.create",
+		"iam.roles.get",
+		"iam.roles.list",
+		"iam.roles.update"}
+	return role
+}
 
 func projectDeployCoreRole() (role iam.Role) {
-	role.Title = "ram_publish2fs_deploy_core"
-	role.Description = "Real-time Asset Monitor publish to firestore microservice core permissions to deploy"
+	role.Title = "ram_dumpinventory_deploy_core"
+	role.Description = "Real-time Asset Monitor dump inventory microservice core permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"pubsub.topics.get",
@@ -109,8 +119,8 @@ func projectDeployCoreRole() (role iam.Role) {
 }
 
 func projectDeployExtendedRole() (role iam.Role) {
-	role.Title = "ram_publish2fs_deploy_extended"
-	role.Description = "Real-time Asset Monitor publish to firestore microservice extended permissions to deploy"
+	role.Title = "ram_dumpinventory_deploy_extended"
+	role.Description = "Real-time Asset Monitor dump inventory microservice extended permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"serviceusage.services.list",

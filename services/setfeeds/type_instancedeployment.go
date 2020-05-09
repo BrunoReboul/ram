@@ -81,8 +81,7 @@ func projectDeployExtendedRole() (role iam.Role) {
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"serviceusage.services.list",
-		"serviceusage.services.enable",
-		"serviceusage.services.get"}
+		"serviceusage.services.enable"}
 	return role
 }
 
@@ -93,8 +92,7 @@ func projectDeployCoreRole() (role iam.Role) {
 	role.IncludedPermissions = []string{
 		"pubsub.topics.get",
 		"pubsub.topics.create",
-		"pubsub.topics.update",
-		"pubsub.topics.publish"}
+		"pubsub.topics.update"}
 	return role
 }
 
