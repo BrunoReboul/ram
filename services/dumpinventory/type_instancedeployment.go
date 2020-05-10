@@ -30,8 +30,13 @@ import (
 // InstanceDeployment settings and artifacts structure
 type InstanceDeployment struct {
 	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
-	Core          *deploy.Core
-	Settings      struct {
+	Artifacts     struct {
+		JobName   string `yaml:"jobName"`
+		TopicName string `yaml:"topicName"`
+		Schedule  string
+	}
+	Core     *deploy.Core
+	Settings struct {
 		Service struct {
 			GSU gsu.Parameters
 			IAM iamgt.Parameters

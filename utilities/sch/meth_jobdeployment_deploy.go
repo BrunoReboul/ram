@@ -28,7 +28,7 @@ func (jobDeployment *JobDeployment) Deploy() (err error) {
 	name := fmt.Sprintf("projects/%s/locations/%s/jobs/%s",
 		jobDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		jobDeployment.Core.SolutionSettings.Hosting.GCF.Region,
-		jobDeployment.Settings.SCH.JobName)
+		jobDeployment.Artifacts.JobName)
 	var getJobRequest schedulerpb.GetJobRequest
 	getJobRequest.Name = name
 	retreivedJob, err := jobDeployment.Core.Services.CloudSchedulerClient.GetJob(jobDeployment.Core.Ctx, &getJobRequest)
@@ -37,8 +37,8 @@ func (jobDeployment *JobDeployment) Deploy() (err error) {
 			var pubsubTarget schedulerpb.PubsubTarget
 			pubsubTarget.TopicName = fmt.Sprintf("projects/%s/topics/%s",
 				jobDeployment.Core.SolutionSettings.Hosting.ProjectID,
-				jobDeployment.Settings.SCH.TopicName)
-			pubsubTarget.Data = []byte(fmt.Sprintf("cron schedule %s", jobDeployment.Settings.SCH.Schedule))
+				jobDeployment.Artifacts.TopicName)
+			pubsubTarget.Data = []byte(fmt.Sprintf("cron schedule %s", jobDeployment.Artifacts.Schedule))
 
 			var jobPubsubTarget schedulerpb.Job_PubsubTarget
 			jobPubsubTarget.PubsubTarget = &pubsubTarget
@@ -47,7 +47,7 @@ func (jobDeployment *JobDeployment) Deploy() (err error) {
 			job.Name = name
 			job.Description = "Real-time Asset Monitor"
 			job.Target = &jobPubsubTarget
-			job.Schedule = jobDeployment.Settings.SCH.Schedule
+			job.Schedule = jobDeployment.Artifacts.Schedule
 
 			var createJobRequest schedulerpb.CreateJobRequest
 			createJobRequest.Parent = fmt.Sprintf("projects/%s/locations/%s",

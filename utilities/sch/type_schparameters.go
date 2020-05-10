@@ -16,7 +16,8 @@ package sch
 
 // Parameters structure
 type Parameters struct {
-	JobName   string `yaml:"jobName"`
-	TopicName string `yaml:"topicName"`
-	Schedule  string
+	Schedulers map[string]struct {
+		JobName  string `yaml:"jobName"`
+		Schedule string
+	}
 }

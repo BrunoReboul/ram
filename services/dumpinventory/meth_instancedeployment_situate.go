@@ -28,5 +28,8 @@ func (instanceDeployment *InstanceDeployment) Situate() (err error) {
 		parts[len(parts)-1],
 		instanceDeployment.Settings.Instance.CAI.Parent,
 		instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name)
+	instanceDeployment.Artifacts.JobName = instanceDeployment.Settings.Instance.SCH.Schedulers[instanceDeployment.Core.EnvironmentName].JobName
+	instanceDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.JobName
+	instanceDeployment.Artifacts.Schedule = instanceDeployment.Settings.Instance.SCH.Schedulers[instanceDeployment.Core.EnvironmentName].Schedule
 	return nil
 }

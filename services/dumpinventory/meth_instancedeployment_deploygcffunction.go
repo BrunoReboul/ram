@@ -32,6 +32,6 @@ func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
 	functionDeployment.Core = instanceDeployment.Core
 	functionDeployment.Artifacts.InstanceDeploymentYAMLContent = string(instanceDeploymentYAMLBytes)
 	functionDeployment.Settings.Service.GCF = instanceDeployment.Settings.Service.GCF
-	functionDeployment.Settings.Instance.GCF.TriggerTopic = instanceDeployment.Settings.Instance.SCH.TopicName
+	functionDeployment.Settings.Instance.GCF.TriggerTopic = instanceDeployment.Artifacts.TopicName
 	return functionDeployment.Deploy()
 }

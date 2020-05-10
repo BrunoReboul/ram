@@ -76,12 +76,8 @@ type Settings struct {
 			Owner             string `valid:"isNotZeroValue"`
 			ViolationResolver string `yaml:"violationResolver" valid:"isNotZeroValue"`
 		} `yaml:"labelKeyNames"`
-		DefaultScheduler struct {
-			Name     string
-			Schedule string
-		} `yaml:"defaultScheduler"`
 		DefaultSchedulers map[string]struct {
-			Name     string
+			JobName  string `yaml:"jobName"`
 			Schedule string
 		} `yaml:"defaultSchedulers"`
 		AssetTypes struct {

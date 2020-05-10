@@ -21,6 +21,6 @@ import (
 func (instanceDeployment *InstanceDeployment) deployGPSTopic() (err error) {
 	topicDeployment := gps.NewTopicDeployment()
 	topicDeployment.Core = instanceDeployment.Core
-	topicDeployment.Settings.TopicName = instanceDeployment.Settings.Instance.SCH.TopicName
+	topicDeployment.Settings.TopicName = instanceDeployment.Artifacts.TopicName
 	return topicDeployment.Deploy()
 }

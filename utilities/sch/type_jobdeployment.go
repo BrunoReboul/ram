@@ -20,9 +20,11 @@ import (
 
 // JobDeployment struct
 type JobDeployment struct {
-	Core     *deploy.Core
-	Settings struct {
-		SCH Parameters
+	Core      *deploy.Core
+	Artifacts struct {
+		JobName   string `yaml:"jobName"`
+		TopicName string `yaml:"topicName"`
+		Schedule  string
 	}
 }
 
