@@ -41,7 +41,9 @@ func (deployment *Deployment) configureDumpInventoryAssetTypes() (err error) {
 
 	for _, organizationID := range deployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
 		dumpinventoryInstance.CAI.Parent = fmt.Sprintf("organizations/%s", organizationID)
-		dumpinventoryInstance.GCF.TriggerTopic = deployment.Core.SolutionSettings.Monitoring.DefaultScheduler.Name
+		dumpinventoryInstance.SCH.JobName = deployment.Core.SolutionSettings.Monitoring.DefaultScheduler.Name
+		dumpinventoryInstance.SCH.TopicName = deployment.Core.SolutionSettings.Monitoring.DefaultScheduler.Name
+		dumpinventoryInstance.SCH.Schedule = deployment.Core.SolutionSettings.Monitoring.DefaultScheduler.Schedule
 
 		// one and only one iam policy feed for all asset types
 		dumpinventoryInstance.CAI.ContentType = "IAM_POLICY"

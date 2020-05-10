@@ -23,6 +23,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gsu"
 	"github.com/BrunoReboul/ram/utilities/iamgt"
+	"github.com/BrunoReboul/ram/utilities/sch"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -39,8 +40,7 @@ type InstanceDeployment struct {
 		}
 		Instance struct {
 			CAI cai.Parameters
-			GCF gcf.Event
-			// SCH sch.??
+			SCH sch.Parameters
 		}
 	}
 }
@@ -119,6 +119,8 @@ func projectDeployCoreRole() (role iam.Role) {
 		"storage.buckets.get",
 		"storage.buckets.create",
 		"storage.buckets.update",
+		"cloudscheduler.jobs.get",
+		"cloudscheduler.jobs.create",
 		"cloudfunctions.functions.sourceCodeSet",
 		"cloudfunctions.functions.get",
 		"cloudfunctions.functions.create",

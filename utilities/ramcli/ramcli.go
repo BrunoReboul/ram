@@ -21,6 +21,7 @@ import (
 
 	asset "cloud.google.com/go/asset/apiv1"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
+	scheduler "cloud.google.com/go/scheduler/apiv1"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
 
@@ -91,6 +92,10 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 		log.Fatalln(err)
 	}
 	deployment.Core.Services.StorageClient, err = storage.NewClient(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	deployment.Core.Services.CloudSchedulerClient, err = scheduler.NewCloudSchedulerClient(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}

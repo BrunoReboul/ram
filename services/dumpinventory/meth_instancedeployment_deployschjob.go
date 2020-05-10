@@ -12,21 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcs
+package dumpinventory
 
 import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
+	"github.com/BrunoReboul/ram/utilities/sch"
 )
 
-// BucketDeployment struct
-type BucketDeployment struct {
-	Core     *deploy.Core
-	Settings struct {
-		BucketName string `yaml:"bucketName"`
-	}
-}
-
-// NewBucketDeployment create deployment structure
-func NewBucketDeployment() *BucketDeployment {
-	return &BucketDeployment{}
+func (instanceDeployment *InstanceDeployment) deploySCHJob() (err error) {
+	jobDeployment := sch.NewJobDeployment()
+	jobDeployment.Core = instanceDeployment.Core
+	jobDeployment.Settings.SCH = instanceDeployment.Settings.Instance.SCH
+	return jobDeployment.Deploy()
 }

@@ -23,6 +23,7 @@ import (
 
 	asset "cloud.google.com/go/asset/apiv1"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
+	scheduler "cloud.google.com/go/scheduler/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/cloudbuild/v1"
@@ -55,6 +56,7 @@ type Core struct {
 		CloudfunctionsService         *cloudfunctions.Service         `yaml:"-"`
 		CloudresourcemanagerService   *cloudresourcemanager.Service   `yaml:"-"`
 		CloudresourcemanagerServicev2 *cloudresourcemanagerv2.Service `yaml:"-"`
+		CloudSchedulerClient          *scheduler.CloudSchedulerClient `yaml:"-"`
 		IAMService                    *iam.Service                    `yaml:"-"`
 		PubsubPublisherClient         *pubsub.PublisherClient         `yaml:"-"`
 		ServiceusageService           *serviceusage.Service           `yaml:"-"`

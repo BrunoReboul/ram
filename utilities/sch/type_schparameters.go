@@ -12,21 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcs
+package sch
 
-import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
-)
-
-// BucketDeployment struct
-type BucketDeployment struct {
-	Core     *deploy.Core
-	Settings struct {
-		BucketName string `yaml:"bucketName"`
-	}
-}
-
-// NewBucketDeployment create deployment structure
-func NewBucketDeployment() *BucketDeployment {
-	return &BucketDeployment{}
+// Parameters structure
+type Parameters struct {
+	JobName   string `yaml:"jobName"`
+	TopicName string `yaml:"topicName"`
+	Schedule  string
 }

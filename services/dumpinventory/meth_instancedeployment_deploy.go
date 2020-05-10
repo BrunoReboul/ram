@@ -40,13 +40,13 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 		return err
 	}
 	// Core project
-
-	// TODO Cloud Scheduler
-
-	if err = instanceDeployment.deployGCSBucket(); err != nil {
+	if err = instanceDeployment.deployGPSTopic(); err != nil {
 		return err
 	}
-	if err = instanceDeployment.deployGPSTopic(); err != nil {
+	if err = instanceDeployment.deploySCHJob(); err != nil {
+		return err
+	}
+	if err = instanceDeployment.deployGCSBucket(); err != nil {
 		return err
 	}
 	if err = instanceDeployment.deployGCFFunction(); err != nil {

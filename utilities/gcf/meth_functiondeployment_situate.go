@@ -24,10 +24,6 @@ import (
 
 func (functionDeployment *FunctionDeployment) situate() (err error) {
 	functionDeployment.Artifacts.CloudFunctionZipFullPath = fmt.Sprintf("./%s.zip", uuid.New())
-	// envVars := make(map[string]string)
-	// envVars["RETRYTIMEOUTSECONDS"] = strconv.FormatInt(functionDeployment.Settings.Service.GCF.RetryTimeOutSeconds, 10)
-	// envVars["COLLECTION_ID"] = functionDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
-
 	runTime, err := getRunTime(functionDeployment.Core.GoVersion)
 	if err != nil {
 		return err
@@ -36,7 +32,6 @@ func (functionDeployment *FunctionDeployment) situate() (err error) {
 	functionDeployment.Artifacts.CloudFunction.AvailableMemoryMb = functionDeployment.Settings.Service.GCF.AvailableMemoryMb
 	functionDeployment.Artifacts.CloudFunction.Description = functionDeployment.Settings.Service.GCF.Description
 	functionDeployment.Artifacts.CloudFunction.EntryPoint = "EntryPoint"
-	// functionDeployment.Artifacts.CloudFunction.EnvironmentVariables = envVars
 	functionDeployment.Artifacts.CloudFunction.EventTrigger, err = functionDeployment.getEventTrigger()
 	if err != nil {
 		return err

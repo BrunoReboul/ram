@@ -16,9 +16,7 @@ package dumpinventory
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -37,84 +35,57 @@ type Global struct {
 	request             *assetpb.ExportAssetsRequest
 }
 
-// settings the structure of the export.json setting file
-type settings struct {
-	Type        string   `json:"type"`
-	ID          string   `json:"id"`
-	ContentType string   `json:"contentType"`
-	AssetTypes  []string `json:"asset_types"`
-}
-
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) {
 	global.ctx = ctx
 	global.initFailed = false
 
 	// err is pre-declared to avoid shadowing client.
-	var assetDumpFileName string
-	var caiExportBucketName string
-	var contentType assetpb.ContentType
 	var err error
-	var functionName string
-	var ok bool
-	var settings settings
-	var settingsFileName string
-
-	caiExportBucketName = os.Getenv("CAIEXPORTBUCKETNAME")
-	functionName = os.Getenv("FUNCTION_NAME")
-	settingsFileName = os.Getenv("SETTINGSFILENAME")
-	assetDumpFileName = fmt.Sprintf("gs://%s/%s.dump", caiExportBucketName, functionName)
+	var instanceDeployment InstanceDeployment
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
-		return
-	}
-	settingsFileContent, err := ioutil.ReadFile(settingsFileName)
+	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ioutil.ReadFile: %v", err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
-	err = json.Unmarshal(settingsFileContent, &settings)
-	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(settingsFileContent, &settings): %v", err)
-		global.initFailed = true
-		return
-	}
-	parent := fmt.Sprintf("%s/%s", settings.Type, settings.ID)
-	switch settings.ContentType {
-	case "CONTENT_TYPE_UNSPECIFIED":
-		contentType = 0
+	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
+
+	var gcsDestinationURI assetpb.GcsDestination_Uri
+	gcsDestinationURI.Uri = fmt.Sprintf("gs://%s/%s.dump",
+		instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name,
+		os.Getenv("FUNCTION_NAME"))
+
+	var gcsDestination assetpb.GcsDestination
+	gcsDestination.ObjectUri = &gcsDestinationURI
+
+	var outputConfigGCSDestination assetpb.OutputConfig_GcsDestination
+	outputConfigGCSDestination.GcsDestination = &gcsDestination
+
+	var outputConfig assetpb.OutputConfig
+	outputConfig.Destination = &outputConfigGCSDestination
+
+	switch instanceDeployment.Settings.Instance.CAI.ContentType {
 	case "RESOURCE":
-		contentType = 1
+		global.request.ContentType = assetpb.ContentType_RESOURCE
 	case "IAM_POLICY":
-		contentType = 2
-	case "ORG_POLICY":
-		contentType = 4
-	case "ACCESS_POLICY":
-		contentType = 5
+		global.request.ContentType = assetpb.ContentType_IAM_POLICY
+	default:
+		log.Printf("ERROR - unsupported content type: %s", instanceDeployment.Settings.Instance.CAI.ContentType)
+		global.initFailed = true
+		return
 	}
-	// services are initialized with context.Background() because it should
-	// persist between function invocations.
+	global.request.Parent = instanceDeployment.Settings.Instance.CAI.Parent
+	global.request.AssetTypes = instanceDeployment.Settings.Instance.CAI.AssetTypes
+	global.request.OutputConfig = &outputConfig
+
 	global.assetClient, err = asset.NewClient(ctx)
 	if err != nil {
 		log.Printf("ERROR - asset.NewClient: %v", err)
 		global.initFailed = true
 		return
-	}
-	global.request = &assetpb.ExportAssetsRequest{
-		Parent:      parent,
-		AssetTypes:  settings.AssetTypes,
-		ContentType: contentType,
-		OutputConfig: &assetpb.OutputConfig{
-			Destination: &assetpb.OutputConfig_GcsDestination{
-				GcsDestination: &assetpb.GcsDestination{
-					ObjectUri: &assetpb.GcsDestination_Uri{
-						Uri: string(assetDumpFileName),
-					},
-				},
-			},
-		},
 	}
 }
 
