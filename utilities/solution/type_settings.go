@@ -80,6 +80,10 @@ type Settings struct {
 			Name     string
 			Schedule string
 		} `yaml:"defaultScheduler"`
+		DefaultSchedulers map[string]struct {
+			Name     string
+			Schedule string
+		} `yaml:"defaultSchedulers"`
 		AssetTypes struct {
 			IAMPolicies []string `yaml:"iamPolicies"`
 			Resources   []string `yaml:"resources"`

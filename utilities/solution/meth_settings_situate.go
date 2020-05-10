@@ -24,4 +24,5 @@ func (settings *Settings) Situate(environmentName string) {
 	settings.Hosting.Stackdriver.ProjectID = settings.Hosting.Stackdriver.ProjectIDs[environmentName]
 	settings.Hosting.GCS.Buckets.CAIExport.Name = settings.Hosting.GCS.Buckets.CAIExport.Names[environmentName]
 	settings.Hosting.GCS.Buckets.AssetsJSONFile.Name = settings.Hosting.GCS.Buckets.AssetsJSONFile.Names[environmentName]
+	settings.Monitoring.DefaultScheduler = settings.Monitoring.DefaultSchedulers[environmentName]
 }
