@@ -42,6 +42,9 @@ func (functionDeployment *FunctionDeployment) situate() (err error) {
 		functionDeployment.Core.SolutionSettings.Hosting.GCF.Region,
 		functionDeployment.Core.InstanceName)
 	functionDeployment.Artifacts.CloudFunction.Runtime = runTime
+	functionDeployment.Artifacts.CloudFunction.ServiceAccountEmail = fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
+		functionDeployment.Core.ServiceName,
+		functionDeployment.Core.SolutionSettings.Hosting.ProjectID)
 	functionDeployment.Artifacts.CloudFunction.Timeout = functionDeployment.Settings.Service.GCF.Timeout
 	functionDeployment.Artifacts.CloudFunction.IngressSettings = "ALLOW_ALL"
 
