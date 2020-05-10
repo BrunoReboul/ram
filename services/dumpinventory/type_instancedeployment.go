@@ -109,7 +109,9 @@ func monitoringOrgDeployExtendedRole() (role iam.Role) {
 	role.IncludedPermissions = []string{
 		"iam.roles.create",
 		"iam.roles.get",
-		"iam.roles.update"}
+		"iam.roles.update",
+		"resourcemanager.organizations.getIamPolicy",
+		"resourcemanager.organizations.setIamPolicy"}
 	return role
 }
 
