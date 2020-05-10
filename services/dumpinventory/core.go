@@ -68,11 +68,10 @@ func Initialize(ctx context.Context, global *Global) {
 	var outputConfig assetpb.OutputConfig
 	outputConfig.Destination = &outputConfigGCSDestination
 
+	global.request = &assetpb.ExportAssetsRequest{}
 	switch instanceDeployment.Settings.Instance.CAI.ContentType {
 	case "RESOURCE":
-		log.Println("hello1")
-		global.request.ContentType = 1
-		log.Println(global.request.ContentType)
+		global.request.ContentType = assetpb.ContentType_RESOURCE
 	case "IAM_POLICY":
 		global.request.ContentType = assetpb.ContentType_IAM_POLICY
 	default:
@@ -80,18 +79,10 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	log.Println(global.request.ContentType)
 
-	log.Println("hello4")
 	global.request.Parent = instanceDeployment.Settings.Instance.CAI.Parent
-
-	log.Println("hello5")
 	global.request.AssetTypes = instanceDeployment.Settings.Instance.CAI.AssetTypes
-
-	log.Println("hello6")
 	global.request.OutputConfig = &outputConfig
-
-	ram.YAMLMarshalPrint(global.request)
 
 	global.assetClient, err = asset.NewClient(ctx)
 	if err != nil {
