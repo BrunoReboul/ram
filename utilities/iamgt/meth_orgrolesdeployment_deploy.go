@@ -31,7 +31,6 @@ func (orgRolesDeployment *OrgRolesDeployment) Deploy() (err error) {
 	for _, customRole := range orgRolesDeployment.Settings.Roles {
 		name := fmt.Sprintf("organizations/%s/roles/%s",
 			orgRolesDeployment.Artifacts.OrganizationID, customRole.Title)
-		log.Printf("name %s", name)
 		retreivedCustomRole, err := organizationsRolesService.Get(name).Context(orgRolesDeployment.Core.Ctx).Do()
 		if err != nil {
 			if strings.Contains(err.Error(), "404") && strings.Contains(err.Error(), "notFound") {
