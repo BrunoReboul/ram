@@ -52,8 +52,6 @@ func Initialize(ctx context.Context, global *Global) {
 		return
 	}
 
-	ram.YAMLMarshalPrint(instanceDeployment.Settings.Instance)
-
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 
 	var gcsDestinationURI assetpb.GcsDestination_Uri
@@ -61,17 +59,18 @@ func Initialize(ctx context.Context, global *Global) {
 		instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name,
 		os.Getenv("FUNCTION_NAME"))
 
-	log.Println(gcsDestinationURI.Uri)
-
 	var gcsDestination assetpb.GcsDestination
 	gcsDestination.ObjectUri = &gcsDestinationURI
 
+	log.Println("hello1")
 	var outputConfigGCSDestination assetpb.OutputConfig_GcsDestination
 	outputConfigGCSDestination.GcsDestination = &gcsDestination
 
+	log.Println("hello2")
 	var outputConfig assetpb.OutputConfig
 	outputConfig.Destination = &outputConfigGCSDestination
 
+	log.Println("hello13")
 	switch instanceDeployment.Settings.Instance.CAI.ContentType {
 	case "RESOURCE":
 		global.request.ContentType = assetpb.ContentType_RESOURCE
@@ -82,8 +81,14 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
+
+	log.Println("hello4")
 	global.request.Parent = instanceDeployment.Settings.Instance.CAI.Parent
+
+	log.Println("hello5")
 	global.request.AssetTypes = instanceDeployment.Settings.Instance.CAI.AssetTypes
+
+	log.Println("hello6")
 	global.request.OutputConfig = &outputConfig
 
 	ram.YAMLMarshalPrint(global.request)
