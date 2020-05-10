@@ -62,25 +62,30 @@ func Initialize(ctx context.Context, global *Global) {
 	var gcsDestination assetpb.GcsDestination
 	gcsDestination.ObjectUri = &gcsDestinationURI
 
-	log.Println("hello1")
 	var outputConfigGCSDestination assetpb.OutputConfig_GcsDestination
 	outputConfigGCSDestination.GcsDestination = &gcsDestination
 
-	log.Println("hello2")
 	var outputConfig assetpb.OutputConfig
 	outputConfig.Destination = &outputConfigGCSDestination
 
-	log.Println("hello13")
+	log.Println(instanceDeployment.Settings.Instance.CAI.ContentType)
 	switch instanceDeployment.Settings.Instance.CAI.ContentType {
 	case "RESOURCE":
+		log.Println("case RESOURCE")
+		log.Println(assetpb.ContentType_RESOURCE)
 		global.request.ContentType = assetpb.ContentType_RESOURCE
+		log.Println(global.request.ContentType)
 	case "IAM_POLICY":
+		log.Println("case IAM_Policy")
+		log.Println(assetpb.ContentType_IAM_POLICY)
 		global.request.ContentType = assetpb.ContentType_IAM_POLICY
+		log.Println(global.request.ContentType)
 	default:
 		log.Printf("ERROR - unsupported content type: %s", instanceDeployment.Settings.Instance.CAI.ContentType)
 		global.initFailed = true
 		return
 	}
+	log.Println(global.request.ContentType)
 
 	log.Println("hello4")
 	global.request.Parent = instanceDeployment.Settings.Instance.CAI.Parent
