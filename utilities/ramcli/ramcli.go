@@ -24,6 +24,7 @@ import (
 
 	"github.com/BrunoReboul/ram/utilities/ram"
 
+	"cloud.google.com/go/storage"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/appengine/v1"
 	"google.golang.org/api/cloudbilling/v1"
@@ -81,11 +82,15 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	deployment.Core.Services.PubsubPublisherClient, err = pubsub.NewPublisherClient(ctx)
+	deployment.Core.Services.PubsubPublisherClient, err = pubsub.NewPublisherClient(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
-	deployment.Core.Services.SourcerepoService, err = sourcerepo.NewService(ctx)
+	deployment.Core.Services.SourcerepoService, err = sourcerepo.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	deployment.Core.Services.StorageClient, err = storage.NewClient(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -111,7 +116,9 @@ func RAMCli(deployment *Deployment) (err error) {
 		if err = deployment.configureSetFeedsAssetTypes(); err != nil {
 			log.Fatal(err)
 		}
-		// TODO add deployment.configureDumpInventoryAssetTypes()
+		if err = deployment.configureDumpInventoryAssetTypes(); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
 		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
@@ -119,6 +126,8 @@ func RAMCli(deployment *Deployment) (err error) {
 			switch deployment.Core.ServiceName {
 			case "setfeeds":
 				deployment.deploySetFeeds()
+			case "dumpinventory":
+				deployment.deployDumpInventory()
 			case "publish2fs":
 				deployment.deployPublish2fs()
 			}

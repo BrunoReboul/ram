@@ -14,8 +14,8 @@
 
 package ramcli
 
-// deployInstanceTrigger an instance trigger
-func (deployment *Deployment) deployInstanceTrigger() (err error) {
+// deployInstanceReleasePipeline an instance trigger
+func (deployment *Deployment) deployInstanceReleasePipeline() (err error) {
 	// Extended hosting org
 	if err = deployment.deployIAMHostingOrgRole(); err != nil {
 		return err

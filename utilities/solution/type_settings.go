@@ -76,6 +76,10 @@ type Settings struct {
 			Owner             string `valid:"isNotZeroValue"`
 			ViolationResolver string `yaml:"violationResolver" valid:"isNotZeroValue"`
 		} `yaml:"labelKeyNames"`
+		DefaultScheduler struct {
+			Name     string
+			Schedule string
+		} `yaml:"defaultScheduler"`
 		AssetTypes struct {
 			IAMPolicies []string `yaml:"iamPolicies"`
 			Resources   []string `yaml:"resources"`

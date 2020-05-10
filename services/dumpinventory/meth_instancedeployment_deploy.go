@@ -33,6 +33,9 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 		return err
 	}
 	// Extended monitoring org
+	if err = instanceDeployment.deployIAMMonitoringOrgRole(); err != nil {
+		return err
+	}
 	if err = instanceDeployment.deployGRMMonitoringOrgBindings(); err != nil {
 		return err
 	}
@@ -40,6 +43,9 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 
 	// TODO Cloud Scheduler
 
+	if err = instanceDeployment.deployGCSBucket(); err != nil {
+		return err
+	}
 	if err = instanceDeployment.deployGPSTopic(); err != nil {
 		return err
 	}

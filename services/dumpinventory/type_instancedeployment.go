@@ -17,6 +17,7 @@ package dumpinventory
 import (
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/deploy"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/gcf"
@@ -37,7 +38,9 @@ type InstanceDeployment struct {
 			GCF gcf.Parameters
 		}
 		Instance struct {
+			CAI cai.Parameters
 			GCF gcf.Event
+			// SCH sch.??
 		}
 	}
 }
@@ -56,7 +59,10 @@ func NewInstanceDeployment() *InstanceDeployment {
 		"cloudscheduler.googleapis.com"}
 	instanceDeployment.Settings.Service.GSU.APIList = append(deploy.GetCommonAPIlist(), instanceDeployment.Settings.Service.GSU.APIList...)
 
-	instanceDeployment.Settings.Service.IAM.RunRoles.MonitoringOrg = []iam.Role{monitoringOrgRunRole()}
+	instanceDeployment.Settings.Service.IAM.RunRoles.MonitoringOrg = []iam.Role{
+		monitoringOrgRunRole()}
+	instanceDeployment.Settings.Service.IAM.DeployRoles.MonitoringOrg = []iam.Role{
+		monitoringOrgDeployExtendedRole()}
 	instanceDeployment.Settings.Service.IAM.DeployRoles.Project = []iam.Role{
 		projectDeployCoreRole(),
 		projectDeployExtendedRole()}
@@ -64,15 +70,16 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GCB.BuildTimeout = "600s"
 	instanceDeployment.Settings.Service.GCB.DeployIAMServiceAccount = true
 	instanceDeployment.Settings.Service.GCB.DeployIAMBindings = true
+	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Monitoring.Org.CustomRoles = []string{
+		monitoringOrgDeployExtendedRole().Title}
 	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
 		projectDeployCoreRole().Title,
 		projectDeployExtendedRole().Title}
 	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.IAM.RolesOnServiceAccounts = []string{
 		"roles/iam.serviceAccountUser"}
 
-	// Data store permissions are not supported in custom roles
-	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.Roles = []string{
-		"roles/datastore.owner"}
+	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Monitoring.Org.CustomRoles = []string{
+		monitoringOrgRunRole().Title}
 
 	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 128
 	instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds = 600
@@ -90,14 +97,13 @@ func monitoringOrgRunRole() (role iam.Role) {
 	return role
 }
 
-func monitoringOrgDeployCoreRole() (role iam.Role) {
+func monitoringOrgDeployExtendedRole() (role iam.Role) {
 	role.Title = "ram_dumpinventory_monitoring_org_deploy_extended"
 	role.Description = "Real-time Asset Monitor dump inventory microservice extended permissions to deploy on monitoring org"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"iam.roles.create",
 		"iam.roles.get",
-		"iam.roles.list",
 		"iam.roles.update"}
 	return role
 }
@@ -110,6 +116,9 @@ func projectDeployCoreRole() (role iam.Role) {
 		"pubsub.topics.get",
 		"pubsub.topics.create",
 		"pubsub.topics.update",
+		"storage.buckets.get",
+		"storage.buckets.create",
+		"storage.buckets.update",
 		"cloudfunctions.functions.sourceCodeSet",
 		"cloudfunctions.functions.get",
 		"cloudfunctions.functions.create",

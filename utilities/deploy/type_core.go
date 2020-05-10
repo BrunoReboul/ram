@@ -23,6 +23,7 @@ import (
 
 	asset "cloud.google.com/go/asset/apiv1"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
+	"cloud.google.com/go/storage"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/cloudbuild/v1"
 	"google.golang.org/api/cloudfunctions/v1"
@@ -58,6 +59,7 @@ type Core struct {
 		PubsubPublisherClient         *pubsub.PublisherClient         `yaml:"-"`
 		ServiceusageService           *serviceusage.Service           `yaml:"-"`
 		SourcerepoService             *sourcerepo.Service             `yaml:"-"`
+		StorageClient                 *storage.Client                 `yaml:"-"`
 	} `yaml:"-"`
 	Commands struct {
 		// Makeyaml     bool

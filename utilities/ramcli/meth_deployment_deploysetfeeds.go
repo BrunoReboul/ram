@@ -35,7 +35,7 @@ func (deployment *Deployment) deploySetFeeds() {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
-		err = deployment.deployInstanceTrigger()
+		err = deployment.deployInstanceReleasePipeline()
 	} else {
 		if deployment.Core.Commands.Deploy {
 			err = instanceDeployment.Deploy()

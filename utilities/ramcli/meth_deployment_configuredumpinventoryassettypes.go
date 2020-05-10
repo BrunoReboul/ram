@@ -19,17 +19,17 @@ import (
 	"log"
 	"os"
 
-	"github.com/BrunoReboul/ram/services/setfeeds"
+	"github.com/BrunoReboul/ram/services/dumpinventory"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
-// configureSetFeedsAssetTypes for assets types defined in solution.yaml writes setfeeds instance.yaml files and subfolders
-func (deployment *Deployment) configureSetFeedsAssetTypes() (err error) {
-	log.Println("configure setfeeds asset types")
-	var setfeedsInstanceDeployment setfeeds.InstanceDeployment
-	serviceName := "setfeeds"
-	setfeedsInstance := setfeedsInstanceDeployment.Settings.Instance
+// configureDumpInventoryAssetTypes for assets types defined in solution.yaml writes dumpinventory instance.yaml files and subfolders
+func (deployment *Deployment) configureDumpInventoryAssetTypes() (err error) {
+	log.Println("configure dumpinventory asset types")
+	var dumpinventoryInstanceDeployment dumpinventory.InstanceDeployment
+	serviceName := "dumpinventory"
+	dumpinventoryInstance := dumpinventoryInstanceDeployment.Settings.Instance
 	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(serviceFolderPath, 0755)
@@ -40,29 +40,30 @@ func (deployment *Deployment) configureSetFeedsAssetTypes() (err error) {
 	}
 
 	for _, organizationID := range deployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
-		setfeedsInstance.CAI.Parent = fmt.Sprintf("organizations/%s", organizationID)
+		dumpinventoryInstance.CAI.Parent = fmt.Sprintf("organizations/%s", organizationID)
+		dumpinventoryInstance.GCF.TriggerTopic = deployment.Core.SolutionSettings.Monitoring.DefaultScheduler.Name
 
 		// one and only one iam policy feed for all asset types
-		setfeedsInstance.CAI.ContentType = "IAM_POLICY"
-		setfeedsInstance.CAI.AssetTypes = deployment.Core.SolutionSettings.Monitoring.AssetTypes.IAMPolicies
+		dumpinventoryInstance.CAI.ContentType = "IAM_POLICY"
+		dumpinventoryInstance.CAI.AssetTypes = deployment.Core.SolutionSettings.Monitoring.AssetTypes.IAMPolicies
 		instanceFolderPath := fmt.Sprintf("%s/%s-org%s-iam-policies", instancesFolderPath, serviceName, organizationID)
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
-		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), setfeedsInstance); err != nil {
+		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), dumpinventoryInstance); err != nil {
 			return err
 		}
 		log.Printf("done %s", instanceFolderPath)
 
 		// one resource feed per asset type
 		for _, assetType := range deployment.Core.SolutionSettings.Monitoring.AssetTypes.Resources {
-			setfeedsInstance.CAI.ContentType = "RESOURCE"
-			setfeedsInstance.CAI.AssetTypes = []string{assetType}
+			dumpinventoryInstance.CAI.ContentType = "RESOURCE"
+			dumpinventoryInstance.CAI.AssetTypes = []string{assetType}
 			instanceFolderPath := fmt.Sprintf("%s/%s-org%s-%s", instancesFolderPath, serviceName, organizationID, cai.GetAssetShortTypeName(assetType))
 			if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 				os.Mkdir(instanceFolderPath, 0755)
 			}
-			if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), setfeedsInstance); err != nil {
+			if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), dumpinventoryInstance); err != nil {
 				return err
 			}
 			log.Printf("done %s", instanceFolderPath)
