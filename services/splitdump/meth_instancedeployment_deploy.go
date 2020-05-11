@@ -29,7 +29,13 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	if err = instanceDeployment.deployGAEApp(); err != nil {
 		return err
 	}
+	if err = instanceDeployment.deployIAMProjectRoles(); err != nil {
+		return err
+	}
 	if err = instanceDeployment.deployIAMServiceAccount(); err != nil {
+		return err
+	}
+	if err = instanceDeployment.deployGRMProjectBindings(); err != nil {
 		return err
 	}
 	// Core project

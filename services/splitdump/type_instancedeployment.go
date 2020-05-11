@@ -55,7 +55,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 		"pubsub.googleapis.com"}
 	instanceDeployment.Settings.Service.GSU.APIList = append(deploy.GetCommonAPIlist(), instanceDeployment.Settings.Service.GSU.APIList...)
 
-	instanceDeployment.Settings.Service.IAM.RunRoles.MonitoringOrg = []iam.Role{
+	instanceDeployment.Settings.Service.IAM.RunRoles.Project = []iam.Role{
 		projectRunRole()}
 	instanceDeployment.Settings.Service.IAM.DeployRoles.Project = []iam.Role{
 		projectDeployCoreRole(),

@@ -36,7 +36,7 @@ func (functionDeployment *FunctionDeployment) getEventTrigger() (eventTrigger *c
 	case "backgroundGCS":
 		var evtTrigger cloudfunctions.EventTrigger
 		evtTrigger.EventType = "google.storage.object.finalize"
-		evtTrigger.Resource = fmt.Sprintf("projects/_/buckets//%s", functionDeployment.Settings.Instance.GCF.BucketName)
+		evtTrigger.Resource = fmt.Sprintf("projects/_/buckets/%s", functionDeployment.Settings.Instance.GCF.BucketName)
 		evtTrigger.Service = "storage.googleapis.com"
 		evtTrigger.FailurePolicy = &failurePolicy
 		return &evtTrigger, nil
