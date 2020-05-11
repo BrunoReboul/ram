@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -80,29 +79,29 @@ func Initialize(ctx context.Context, global *Global) {
 	global.initFailed = false
 
 	// err is pre-declared to avoid shadowing client.
-	var bucketName string
 	var err error
-	var ok bool
+	var instanceDeployment InstanceDeployment
 	var storageClient *storage.Client
 
-	bucketName = os.Getenv("CAIEXPORTBUCKETNAME")
-	global.iamTopicName = os.Getenv("IAMTOPICNAME")
-	global.projectID = os.Getenv("GCP_PROJECT")
-
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	if err != nil {
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		global.initFailed = true
 		return
 	}
-	if global.splitThresholdLineNumber, ok = ram.GetEnvVarInt64("SPLITTHRESHOLDLINENUMBER"); !ok {
-		return
-	}
+	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
+	global.splitThresholdLineNumber = instanceDeployment.Settings.Instance.SplitThresholdLineNumber
+	global.iamTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
+	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
+
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
 		log.Printf("ERROR - storage.NewClient: %v", err)
 		global.initFailed = true
 		return
 	}
-	global.storageBucket = storageClient.Bucket(bucketName)
+	global.storageBucket = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name)
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
 		log.Printf("ERROR - global.pubsubPublisherClient: %v", err)

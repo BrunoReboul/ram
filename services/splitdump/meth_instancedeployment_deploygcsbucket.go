@@ -13,3 +13,14 @@
 // limitations under the License.
 
 package splitdump
+
+import (
+	"github.com/BrunoReboul/ram/utilities/gcs"
+)
+
+func (instanceDeployment *InstanceDeployment) deployGCSBucket() (err error) {
+	bucketDeployment := gcs.NewBucketDeployment()
+	bucketDeployment.Core = instanceDeployment.Core
+	bucketDeployment.Settings.BucketName = instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name
+	return bucketDeployment.Deploy()
+}

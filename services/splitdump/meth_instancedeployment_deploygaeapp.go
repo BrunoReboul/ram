@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcf
+package splitdump
 
-// Event structure
-type Event struct {
-	TriggerTopic string `yaml:"triggerTopic"`
-	BucketName   string `yaml:"bucketName"`
+import (
+	"github.com/BrunoReboul/ram/utilities/gae"
+)
+
+func (instanceDeployment *InstanceDeployment) deployGAEApp() (err error) {
+	appDeployment := gae.NewAppDeployment()
+	appDeployment.Core = instanceDeployment.Core
+	return appDeployment.Deploy()
 }

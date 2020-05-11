@@ -133,6 +133,8 @@ func RAMCli(deployment *Deployment) (err error) {
 				deployment.deploySetFeeds()
 			case "dumpinventory":
 				deployment.deployDumpInventory()
+			case "splitdump":
+				deployment.deploySplitDump()
 			case "publish2fs":
 				deployment.deployPublish2fs()
 			}

@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcf
+package splitdump
 
-// Event structure
-type Event struct {
-	TriggerTopic string `yaml:"triggerTopic"`
-	BucketName   string `yaml:"bucketName"`
+import (
+	"github.com/BrunoReboul/ram/utilities/gsu"
+)
+
+func (instanceDeployment *InstanceDeployment) deployGSUAPI() (err error) {
+	apiDeployment := gsu.NewAPIDeployment()
+	apiDeployment.Core = instanceDeployment.Core
+	apiDeployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+	return apiDeployment.Deploy()
 }

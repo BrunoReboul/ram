@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcf
+package splitdump
 
-// Event structure
-type Event struct {
-	TriggerTopic string `yaml:"triggerTopic"`
-	BucketName   string `yaml:"bucketName"`
+import (
+	"github.com/BrunoReboul/ram/utilities/iamgt"
+)
+
+func (instanceDeployment *InstanceDeployment) deployIAMServiceAccount() (err error) {
+	serviceAccountDeployment := iamgt.NewServiceaccountDeployment()
+	serviceAccountDeployment.Core = instanceDeployment.Core
+	return serviceAccountDeployment.Deploy()
 }

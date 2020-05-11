@@ -33,6 +33,13 @@ func (functionDeployment *FunctionDeployment) getEventTrigger() (eventTrigger *c
 		evtTrigger.Service = "pubsub.googleapis.com"
 		evtTrigger.FailurePolicy = &failurePolicy
 		return &evtTrigger, nil
+	case "backgroundGCS":
+		var evtTrigger cloudfunctions.EventTrigger
+		evtTrigger.EventType = "google.storage.object.finalize"
+		evtTrigger.Resource = fmt.Sprintf("projects/_/buckets//%s", functionDeployment.Settings.Instance.GCF.BucketName)
+		evtTrigger.Service = "storage.googleapis.com"
+		evtTrigger.FailurePolicy = &failurePolicy
+		return &evtTrigger, nil
 	default:
 		return eventTrigger, fmt.Errorf("functionType provided not managed: %s", functionDeployment.Settings.Service.GCF.FunctionType)
 	}
