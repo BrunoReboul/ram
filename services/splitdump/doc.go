@@ -55,12 +55,6 @@ Is recurssive
 
 Yes.
 
-Required environment variables
-
-- CAIEXPORTBUCKETNAME the name of the GCS bucket where are delivered the CAI dumps.
-
-- IAMTOPICNAME the name of the topic used for all IAM policies feed messages.
-
 Implementation example
 
  package p
@@ -81,6 +75,16 @@ Implementation example
  func init() {
      splitdump.Initialize(ctx, &global)
  }
+
+Notes
+
+- When Cloud Asset Inventory publishes an export to Cloud Storage:
+
+- 1st Creates an empty dump object.
+
+- 2nd Updates the objects then.
+
+- So, two event notifications. The cloud founction ignore the first one (empty object).
 
 */
 package splitdump
