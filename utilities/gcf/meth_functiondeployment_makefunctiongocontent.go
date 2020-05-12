@@ -77,6 +77,8 @@ const backgroundGCSFunctionGo = `
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// generated code %v
+
 // Package p contains a background cloud function
 package p
 
