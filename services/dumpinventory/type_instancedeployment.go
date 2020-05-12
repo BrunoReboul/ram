@@ -96,6 +96,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 func monitoringOrgRunRole() (role iam.Role) {
 	role.Title = "ram_dumpinventory_monitoring_org_run"
 	role.Description = "Real-time Asset Monitor dump inventory microservice permissions to run on monitoring org"
+	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"cloudasset.assets.exportResource",
 		"cloudasset.assets.exportIamPolicy"}

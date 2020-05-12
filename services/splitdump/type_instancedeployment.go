@@ -37,7 +37,7 @@ type InstanceDeployment struct {
 			GCF gcf.Parameters
 		}
 		Instance struct {
-			SplitThresholdLineNumber int64
+			SplitThresholdLineNumber int64 `yaml:"splitThresholdLineNumber"`
 		}
 	}
 }
@@ -83,6 +83,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 func projectRunRole() (role iam.Role) {
 	role.Title = "ram_splitdump_run"
 	role.Description = "Real-time Asset Monitor split dump microservice permissions to run"
+	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"storage.objects.create",
 		"storage.objects.delete",

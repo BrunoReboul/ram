@@ -84,6 +84,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 // func projectRunRole() (role iam.Role) {
 // 	role.Title = "ram_publish2fs_run"
 // 	role.Description = "Real-time Asset Monitor publish to firestore microservice permissions to run"
+//  role.Stage = "GA"
 // 	role.IncludedPermissions = []string{
 // 		"datastore.databases.get",
 // 		"datastore.entities.create",
