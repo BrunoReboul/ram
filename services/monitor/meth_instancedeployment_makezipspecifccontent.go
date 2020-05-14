@@ -211,7 +211,7 @@ func (instanceDeployment *InstanceDeployment) makeZipSpecificContent() (specific
 	}
 	specificZipFiles[fmt.Sprintf("opa/modules/%s.rego", instanceDeployment.Core.InstanceName)] = string(bytes)
 
-	regoConstraintsFolderPath := fmt.Sprintf("%s/%s/%s/%s/%s/%s.rego",
+	regoConstraintsFolderPath := fmt.Sprintf("%s/%s/%s/%s/%s/%s",
 		instanceDeployment.Core.RepositoryPath,
 		ram.MicroserviceParentFolderName,
 		instanceDeployment.Core.ServiceName,

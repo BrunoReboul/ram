@@ -96,7 +96,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GCF.Timeout = "60s"
 
 	instanceDeployment.Settings.Service.AssetsFolderName = "/assets"
-	instanceDeployment.Settings.Service.AssetsFolderName = "data.json"
+	instanceDeployment.Settings.Service.AssetsFileName = "data.json"
 	instanceDeployment.Settings.Service.OPAFolderPath = "./opa"
 	instanceDeployment.Settings.Service.RegoModulesFolderName = "modules"
 	instanceDeployment.Settings.Service.WritabelOPAFolderPath = "/tmp/opa"
