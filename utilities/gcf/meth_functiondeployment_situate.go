@@ -48,7 +48,9 @@ func (functionDeployment *FunctionDeployment) situate() (err error) {
 	functionDeployment.Artifacts.CloudFunction.Timeout = functionDeployment.Settings.Service.GCF.Timeout
 	functionDeployment.Artifacts.CloudFunction.IngressSettings = "ALLOW_ALL"
 
-	functionDeployment.Artifacts.ZipFiles = make(map[string]string)
+	if len(functionDeployment.Artifacts.ZipFiles) == 0 {
+		functionDeployment.Artifacts.ZipFiles = make(map[string]string)
+	}
 	functionGoContent, err := functionDeployment.makeFunctionGoContent()
 	if err != nil {
 		return err

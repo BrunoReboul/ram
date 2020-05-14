@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package monitor
 
-// Settings file names
-const (
-	DevelopmentEnvironmentName   = "dev"
-	SettingsFileName             = "settings.yaml"
-	SolutionSettingsFileName     = "solution.yaml"
-	ServiceSettingsFileName      = "service.yaml"
-	InstanceSettingsFileName     = "instance.yaml"
-	MicroserviceParentFolderName = "services"
-	InstancesFolderName          = "instances"
-	RegoConstraintsFolderName    = "constraints"
-	SolutionName                 = "ram"
+import (
+	"github.com/BrunoReboul/ram/utilities/gae"
 )
+
+func (instanceDeployment *InstanceDeployment) deployGAEApp() (err error) {
+	appDeployment := gae.NewAppDeployment()
+	appDeployment.Core = instanceDeployment.Core
+	return appDeployment.Deploy()
+}

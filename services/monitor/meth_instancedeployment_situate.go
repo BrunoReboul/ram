@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package monitor
 
-// Settings file names
-const (
-	DevelopmentEnvironmentName   = "dev"
-	SettingsFileName             = "settings.yaml"
-	SolutionSettingsFileName     = "solution.yaml"
-	ServiceSettingsFileName      = "service.yaml"
-	InstanceSettingsFileName     = "instance.yaml"
-	MicroserviceParentFolderName = "services"
-	InstancesFolderName          = "instances"
-	RegoConstraintsFolderName    = "constraints"
-	SolutionName                 = "ram"
+import (
+	"fmt"
+	"time"
 )
+
+// Situate complement settings taking in account the situation for service and instance settings
+func (instanceDeployment *InstanceDeployment) Situate() (err error) {
+	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
+	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("monitor %s assets compliance to %s rule",
+		instanceDeployment.Settings.Instance.GCF.TriggerTopic,
+		instanceDeployment.Core.InstanceName)
+	instanceDeployment.Settings.Instance.DeploymentTime = time.Now()
+	return nil
+}

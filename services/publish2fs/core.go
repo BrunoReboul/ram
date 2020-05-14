@@ -59,9 +59,8 @@ func Initialize(ctx context.Context, global *Global) {
 
 	// err is pre-declared to avoid shadowing client.
 	var err error
-	// var ok bool
-	var projectID string
 	var instanceDeployment InstanceDeployment
+	var projectID string
 
 	log.Println("Function COLD START")
 	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)

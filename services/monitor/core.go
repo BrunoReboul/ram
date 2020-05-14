@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package monitorcompliance
+package monitor
 
 import (
 	"context"
@@ -48,23 +48,15 @@ type Global struct {
 	environment                   string
 	firestoreClient               *firestore.Client
 	functionName                  string
+	opaFolderPath                 string
 	ownerLabelKeyName             string
 	projectID                     string
 	pubsubPublisherClient         *pubsub.PublisherClient
 	ramComplianceStatusTopicName  string
 	ramViolationTopicName         string
 	regoModulesFolderPath         string
-	settings                      settings
 	violationResolverLabelKeyName string
-}
-
-// settings the structure of the settings.json setting file
-type settings struct {
-	WritabelOPAFolderPath string `json:"writabelOPAFolderPath"`
-	AssetsFolderName      string `json:"assetsFolderName"`
-	AssetsFileName        string `json:"assetsFileName"`
-	OPAFolderPath         string `json:"OPAFolderPath"`
-	RegoModulesFolderName string `json:"regoModulesFolderName"`
+	writabelOPAFolderPath         string
 }
 
 // feedMessage Cloud Asset Inventory feed message
@@ -156,40 +148,35 @@ func Initialize(ctx context.Context, global *Global) {
 
 	// err is pre-declared to avoid shadowing client.
 	var err error
-	var ok bool
-
-	global.assetsCollectionID = os.Getenv("ASSETSCOLLECTIONID")
-	global.environment = os.Getenv("ENVIRONMENT")
-	global.functionName = os.Getenv("FUNCTION_NAME")
-	global.ownerLabelKeyName = os.Getenv("OWNERLABELKEYNAME")
-	global.projectID = os.Getenv("GCP_PROJECT")
-	global.ramComplianceStatusTopicName = os.Getenv("STATUS_TOPIC")
-	global.ramViolationTopicName = os.Getenv("VIOLATION_TOPIC")
-	global.violationResolverLabelKeyName = os.Getenv("VIOLATIONRESOLVERLABELKEYNAME")
+	var instanceDeployment InstanceDeployment
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
-		return
-	}
-	if global.deploymentTime, ok = ram.GetEnvVarTime("DEPLOYMENT_TIME"); !ok {
-		return
-	}
-	settingsFileContent, err := ioutil.ReadFile(settingsFileName)
+	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ioutil.ReadFile: %v", err)
-		global.initFailed = true
-		return
-	}
-	err = json.Unmarshal(settingsFileContent, &global.settings)
-	if err != nil {
-		log.Printf("ERROR - json.Unmarshal: %v", err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
 
-	global.assetsFolderPath = global.settings.WritabelOPAFolderPath + "/" + global.settings.AssetsFolderName
-	global.assetsFilePath = global.assetsFolderPath + "/" + global.settings.AssetsFileName
-	global.regoModulesFolderPath = global.settings.OPAFolderPath + "/" + global.settings.RegoModulesFolderName
+	assetsFileName := instanceDeployment.Settings.Service.AssetsFileName
+	assetsFolderName := instanceDeployment.Settings.Service.AssetsFolderName
+	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
+	global.deploymentTime = instanceDeployment.Settings.Instance.DeploymentTime
+	global.environment = instanceDeployment.Core.EnvironmentName
+	global.functionName = instanceDeployment.Core.InstanceName
+	global.opaFolderPath = instanceDeployment.Settings.Service.OPAFolderPath
+	global.ownerLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.Owner
+	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
+	global.ramComplianceStatusTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.RAMComplianceStatus
+	global.ramViolationTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.RAMViolation
+	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
+	global.violationResolverLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.ViolationResolver
+	global.writabelOPAFolderPath = instanceDeployment.Settings.Service.WritabelOPAFolderPath
+	regoModulesFolderName := instanceDeployment.Settings.Service.RegoModulesFolderName
+
+	global.assetsFolderPath = global.writabelOPAFolderPath + "/" + assetsFolderName
+	global.assetsFilePath = global.assetsFolderPath + "/" + assetsFileName
+	global.regoModulesFolderPath = global.opaFolderPath + "/" + regoModulesFolderName
 
 	// services are initialized with context.Background() because it should
 	// persist between function invocations.
@@ -454,7 +441,7 @@ func evalutateConstraints(assetsJSONDocument []byte, feedMessage feedMessage, gl
 
 	ctx := context.Background()
 	rego := rego.New(rego.Query("audit"),
-		rego.Load([]string{global.settings.OPAFolderPath, global.settings.WritabelOPAFolderPath}, nil),
+		rego.Load([]string{global.opaFolderPath, global.writabelOPAFolderPath}, nil),
 		rego.Package("validator.gcp.lib"))
 
 	resultSet, err = rego.Eval(ctx)

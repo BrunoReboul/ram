@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /*
-Package monitorcompliance check asset compliance
+Package monitor check asset compliance
 
 Triggered by
 
@@ -41,20 +41,6 @@ Automatic retrying
 
 Yes.
 
-Required environment variables
-
-- ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents.
-
-- ENVIRONMENT the execution environment for RAM, eg, dev.
-
-- OWNERLABELKEYNAME key name for the label identifying the asset owner.
-
-- STATUS_TOPIC name of the PubSub topic used to output evaluated compliance states.
-
-- VIOLATIONRESOLVERLABELKEYNAMEkey name for the label identifying the asset violation resolver.
-
-- VIOLATION_TOPIC name of the PubSub topic used to output found violations.
-
 Implementation example
 
  package p
@@ -77,4 +63,4 @@ Implementation example
  }
 
 */
-package monitorcompliance
+package monitor
