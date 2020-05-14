@@ -137,6 +137,8 @@ func RAMCli(deployment *Deployment) (err error) {
 				deployment.deploySplitDump()
 			case "publish2fs":
 				deployment.deployPublish2fs()
+			case "monitor":
+				deployment.deployMonitor()
 			}
 		}
 	}

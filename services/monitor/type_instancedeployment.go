@@ -46,7 +46,7 @@ type InstanceDeployment struct {
 		}
 		Instance struct {
 			GCF            gcf.Event
-			DeploymentTime time.Time `yaml:"deploymentTime"`
+			DeploymentTime time.Time `yaml:"deploymentTime" valid:"-"` // variable of type time.Type MUST discard validater. time.Time is retreived as struct with only unexported field, leading to crash recurusivity of validater
 		}
 	}
 }

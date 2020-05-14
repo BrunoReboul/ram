@@ -17,6 +17,7 @@ package gcb
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/cloudbuild/v1"
@@ -72,7 +73,7 @@ func deleteBuildTrigger(triggerID string) {
 }
 
 func (triggerDeployment *TriggerDeployment) situate() {
-	triggerDeployment.Artifacts.BuildTrigger.Name = triggerDeployment.Core.InstanceName
+	triggerDeployment.Artifacts.BuildTrigger.Name = strings.Replace(triggerDeployment.Core.InstanceName, "_", "-", -1)
 	triggerDeployment.Artifacts.BuildTrigger.Description = fmt.Sprintf("Environment %s, Instance %s, Phase continuous deployment",
 		triggerDeployment.Core.EnvironmentName,
 		triggerDeployment.Core.InstanceName)

@@ -118,6 +118,8 @@ func getValidationErrors(structure interface{}, pedigree string) []error {
 		if valueField.Kind() == reflect.Interface {
 			valueField = valueField.Elem()
 		}
+		// time.Time type is retreived as struct, but contains only filtered or unexported fields. Results: crach the validater
+		// variable of type time.Type MUST discard validater. time.Time is retreived as struct with only unexported field, leading to crash recurusivity of validater
 		if typeField.Tag.Get(tagKeyName) != "-" &&
 			(valueField.Kind() == reflect.Struct || (valueField.Kind() == reflect.Ptr && valueField.Elem().Kind() == reflect.Struct)) {
 			// log.Printf("Explore %s %s", typeField.Type.Kind(), typeField.Name)
