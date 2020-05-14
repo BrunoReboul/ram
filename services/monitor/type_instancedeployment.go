@@ -66,8 +66,8 @@ func NewInstanceDeployment() *InstanceDeployment {
 
 	instanceDeployment.Settings.Service.IAM.RunRoles.MonitoringOrg = []iam.Role{
 		monitoringOrgRunRole()}
-	instanceDeployment.Settings.Service.IAM.RunRoles.Project = []iam.Role{
-		projectRunRole()}
+	// instanceDeployment.Settings.Service.IAM.RunRoles.Project = []iam.Role{
+	// 	projectRunRole()}
 	instanceDeployment.Settings.Service.IAM.DeployRoles.Project = []iam.Role{
 		projectDeployCoreRole(),
 		projectDeployExtendedRole()}
@@ -83,8 +83,13 @@ func NewInstanceDeployment() *InstanceDeployment {
 
 	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Monitoring.Org.CustomRoles = []string{
 		monitoringOrgRunRole().Title}
-	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
-		projectRunRole().Title}
+
+	// Data store permissions are not supported in custom roles
+	// instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
+	// 	projectRunRole().Title}
+	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.Roles = []string{
+		"roles/datastore.viewer",
+		"roles/pubsub.publisher"}
 
 	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 128
 	instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds = 600
@@ -99,21 +104,22 @@ func NewInstanceDeployment() *InstanceDeployment {
 	return &instanceDeployment
 }
 
-func projectRunRole() (role iam.Role) {
-	role.Title = "ram_monitorcompliance_run"
-	role.Description = "Real-time Asset Monitor monitor compliance microservice permissions to run"
-	role.Stage = "GA"
-	role.IncludedPermissions = []string{
-		"datastore.databases.get",
-		"datastore.entities.get",
-		"pubsub.topics.publish"}
-	return role
-}
+// Data store permissions are not supported in custom roles
+// func projectRunRole() (role iam.Role) {
+// 	role.Title = "ram_monitor_run"
+// 	role.Description = "Real-time Asset Monitor monitor microservice permissions to run"
+// 	role.Stage = "GA"
+// 	role.IncludedPermissions = []string{
+// 		"datastore.databases.get",
+// 		"datastore.entities.get",
+// 		"pubsub.topics.publish"}
+// 	return role
+// }
 
 // used to retreive org, folders, project friendly names when not found in firestore
 func monitoringOrgRunRole() (role iam.Role) {
-	role.Title = "ram_monitorcompliance_monitoring_org_run"
-	role.Description = "Real-time Asset Monitor monitor compliance microservice permissions to run on monitoring org"
+	role.Title = "ram_monitor_monitoring_org_run"
+	role.Description = "Real-time Asset Monitor monitor microservice permissions to run on monitoring org"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"resourcemanager.projects.get",
@@ -123,8 +129,8 @@ func monitoringOrgRunRole() (role iam.Role) {
 }
 
 func projectDeployCoreRole() (role iam.Role) {
-	role.Title = "ram_monitorcompliance_deploy_core"
-	role.Description = "Real-time Asset Monitor monitor compliance microservice core permissions to deploy"
+	role.Title = "ram_monitor_deploy_core"
+	role.Description = "Real-time Asset Monitor monitor microservice core permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"pubsub.topics.get",
@@ -139,8 +145,8 @@ func projectDeployCoreRole() (role iam.Role) {
 }
 
 func projectDeployExtendedRole() (role iam.Role) {
-	role.Title = "ram_monitorcompliance_deploy_extended"
-	role.Description = "Real-time Asset Monitor monitor compliance microservice extended permissions to deploy"
+	role.Title = "ram_monitor_deploy_extended"
+	role.Description = "Real-time Asset Monitor monitor microservice extended permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"serviceusage.services.list",
