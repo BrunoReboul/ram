@@ -27,7 +27,7 @@ func (deployment *Deployment) CheckArguments() {
 	deployment.Core.GoVersion, deployment.Core.RAMVersion = GetVersions()
 	// flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
 	flag.BoolVar(&deployment.Core.Commands.Initialize, "init", false, "initial setup to be launched first, before manual, aka not automatable setup tasks")
-	flag.BoolVar(&deployment.Core.Commands.ConfigureAssetTypes, "config", false, "For assets types defined in solution.yaml writes setfeeds and dumpinventory instance.yaml files and subfolders")
+	flag.BoolVar(&deployment.Core.Commands.ConfigureAssetTypes, "config", false, "For assets types defined in solution.yaml writes setfeeds, dumpinventory, stream2bq instance.yaml files and subfolders")
 	flag.BoolVar(&deployment.Core.Commands.MakeReleasePipeline, "pipe", false, "make release pipeline using cloud build to deploy one instance, one microservice, or all")
 	flag.BoolVar(&deployment.Core.Commands.Deploy, "deploy", false, "deploy one microservice instance")
 	flag.BoolVar(&deployment.Core.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.SettingsFileName))

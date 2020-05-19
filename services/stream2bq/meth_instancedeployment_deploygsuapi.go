@@ -13,3 +13,14 @@
 // limitations under the License.
 
 package stream2bq
+
+import (
+	"github.com/BrunoReboul/ram/utilities/gsu"
+)
+
+func (instanceDeployment *InstanceDeployment) deployGSUAPI() (err error) {
+	apiDeployment := gsu.NewAPIDeployment()
+	apiDeployment.Core = instanceDeployment.Core
+	apiDeployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+	return apiDeployment.Deploy()
+}
