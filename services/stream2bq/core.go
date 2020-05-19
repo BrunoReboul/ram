@@ -273,12 +273,12 @@ func getDataset(ctx context.Context, datasetName string, location string, bigQue
 			datasetToCreateMetadata.Name = datasetName
 			datasetToCreateMetadata.Location = location
 			datasetToCreateMetadata.Description = "Real-time Asset Monitor"
-			datasetToCreateMetadata.Labels = map[string]string{"name": datasetName}
+			datasetToCreateMetadata.Labels = map[string]string{"name": strings.ToLower(datasetName)}
 
 			err = dataset.Create(ctx, &datasetToCreateMetadata)
 			if err != nil {
 				// deal with concurent executions
-				if strings.Contains(strings.ToLower(err.Error()), "alreadyexists") {
+				if strings.Contains(strings.ToLower(err.Error()), "already exists") {
 					datasetMetadata, err = dataset.Metadata(ctx)
 					if err != nil {
 						return nil, err
@@ -304,7 +304,7 @@ func getDataset(ctx context.Context, datasetName string, location string, bigQue
 	}
 	if needToUpdate {
 		var datasetMetadataToUpdate bigquery.DatasetMetadataToUpdate
-		datasetMetadataToUpdate.SetLabel("name", datasetName)
+		datasetMetadataToUpdate.SetLabel("name", strings.ToLower(datasetName))
 		datasetMetadata, err = dataset.Update(ctx, datasetMetadataToUpdate, "")
 		if err != nil {
 			return nil, fmt.Errorf("ERROR when updating dataset labels %v", err)
@@ -332,7 +332,7 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 			var tableToCreateMetadata bigquery.TableMetadata
 			tableToCreateMetadata.Name = tableName
 			tableToCreateMetadata.Description = fmt.Sprintf("Real-time Asset Monitor - %s", tableName)
-			tableToCreateMetadata.Labels = map[string]string{"name": tableName}
+			tableToCreateMetadata.Labels = map[string]string{"name": strings.ToLower(tableName)}
 
 			var timePartitioning bigquery.TimePartitioning
 			timePartitioning.Expiration, _ = time.ParseDuration("24h")
@@ -342,7 +342,7 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 			err = table.Create(ctx, &tableToCreateMetadata)
 			if err != nil {
 				// deal with concurent executions
-				if strings.Contains(strings.ToLower(err.Error()), "alreadyexists") {
+				if strings.Contains(strings.ToLower(err.Error()), "already exists") {
 					tableMetadata, err = table.Metadata(ctx)
 					if err != nil {
 						return nil, err
@@ -368,7 +368,7 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 	}
 	if needToUpdate {
 		var tableMetadataToUpdate bigquery.TableMetadataToUpdate
-		tableMetadataToUpdate.SetLabel("name", tableName)
+		tableMetadataToUpdate.SetLabel("name", strings.ToLower(tableName))
 		tableMetadata, err = table.Update(ctx, tableMetadataToUpdate, "")
 		if err != nil {
 			return nil, fmt.Errorf("ERROR when updating table labels %v", err)
