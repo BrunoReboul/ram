@@ -132,7 +132,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 		log.Printf("Object %v is empty, nothing to split, ignored", gcsEvent.Name)
 		return nil
 	}
-	matched, _ := regexp.Match(`dumpinventory-.*.dump`, []byte(gcsEvent.Name))
+	matched, _ := regexp.Match(`dumpinventory.*.dump`, []byte(gcsEvent.Name))
 	if !matched {
 		log.Printf("Object %v is not a CAI dump", gcsEvent.Name)
 		return nil
