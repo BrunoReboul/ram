@@ -60,7 +60,8 @@ func NewInstanceDeployment() *InstanceDeployment {
 
 	instanceDeployment.Settings.Service.IAM.RunRoles.MonitoringOrg = []iam.Role{
 		monitoringOrgRunRole()}
-
+	instanceDeployment.Settings.Service.IAM.RunRoles.Project = []iam.Role{
+		projectRunRole()}
 	instanceDeployment.Settings.Service.IAM.DeployRoles.Project = []iam.Role{
 		projectDeployCoreRole(),
 		projectDeployExtendedRole()}
@@ -76,7 +77,8 @@ func NewInstanceDeployment() *InstanceDeployment {
 
 	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Monitoring.Org.CustomRoles = []string{
 		monitoringOrgRunRole().Title}
-
+	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
+		projectRunRole().Title}
 	// Data store permissions are not supported in custom roles
 	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.Roles = []string{
 		"roles/datastore.viewer"}
