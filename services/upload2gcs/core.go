@@ -88,7 +88,7 @@ func Initialize(ctx context.Context, global *Global) {
 		return
 	}
 
-	bucketName := instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name
+	bucketName := instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.AssetsJSONFile.Name
 	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
 	global.ownerLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.Owner
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
@@ -134,8 +134,8 @@ func getBucketHandle(ctx context.Context, bucketName string, projectID string, l
 	if err != nil {
 		if err == storage.ErrBucketNotExist {
 			var bucketTocreateAttrs storage.BucketAttrs
-			bucketTocreateAttrs.Name = bucketName
 			bucketTocreateAttrs.Location = location
+			bucketTocreateAttrs.StorageClass = "STANDARD"
 			bucketTocreateAttrs.Labels = map[string]string{"name": strings.ToLower(bucketName)}
 
 			err = bucketHandle.Create(ctx, projectID, &bucketTocreateAttrs)
