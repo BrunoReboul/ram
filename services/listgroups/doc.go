@@ -43,19 +43,35 @@ Is recurssive
 
 Yes.
 
-Required environment variables
+Key rotation strategy
 
-- GCIADMINUSERTOIMPERSONATE email of the Google Cloud Identity super admin to impersonate
+- A new service account key is created during the cloud function deployment in Cloud Build.
 
-- DIRECTORYCUSTOMERID Directory customer identifier. see gcloud organizations list
+- The new keyID is passed through settings.yaml and is not persisted in git.
 
-- INPUTTOPICNAME name of the PubSub topic used to trigger it self in recursive mode
+- The json key file is available to the cloud function as a local file and is not persisted in git.
 
-- KEYJSONFILENAME name for the service account JSON file containig the key to authenticate against CGI
+- The cloud function init function deletes any key but the current one.
 
-- OUTPUTTOPICNAME name of the PubSub topic where to deliver feed messages
+- So, how to rotate service accout key? just redeploy the cloud function.
 
-- SERVICEACCOUNTNAME name of the service account used to asscess GCI
+GCI authentication notes
+
+- Read the service account json key file created during the cloud function deployment.
+
+- Get a google jwt JSON Web token configuration from: Key JSON file, Scopes, GCI User to impersonate, aka subject, aka the super admin.
+
+- Get an HTTP client from the jwtConfig.
+
+- Get a clientOption from the HTTP client.
+
+- Get a service from admin directory package fron the client option.
+
+GCI request notes
+
+- "my_customer": As an account administrator, you can also use the my_customer alias to represent your account's customerId.
+
+- Prefer to use the "directory_customer_id" instead of "my_customer" to narrow the execution time of the function in case of multiple directories, e.g. sandboxes / managed
 
 Implementation example
 
