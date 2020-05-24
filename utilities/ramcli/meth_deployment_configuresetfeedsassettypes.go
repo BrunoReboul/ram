@@ -27,9 +27,9 @@ import (
 
 // configureSetFeedsAssetTypes for assets types defined in solution.yaml writes setfeeds instance.yaml files and subfolders
 func (deployment *Deployment) configureSetFeedsAssetTypes() (err error) {
-	log.Println("configure setfeeds asset types")
-	var setfeedsInstanceDeployment setfeeds.InstanceDeployment
 	serviceName := "setfeeds"
+	log.Printf("configure %s asset types", serviceName)
+	var setfeedsInstanceDeployment setfeeds.InstanceDeployment
 	setfeedsInstance := setfeedsInstanceDeployment.Settings.Instance
 	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {

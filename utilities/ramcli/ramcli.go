@@ -127,6 +127,9 @@ func RAMCli(deployment *Deployment) (err error) {
 		if err = deployment.configureStream2bqAssetTypes(); err != nil {
 			log.Fatal(err)
 		}
+		if err = deployment.configureUpload2gcsAssetTypes(); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
 		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
@@ -144,6 +147,8 @@ func RAMCli(deployment *Deployment) (err error) {
 				deployment.deployMonitor()
 			case "stream2bq":
 				deployment.deployStream2bq()
+			case "upload2gcs":
+				deployment.deployUpload2gcs()
 			}
 		}
 	}

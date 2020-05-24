@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
@@ -41,7 +40,7 @@ type Global struct {
 	initFailed                    bool
 	ownerLabelKeyName             string
 	retryTimeOutSeconds           int64
-	storageBucket                 *storage.BucketHandle
+	bucketHandle                  *storage.BucketHandle
 	violationResolverLabelKeyName string
 }
 
@@ -77,29 +76,38 @@ func Initialize(ctx context.Context, global *Global) {
 	global.initFailed = false
 
 	// err is pre-declared to avoid shadowing client.
-	var bucketName string
 	var err error
-	var ok bool
-	var projectID string
+	var instanceDeployment InstanceDeployment
 	var storageClient *storage.Client
 
-	bucketName = os.Getenv("BUCKETNAME")
-	global.assetsCollectionID = os.Getenv("ASSETSCOLLECTIONID")
-	global.ownerLabelKeyName = os.Getenv("OWNERLABELKEYNAME")
-	global.violationResolverLabelKeyName = os.Getenv("VIOLATIONRESOLVERLABELKEYNAME")
-	projectID = os.Getenv("GCP_PROJECT")
-
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	if err != nil {
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		global.initFailed = true
 		return
 	}
+
+	bucketName := instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name
+	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
+	global.ownerLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.Owner
+	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
+	global.violationResolverLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.ViolationResolver
+	location := instanceDeployment.Core.SolutionSettings.Hosting.GCF.Region
+	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
+
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
 		log.Printf("ERROR - storage.NewClient: %v", err)
 		global.initFailed = true
 		return
 	}
-	global.storageBucket = storageClient.Bucket(bucketName)
+	global.bucketHandle, err = getBucketHandle(global.ctx, bucketName, projectID, location, storageClient)
+	if err != nil {
+		log.Printf("ERROR - getBucketHandle: %v", err)
+		global.initFailed = true
+		return
+	}
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
 		log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
@@ -118,6 +126,55 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
+}
+
+func getBucketHandle(ctx context.Context, bucketName string, projectID string, location string, storageClient *storage.Client) (bucketHandle *storage.BucketHandle, err error) {
+	bucketHandle = storageClient.Bucket(bucketName)
+	bucketAttrs, err := bucketHandle.Attrs(ctx)
+	if err != nil {
+		if err == storage.ErrBucketNotExist {
+			var bucketTocreateAttrs storage.BucketAttrs
+			bucketTocreateAttrs.Name = bucketName
+			bucketTocreateAttrs.Location = location
+			bucketTocreateAttrs.Labels = map[string]string{"name": strings.ToLower(bucketName)}
+
+			err = bucketHandle.Create(ctx, projectID, &bucketTocreateAttrs)
+			if err != nil {
+				// deal with concurent executions
+				if strings.Contains(strings.ToLower(err.Error()), "already exists") {
+					bucketAttrs, err = bucketHandle.Attrs(ctx)
+					if err != nil {
+						return nil, err
+					}
+				}
+				return nil, fmt.Errorf("bucketHandle.Create %v", err)
+			}
+			log.Printf("Created bucket %s", bucketName)
+			return bucketHandle, nil
+		}
+	}
+	needToUpdate := false
+	if bucketAttrs.Labels != nil {
+		if value, ok := bucketAttrs.Labels["name"]; ok {
+			if value != bucketAttrs.Name {
+				needToUpdate = true
+			}
+		} else {
+			needToUpdate = true
+		}
+	} else {
+		needToUpdate = true
+	}
+	if needToUpdate {
+		var bucketAttrsToUpdate storage.BucketAttrsToUpdate
+		bucketAttrsToUpdate.SetLabel("name", strings.ToLower(bucketName))
+		bucketAttrs, err = bucketHandle.Update(ctx, bucketAttrsToUpdate)
+		if err != nil {
+			return nil, fmt.Errorf("ERROR when updating bucket labels %v", err)
+		}
+		log.Printf("Update bucket labels %s", bucketName)
+	}
+	return bucketHandle, err
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
@@ -160,7 +217,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 
 	objectName := strings.Replace(feedMessage.Asset.Name, "/", "", 2) + objectNameSuffix
 	// log.Println("objectName", objectName)
-	storageObject := global.storageBucket.Object(objectName)
+	storageObject := global.bucketHandle.Object(objectName)
 
 	if feedMessage.Deleted == true {
 		err = storageObject.Delete(global.ctx)

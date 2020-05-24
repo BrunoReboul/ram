@@ -27,9 +27,9 @@ import (
 
 // configureDumpInventoryAssetTypes for assets types defined in solution.yaml writes dumpinventory instance.yaml files and subfolders
 func (deployment *Deployment) configureDumpInventoryAssetTypes() (err error) {
-	log.Println("configure dumpinventory asset types")
-	var dumpinventoryInstanceDeployment dumpinventory.InstanceDeployment
 	serviceName := "dumpinventory"
+	log.Printf("configure %s asset types", serviceName)
+	var dumpinventoryInstanceDeployment dumpinventory.InstanceDeployment
 	dumpinventoryInstance := dumpinventoryInstanceDeployment.Settings.Instance
 	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {

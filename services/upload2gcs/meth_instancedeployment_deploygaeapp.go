@@ -13,3 +13,13 @@
 // limitations under the License.
 
 package upload2gcs
+
+import (
+	"github.com/BrunoReboul/ram/utilities/gae"
+)
+
+func (instanceDeployment *InstanceDeployment) deployGAEApp() (err error) {
+	appDeployment := gae.NewAppDeployment()
+	appDeployment.Core = instanceDeployment.Core
+	return appDeployment.Deploy()
+}
