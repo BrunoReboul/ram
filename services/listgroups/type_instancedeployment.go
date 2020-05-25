@@ -118,6 +118,7 @@ func projectDeployCoreRole() (role iam.Role) {
 	role.Description = "Real-time Asset Monitor list groups microservice core permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
+		"iam.serviceAccountKeys.create",
 		"pubsub.topics.get",
 		"pubsub.topics.create",
 		"pubsub.topics.update",
