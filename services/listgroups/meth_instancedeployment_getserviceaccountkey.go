@@ -16,12 +16,14 @@ package listgroups
 
 import (
 	"fmt"
+	"log"
 
 	"google.golang.org/api/iam/v1"
 )
 
 // getServiceAccountKey
 func (instanceDeployment *InstanceDeployment) getServiceAccountKey() (serviceAccountKey *iam.ServiceAccountKey, err error) {
+	log.Printf("%s create a new service account key", instanceDeployment.Core.InstanceName)
 	serviceAccountEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
 		instanceDeployment.Core.ServiceName,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)

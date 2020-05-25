@@ -29,7 +29,13 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	if err = instanceDeployment.deployGAEApp(); err != nil {
 		return err
 	}
+	if err = instanceDeployment.deployIAMProjectRoles(); err != nil {
+		return err
+	}
 	if err = instanceDeployment.deployIAMServiceAccount(); err != nil {
+		return err
+	}
+	if err = instanceDeployment.deployGRMProjectBindings(); err != nil {
 		return err
 	}
 	// Core project
@@ -42,6 +48,9 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	if err = instanceDeployment.deployGCFFunction(); err != nil {
 		return err
 	}
+	log.Printf("%s this cloud function service account needs domain wide delegation", instanceDeployment.Core.InstanceName)
+	log.Printf("%s this cloud function service account needs oauth scope https://www.googleapis.com/auth/admin.directory.group.readonly", instanceDeployment.Core.InstanceName)
+	log.Printf("%s this cloud function service account needs oauth scope https://www.googleapis.com/auth/admin.directory.domain.readonly", instanceDeployment.Core.InstanceName)
 	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
 	return nil
 }
