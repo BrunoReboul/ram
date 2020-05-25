@@ -31,6 +31,7 @@ func (instanceDeployment *InstanceDeployment) getServiceAccountKey() (serviceAcc
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		serviceAccountEmail)
 	var createServiceAccountKeyRequest iam.CreateServiceAccountKeyRequest
+	createServiceAccountKeyRequest.PrivateKeyType = "TYPE_PKCS12_FILE"
 
 	projectsServiceAccountsKeysService := iam.NewProjectsServiceAccountsKeysService(instanceDeployment.Core.Services.IAMService)
 	serviceAccountKey, err = projectsServiceAccountsKeysService.Create(name, &createServiceAccountKeyRequest).Context(instanceDeployment.Core.Ctx).Do()
