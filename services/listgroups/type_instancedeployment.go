@@ -105,6 +105,7 @@ func projectRunRole() (role iam.Role) {
 	role.Description = "Real-time Asset Monitor list groups microservice permissions to run"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
+		"iam.serviceAccounts.get",
 		"iam.serviceAccountKeys.list",
 		"iam.serviceAccountKeys.delete",
 		"pubsub.topics.create",
