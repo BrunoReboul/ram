@@ -43,13 +43,19 @@ Is recurssive
 
 Yes.
 
+Domain Wide Delegation
+
+Yes. The service account used to run this cloud function must have domain wide delegation and the following Oauth scopes:
+
+- https://www.googleapis.com/auth/admin.directory.group.readonly
+
+- https://www.googleapis.com/auth/admin.directory.domain.readonly
+
 Key rotation strategy
 
 - A new service account key is created during the cloud function deployment in Cloud Build.
 
-- The new keyID is passed through settings.yaml and is not persisted in git.
-
-- The json key file is available to the cloud function as a local file and is not persisted in git.
+- The json key file is available to the cloud function as a local source file and is not persisted in git.
 
 - The cloud function init function deletes any key but the current one.
 
