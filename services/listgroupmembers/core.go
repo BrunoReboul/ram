@@ -84,9 +84,6 @@ func Initialize(ctx context.Context, global *Global) {
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
 
-	//DEBUG
-	log.Printf("serviceAccountEmail %s", serviceAccountEmail)
-
 	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
 		return
 	}

@@ -70,9 +70,8 @@ type Settings struct {
 		}
 	}
 	Monitoring struct {
-		OrganizationIDs      []string          `yaml:"organizationIDs"`
-		DirectoryCustomerIDs map[string]string `yaml:"directoryCustomerIDs"`
-		LabelKeyNames        struct {
+		OrganizationIDs []string `yaml:"organizationIDs"`
+		LabelKeyNames   struct {
 			Owner             string `valid:"isNotZeroValue"`
 			ViolationResolver string `yaml:"violationResolver" valid:"isNotZeroValue"`
 		} `yaml:"labelKeyNames"`

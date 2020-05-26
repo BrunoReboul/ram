@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package listgroupmembers
+package getgroupsettings
 
 import (
-	"fmt"
+	"github.com/BrunoReboul/ram/utilities/iamgt"
 )
 
-// Situate complement settings taking in account the situation for service and instance settings
-func (instanceDeployment *InstanceDeployment) Situate() (err error) {
-	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
-	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("For each group advertised from Pubusub topic %s, list the group members into pubsub topic %s",
-		instanceDeployment.Settings.Instance.GCF.TriggerTopic,
-		instanceDeployment.Settings.Service.OutputTopicName)
+func (instanceDeployment *InstanceDeployment) deployIAMProjectRoles() (err error) {
+	if len(instanceDeployment.Settings.Service.IAM.DeployRoles.Project) > 0 {
+		projectRolesDeployment := iamgt.NewProjectRolesDeployment()
+		projectRolesDeployment.Core = instanceDeployment.Core
+		projectRolesDeployment.Settings.Roles = instanceDeployment.Settings.Service.IAM.RunRoles.Project
+		projectRolesDeployment.Artifacts.ProjectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
+		return projectRolesDeployment.Deploy()
+	}
 	return nil
 }

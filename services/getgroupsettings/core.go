@@ -46,23 +46,26 @@ func Initialize(ctx context.Context, global *Global) {
 	global.initFailed = false
 
 	// err is pre-declared to avoid shadowing client.
-	var clientOption option.ClientOption
 	var err error
-	var gciAdminUserToImpersonate string
-	var keyJSONFilePath string
+	var instanceDeployment InstanceDeployment
+	var clientOption option.ClientOption
 	var ok bool
-	var serviceAccountEmail string
-
-	gciAdminUserToImpersonate = os.Getenv("GCIADMINUSERTOIMPERSONATE")
-	global.outputTopicName = os.Getenv("OUTPUTTOPICNAME")
-	keyJSONFilePath = "./" + os.Getenv("KEYJSONFILENAME")
-	global.projectID = os.Getenv("GCP_PROJECT")
-	serviceAccountEmail = os.Getenv("SERVICEACCOUNTNAME")
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	if err != nil {
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		global.initFailed = true
 		return
 	}
+
+	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
+	global.outputTopicName = instanceDeployment.Settings.Service.OutputTopicName
+	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
+	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
+	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
+	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
+
 	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, global.projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
 		return
 	}

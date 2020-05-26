@@ -153,6 +153,8 @@ func RAMCli(deployment *Deployment) (err error) {
 				deployment.deployListGroups()
 			case "listgroupmembers":
 				deployment.deployListGroupMembers()
+			case "getgroupsettings":
+				deployment.deployGetGroupSettings()
 			}
 		}
 	}

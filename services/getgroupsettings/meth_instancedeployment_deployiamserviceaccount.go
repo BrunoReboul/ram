@@ -13,3 +13,13 @@
 // limitations under the License.
 
 package getgroupsettings
+
+import (
+	"github.com/BrunoReboul/ram/utilities/iamgt"
+)
+
+func (instanceDeployment *InstanceDeployment) deployIAMServiceAccount() (err error) {
+	serviceAccountDeployment := iamgt.NewServiceaccountDeployment()
+	serviceAccountDeployment.Core = instanceDeployment.Core
+	return serviceAccountDeployment.Deploy()
+}

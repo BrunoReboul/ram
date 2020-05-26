@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package listgroupmembers
+package getgroupsettings
 
 import (
-	"fmt"
+	"github.com/BrunoReboul/ram/utilities/gsu"
 )
 
-// Situate complement settings taking in account the situation for service and instance settings
-func (instanceDeployment *InstanceDeployment) Situate() (err error) {
-	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
-	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("For each group advertised from Pubusub topic %s, list the group members into pubsub topic %s",
-		instanceDeployment.Settings.Instance.GCF.TriggerTopic,
-		instanceDeployment.Settings.Service.OutputTopicName)
-	return nil
+func (instanceDeployment *InstanceDeployment) deployGSUAPI() (err error) {
+	apiDeployment := gsu.NewAPIDeployment()
+	apiDeployment.Core = instanceDeployment.Core
+	apiDeployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+	return apiDeployment.Deploy()
 }

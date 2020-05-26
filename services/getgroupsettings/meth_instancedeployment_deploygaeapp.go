@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package listgroupmembers
+package getgroupsettings
 
 import (
-	"fmt"
+	"github.com/BrunoReboul/ram/utilities/gae"
 )
 
-// Situate complement settings taking in account the situation for service and instance settings
-func (instanceDeployment *InstanceDeployment) Situate() (err error) {
-	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
-	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("For each group advertised from Pubusub topic %s, list the group members into pubsub topic %s",
-		instanceDeployment.Settings.Instance.GCF.TriggerTopic,
-		instanceDeployment.Settings.Service.OutputTopicName)
-	return nil
+func (instanceDeployment *InstanceDeployment) deployGAEApp() (err error) {
+	appDeployment := gae.NewAppDeployment()
+	appDeployment.Core = instanceDeployment.Core
+	return appDeployment.Deploy()
 }
