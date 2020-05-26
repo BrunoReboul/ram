@@ -42,6 +42,9 @@ type InstanceDeployment struct {
 		}
 		Instance struct {
 			GCF gcf.Event
+			GCI struct {
+				SuperAdminEmail string `yaml:"superAdminEmail"`
+			}
 		}
 	}
 }
@@ -56,8 +59,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 		"cloudresourcemanager.googleapis.com",
 		"containerregistry.googleapis.com",
 		"iam.googleapis.com",
-		"pubsub.googleapis.com",
-		"cloudscheduler.googleapis.com"}
+		"pubsub.googleapis.com"}
 	instanceDeployment.Settings.Service.GSU.APIList = append(deploy.GetCommonAPIlist(), instanceDeployment.Settings.Service.GSU.APIList...)
 
 	instanceDeployment.Settings.Service.IAM.RunRoles.Project = []iam.Role{
@@ -85,14 +87,14 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.KeyJSONFileName = "key.json"
 	instanceDeployment.Settings.Service.LogEventEveryXPubSubMsg = 1000
 	instanceDeployment.Settings.Service.MaxResultsPerPage = 200
-	instanceDeployment.Settings.Service.OutputTopicName = "gci-groups"
+	instanceDeployment.Settings.Service.OutputTopicName = "gci-groupMembers"
 
 	return &instanceDeployment
 }
 
 func projectRunRole() (role iam.Role) {
-	role.Title = "ram_listgroups_run"
-	role.Description = "Real-time Asset Monitor list groups microservice permissions to run"
+	role.Title = "ram_listgroupmembers_run"
+	role.Description = "Real-time Asset Monitor list group members microservice permissions to run"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"iam.serviceAccountKeys.list",
@@ -104,16 +106,14 @@ func projectRunRole() (role iam.Role) {
 }
 
 func projectDeployCoreRole() (role iam.Role) {
-	role.Title = "ram_listgroups_deploy_core"
-	role.Description = "Real-time Asset Monitor list groups microservice core permissions to deploy"
+	role.Title = "ram_listgroupmembers_deploy_core"
+	role.Description = "Real-time Asset Monitor list group members microservice core permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"iam.serviceAccountKeys.create",
 		"pubsub.topics.get",
 		"pubsub.topics.create",
 		"pubsub.topics.update",
-		"cloudscheduler.jobs.get",
-		"cloudscheduler.jobs.create",
 		"cloudfunctions.functions.sourceCodeSet",
 		"cloudfunctions.functions.get",
 		"cloudfunctions.functions.create",
@@ -123,8 +123,8 @@ func projectDeployCoreRole() (role iam.Role) {
 }
 
 func projectDeployExtendedRole() (role iam.Role) {
-	role.Title = "ram_listgroups_deploy_extended"
-	role.Description = "Real-time Asset Monitor list groups microservice extended permissions to deploy"
+	role.Title = "ram_listgroupmembers_deploy_extended"
+	role.Description = "Real-time Asset Monitor list group members microservice extended permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"serviceusage.services.list",

@@ -151,6 +151,8 @@ func RAMCli(deployment *Deployment) (err error) {
 				deployment.deployUpload2gcs()
 			case "listgroups":
 				deployment.deployListGroups()
+			case "listgroupmembers":
+				deployment.deployListGroupMembers()
 			}
 		}
 	}

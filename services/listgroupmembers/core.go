@@ -62,30 +62,31 @@ func Initialize(ctx context.Context, global *Global) {
 	global.initFailed = false
 
 	// err is pre-declared to avoid shadowing client.
-	var clientOption option.ClientOption
 	var err error
-	var gciAdminUserToImpersonate string
-	var keyJSONFilePath string
+	var instanceDeployment InstanceDeployment
+	var clientOption option.ClientOption
 	var ok bool
-	var projectID string
-	var serviceAccountEmail string
-
-	gciAdminUserToImpersonate = os.Getenv("GCIADMINUSERTOIMPERSONATE")
-	global.outputTopicName = os.Getenv("OUTPUTTOPICNAME")
-	keyJSONFilePath = "./" + os.Getenv("KEYJSONFILENAME")
-	projectID = os.Getenv("GCP_PROJECT")
-	serviceAccountEmail = os.Getenv("SERVICEACCOUNTNAME")
 
 	log.Println("Function COLD START")
-	if global.retryTimeOutSeconds, ok = ram.GetEnvVarInt64("RETRYTIMEOUTSECONDS"); !ok {
+	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	if err != nil {
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		global.initFailed = true
 		return
 	}
-	if global.logEventEveryXPubSubMsg, ok = ram.GetEnvVarUint64("LOGEVENTEVERYXPUBSUBMSG"); !ok {
-		return
-	}
-	if global.maxResultsPerPage, ok = ram.GetEnvVarInt64("MAXRESULTSPERPAGE"); !ok {
-		return
-	}
+
+	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
+	global.logEventEveryXPubSubMsg = instanceDeployment.Settings.Service.LogEventEveryXPubSubMsg
+	global.outputTopicName = instanceDeployment.Settings.Service.OutputTopicName
+	global.maxResultsPerPage = instanceDeployment.Settings.Service.MaxResultsPerPage
+	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
+	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
+	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
+	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
+
+	//DEBUG
+	log.Printf("serviceAccountEmail %s", serviceAccountEmail)
+
 	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
 		return
 	}
