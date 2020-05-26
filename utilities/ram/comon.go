@@ -413,22 +413,22 @@ func getJWTConfigAndImpersonate(keyJSONdata []byte, gciAdminUserToImpersonate st
 		return jwtConfig, err
 	}
 	jwtConfig.Subject = gciAdminUserToImpersonate
-	// jwtConfigJSON, err := json.Marshal(jwtConfig)
-	// log.Printf("jwt %s", string(jwtConfigJSON))
+
+	// DEBUG
+	jwtConfigJSON, err := json.Marshal(jwtConfig)
+	log.Printf("jwt %s", string(jwtConfigJSON))
+
 	return jwtConfig, nil
 }
 
 // GetJWTConfigAndCleanKeys build a JWT config and manage the init state
 func GetJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string, scopes []string) (jwtConfig *jwt.Config, err error) {
-	var keyRestAPIFormat keyRestAPIFormat
-	var keyConsoleFormat keyConsoleFormat
-
-	keyRestAPIFormat, clientID, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID)
+	keyRestAPIFormat, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID)
 	if err != nil {
 		return jwtConfig, err
 	}
 
-	_ = clientID
+	JSONMarshalIndentPrint(keyRestAPIFormat)
 
 	// Convert format
 	// https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-go
@@ -437,17 +437,15 @@ func GetJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, k
 		return jwtConfig, err
 	}
 
+	log.Println(keyJSONdata)
+
 	//DEBUG
+	var keyConsoleFormat keyConsoleFormat
 	err = json.Unmarshal(keyJSONdata, keyConsoleFormat)
 	if err != nil {
 		return jwtConfig, err
 	}
 	JSONMarshalIndentPrint(keyConsoleFormat)
-
-	// keyJSONdata, err := json.Marshal(keyConsoleFormat)
-	// if err != nil {
-	// 	return jwtConfig, err
-	// }
 
 	// using Json Web joken a the method with cerdentials does not yet implement the subject impersonification
 	// https://github.com/googleapis/google-api-java-client/issues/1007
@@ -459,7 +457,7 @@ func GetJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, k
 }
 
 // getKeyJSONdataAndCleanKeys get the service account key to build a JWT and clean older keys
-func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string) (keyRestAPIFormat keyRestAPIFormat, clientID string, err error) {
+func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string) (keyRestAPIFormat keyRestAPIFormat, err error) {
 	var keyJSONdata []byte
 	var currentKeyName string
 	var iamService *iam.Service
@@ -467,31 +465,27 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string,
 	iamService, err = iam.NewService(ctx)
 	if err != nil {
 		log.Printf("ERROR - iam.NewService: %v", err)
-		return keyRestAPIFormat, "", err
+		return keyRestAPIFormat, err
 	}
 	resource := "projects/-/serviceAccounts/" + serviceAccountEmail
-	serviceAccount, err := iamService.Projects.ServiceAccounts.Get(resource).Do()
-	if err != nil {
-		log.Printf("ERROR - iamService.Projects.ServiceAccounts.Get: %v", err)
-		return keyRestAPIFormat, "", err
-	}
-
 	listServiceAccountKeyResponse, err := iamService.Projects.ServiceAccounts.Keys.List(resource).Do()
 	if err != nil {
 		log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.List: %v", err)
-		return keyRestAPIFormat, "", err
+		return keyRestAPIFormat, err
 	}
 	keyJSONdata, err = ioutil.ReadFile(keyJSONFilePath)
 	if err != nil {
 		log.Printf("ERROR - ioutil.ReadFile(keyJSONFilePath): %v", err)
-		return keyRestAPIFormat, "", err
+		return keyRestAPIFormat, err
 	}
 	err = json.Unmarshal(keyJSONdata, &keyRestAPIFormat)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal(keyJSONdata, &keyRestAPIFormat): %v", err)
-		return keyRestAPIFormat, "", err
+		return keyRestAPIFormat, err
 	}
 	currentKeyName = keyRestAPIFormat.Name
+
+	log.Println(currentKeyName)
 
 	// Clean keys
 	for _, serviceAccountKey := range listServiceAccountKeyResponse.Keys {
@@ -505,12 +499,12 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string,
 				_, err = iamService.Projects.ServiceAccounts.Keys.Delete(serviceAccountKey.Name).Do()
 				if err != nil {
 					log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.Delete: %v", err)
-					return keyRestAPIFormat, "", err
+					return keyRestAPIFormat, err
 				}
 			}
 		}
 	}
-	return keyRestAPIFormat, serviceAccount.Oauth2ClientId, nil
+	return keyRestAPIFormat, nil
 }
 
 // GetPublishCallResult func to be used in go routine to scale pubsub event publish
