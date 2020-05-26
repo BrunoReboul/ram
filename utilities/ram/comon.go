@@ -423,10 +423,12 @@ func GetJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, k
 	var keyRestAPIFormat keyRestAPIFormat
 	var keyConsoleFormat keyConsoleFormat
 
-	// keyRestAPIFormat, clientID, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID)
-	// if err != nil {
-	// 	return jwtConfig, err
-	// }
+	keyRestAPIFormat, clientID, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID)
+	if err != nil {
+		return jwtConfig, err
+	}
+
+	_ = clientID
 
 	// Convert format
 	// https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-go
