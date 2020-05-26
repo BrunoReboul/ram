@@ -423,36 +423,30 @@ func GetJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, k
 	var keyRestAPIFormat keyRestAPIFormat
 	var keyConsoleFormat keyConsoleFormat
 
-	keyRestAPIFormat, clientID, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID)
-	if err != nil {
-		return jwtConfig, err
-	}
+	// keyRestAPIFormat, clientID, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID)
+	// if err != nil {
+	// 	return jwtConfig, err
+	// }
 
 	// Convert format
 	// https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-go
-	parts := strings.Split(keyRestAPIFormat.Name, "/")
-	keyConsoleFormat.Type = "service_account"
-	keyConsoleFormat.ProjectID = parts[1]
-	keyConsoleFormat.PrivateKeyID = parts[5]
-	privateKey, err := base64.StdEncoding.DecodeString(keyRestAPIFormat.PrivateKeyData)
+	keyJSONdata, err := base64.StdEncoding.DecodeString(keyRestAPIFormat.PrivateKeyData)
 	if err != nil {
 		return jwtConfig, err
 	}
-	keyConsoleFormat.PrivateKey = fmt.Sprintf("-----BEGIN PRIVATE KEY-----\n%s\n-----END PRIVATE KEY-----\n", privateKey)
-	keyConsoleFormat.ClientEmail = parts[3]
-	keyConsoleFormat.ClientID = clientID
-	keyConsoleFormat.AuthURI = "https://accounts.google.com/o/oauth2/auth"
-	keyConsoleFormat.TokenURI = "https://accounts.google.com/o/oauth2/token"
-	keyConsoleFormat.AuthProviderX509CertURL = "https://www.googleapis.com/oauth2/v1/certs"
-	keyConsoleFormat.ClientX509CertURL = fmt.Sprintf("https://www.googleapis.com/robot/v1/metadata/x509/%s", parts[3])
 
 	//DEBUG
-	JSONMarshalIndentPrint(keyConsoleFormat)
-
-	keyJSONdata, err := json.Marshal(keyConsoleFormat)
+	err = json.Unmarshal(keyJSONdata, keyConsoleFormat)
 	if err != nil {
 		return jwtConfig, err
 	}
+	JSONMarshalIndentPrint(keyConsoleFormat)
+
+	// keyJSONdata, err := json.Marshal(keyConsoleFormat)
+	// if err != nil {
+	// 	return jwtConfig, err
+	// }
+
 	// using Json Web joken a the method with cerdentials does not yet implement the subject impersonification
 	// https://github.com/googleapis/google-api-java-client/issues/1007
 	jwtConfig, err = getJWTConfigAndImpersonate(keyJSONdata, gciAdminUserToImpersonate, scopes)
