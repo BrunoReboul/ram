@@ -269,23 +269,6 @@ func GetByteSet(start byte, length int) []byte {
 	return byteSet
 }
 
-// GetClientOptionAndCleanKeys build a clientOption object and manage the init state
-func GetClientOptionAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string, scopes []string) (option.ClientOption, bool) {
-	var clientOption option.ClientOption
-	var jwtConfig *jwt.Config
-
-	jwtConfig, err := GetJWTConfigAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, scopes)
-	if err != nil {
-		return clientOption, false
-	}
-
-	httpClient := jwtConfig.Client(ctx)
-	// Use client option as admin.New(httpClient) is deprecated https://godoc.org/google.golang.org/api/admin/directory/v1#New
-	clientOption = option.WithHTTPClient(httpClient)
-
-	return clientOption, true
-}
-
 // getDisplayName retrieive the friendly name of an ancestor
 func getDisplayName(ctx context.Context, name string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) string {
 	var displayName = "unknown"
@@ -401,24 +384,21 @@ func GetEnvVarUint64(envVarName string) (uint64, bool) {
 	return value, true
 }
 
-// getJWTConfigAndImpersonate build JWT with impersonification
-func getJWTConfigAndImpersonate(keyJSONdata []byte, gciAdminUserToImpersonate string, scopes []string) (jwtConfig *jwt.Config, err error) {
-	// using Json Web joken a the method with cerdentials does not yet implement the subject impersonification
-	// https://github.com/googleapis/google-api-java-client/issues/1007
+// GetClientOptionAndCleanKeys build a clientOption object and manage the init state
+func GetClientOptionAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string, scopes []string) (option.ClientOption, bool) {
+	var clientOption option.ClientOption
+	var jwtConfig *jwt.Config
 
-	// scope constants: https://godoc.org/google.golang.org/api/admin/directory/v1#pkg-constants
-	jwtConfig, err = google.JWTConfigFromJSON(keyJSONdata, scopes...)
+	jwtConfig, err := GetJWTConfigAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, scopes)
 	if err != nil {
-		log.Printf("google.JWTConfigFromJSON: %v", err)
-		return jwtConfig, err
+		return clientOption, false
 	}
-	jwtConfig.Subject = gciAdminUserToImpersonate
 
-	// DEBUG
-	jwtConfigJSON, err := json.Marshal(jwtConfig)
-	log.Printf("jwt %s", string(jwtConfigJSON))
+	httpClient := jwtConfig.Client(ctx)
+	// Use client option as admin.New(httpClient) is deprecated https://godoc.org/google.golang.org/api/admin/directory/v1#New
+	clientOption = option.WithHTTPClient(httpClient)
 
-	return jwtConfig, nil
+	return clientOption, true
 }
 
 // GetJWTConfigAndCleanKeys build a JWT config and manage the init state
@@ -428,8 +408,6 @@ func GetJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, k
 		return jwtConfig, err
 	}
 
-	JSONMarshalIndentPrint(keyRestAPIFormat)
-
 	// Convert format
 	// https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-go
 	keyJSONdata, err := base64.StdEncoding.DecodeString(keyRestAPIFormat.PrivateKeyData)
@@ -437,11 +415,9 @@ func GetJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, k
 		return jwtConfig, err
 	}
 
-	log.Println(keyJSONdata)
-
 	//DEBUG
 	var keyConsoleFormat keyConsoleFormat
-	err = json.Unmarshal(keyJSONdata, keyConsoleFormat)
+	err = json.Unmarshal(keyJSONdata, &keyConsoleFormat)
 	if err != nil {
 		return jwtConfig, err
 	}
@@ -485,8 +461,6 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string,
 	}
 	currentKeyName = keyRestAPIFormat.Name
 
-	log.Println(currentKeyName)
-
 	// Clean keys
 	for _, serviceAccountKey := range listServiceAccountKeyResponse.Keys {
 		if serviceAccountKey.Name == currentKeyName {
@@ -505,6 +479,26 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string,
 		}
 	}
 	return keyRestAPIFormat, nil
+}
+
+// getJWTConfigAndImpersonate build JWT with impersonification
+func getJWTConfigAndImpersonate(keyJSONdata []byte, gciAdminUserToImpersonate string, scopes []string) (jwtConfig *jwt.Config, err error) {
+	// using Json Web joken a the method with cerdentials does not yet implement the subject impersonification
+	// https://github.com/googleapis/google-api-java-client/issues/1007
+
+	// scope constants: https://godoc.org/google.golang.org/api/admin/directory/v1#pkg-constants
+	jwtConfig, err = google.JWTConfigFromJSON(keyJSONdata, scopes...)
+	if err != nil {
+		log.Printf("google.JWTConfigFromJSON: %v", err)
+		return jwtConfig, err
+	}
+	jwtConfig.Subject = gciAdminUserToImpersonate
+
+	// DEBUG
+	jwtConfigJSON, err := json.Marshal(jwtConfig)
+	log.Printf("jwt %s", string(jwtConfigJSON))
+
+	return jwtConfig, nil
 }
 
 // GetPublishCallResult func to be used in go routine to scale pubsub event publish
