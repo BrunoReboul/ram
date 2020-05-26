@@ -416,12 +416,12 @@ func GetJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, k
 	}
 
 	//DEBUG
-	var keyConsoleFormat keyConsoleFormat
-	err = json.Unmarshal(keyJSONdata, &keyConsoleFormat)
-	if err != nil {
-		return jwtConfig, err
-	}
-	JSONMarshalIndentPrint(keyConsoleFormat)
+	// var keyConsoleFormat keyConsoleFormat
+	// err = json.Unmarshal(keyJSONdata, &keyConsoleFormat)
+	// if err != nil {
+	// 	return jwtConfig, err
+	// }
+	// JSONMarshalIndentPrint(keyConsoleFormat)
 
 	// using Json Web joken a the method with cerdentials does not yet implement the subject impersonification
 	// https://github.com/googleapis/google-api-java-client/issues/1007
@@ -495,8 +495,8 @@ func getJWTConfigAndImpersonate(keyJSONdata []byte, gciAdminUserToImpersonate st
 	jwtConfig.Subject = gciAdminUserToImpersonate
 
 	// DEBUG
-	jwtConfigJSON, err := json.Marshal(jwtConfig)
-	log.Printf("jwt %s", string(jwtConfigJSON))
+	// jwtConfigJSON, err := json.Marshal(jwtConfig)
+	// log.Printf("jwt %s", string(jwtConfigJSON))
 
 	return jwtConfig, nil
 }

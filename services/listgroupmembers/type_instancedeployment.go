@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package listgroups
+package listgroupmembers
 
 import (
 	"time"
@@ -22,20 +22,14 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gsu"
 	"github.com/BrunoReboul/ram/utilities/iamgt"
-	"github.com/BrunoReboul/ram/utilities/sch"
 	"google.golang.org/api/iam/v1"
 )
 
 // InstanceDeployment settings and artifacts structure
 type InstanceDeployment struct {
 	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
-	Artifacts     struct {
-		JobName   string `yaml:"jobName"`
-		TopicName string `yaml:"topicName"`
-		Schedule  string
-	}
-	Core     *deploy.Core
-	Settings struct {
+	Core          *deploy.Core
+	Settings      struct {
 		Service struct {
 			GSU                     gsu.Parameters
 			IAM                     iamgt.Parameters
@@ -47,11 +41,7 @@ type InstanceDeployment struct {
 			OutputTopicName         string `yaml:"outputTopicName"`
 		}
 		Instance struct {
-			GCI struct {
-				DirectoryCustomerID string `yaml:"directoryCustomerID"`
-				SuperAdminEmail     string `yaml:"superAdminEmail"`
-			}
-			SCH sch.Parameters
+			GCF gcf.Event
 		}
 	}
 }

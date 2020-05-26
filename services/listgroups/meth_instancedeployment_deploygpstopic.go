@@ -21,6 +21,18 @@ import (
 func (instanceDeployment *InstanceDeployment) deployGPSTopic() (err error) {
 	topicDeployment := gps.NewTopicDeployment()
 	topicDeployment.Core = instanceDeployment.Core
+
 	topicDeployment.Settings.TopicName = instanceDeployment.Artifacts.TopicName
-	return topicDeployment.Deploy()
+	err = topicDeployment.Deploy()
+	if err != nil {
+		return err
+	}
+
+	topicDeployment.Settings.TopicName = instanceDeployment.Settings.Service.OutputTopicName
+	err = topicDeployment.Deploy()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

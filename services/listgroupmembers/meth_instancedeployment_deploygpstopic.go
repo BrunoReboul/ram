@@ -13,3 +13,26 @@
 // limitations under the License.
 
 package listgroupmembers
+
+import (
+	"github.com/BrunoReboul/ram/utilities/gps"
+)
+
+func (instanceDeployment *InstanceDeployment) deployGPSTopic() (err error) {
+	topicDeployment := gps.NewTopicDeployment()
+	topicDeployment.Core = instanceDeployment.Core
+
+	topicDeployment.Settings.TopicName = instanceDeployment.Settings.Instance.GCF.TriggerTopic
+	err = topicDeployment.Deploy()
+	if err != nil {
+		return err
+	}
+
+	topicDeployment.Settings.TopicName = instanceDeployment.Settings.Service.OutputTopicName
+	err = topicDeployment.Deploy()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
