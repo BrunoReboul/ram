@@ -57,7 +57,8 @@ func NewInstanceDeployment() *InstanceDeployment {
 		"cloudresourcemanager.googleapis.com",
 		"containerregistry.googleapis.com",
 		"iam.googleapis.com",
-		"pubsub.googleapis.com"}
+		"pubsub.googleapis.com",
+		"groupssettings.googleapis.com"}
 	instanceDeployment.Settings.Service.GSU.APIList = append(deploy.GetCommonAPIlist(), instanceDeployment.Settings.Service.GSU.APIList...)
 
 	instanceDeployment.Settings.Service.IAM.RunRoles.Project = []iam.Role{
