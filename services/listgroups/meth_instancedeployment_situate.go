@@ -20,12 +20,14 @@ import (
 
 // Situate complement settings taking in account the situation for service and instance settings
 func (instanceDeployment *InstanceDeployment) Situate() (err error) {
-	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
-	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("list groups from directory %s to pubsub topic %s",
-		instanceDeployment.Settings.Instance.GCI.DirectoryCustomerID,
-		instanceDeployment.Settings.Service.OutputTopicName)
 	instanceDeployment.Artifacts.JobName = instanceDeployment.Settings.Instance.SCH.Schedulers[instanceDeployment.Core.EnvironmentName].JobName
 	instanceDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.JobName
 	instanceDeployment.Artifacts.Schedule = instanceDeployment.Settings.Instance.SCH.Schedulers[instanceDeployment.Core.EnvironmentName].Schedule
+	instanceDeployment.Artifacts.OutputTopicName = fmt.Sprintf("gci-groups-%s", instanceDeployment.Settings.Instance.GCI.DirectoryCustomerID)
+
+	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
+	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("list groups from directory %s to pubsub topic %s",
+		instanceDeployment.Settings.Instance.GCI.DirectoryCustomerID,
+		instanceDeployment.Artifacts.OutputTopicName)
 	return nil
 }

@@ -88,7 +88,7 @@ func Initialize(ctx context.Context, global *Global) {
 	global.inputTopicName = instanceDeployment.Artifacts.TopicName
 	global.logEventEveryXPubSubMsg = instanceDeployment.Settings.Service.LogEventEveryXPubSubMsg
 	global.maxResultsPerPage = instanceDeployment.Settings.Service.MaxResultsPerPage
-	global.outputTopicName = instanceDeployment.Settings.Service.OutputTopicName
+	global.outputTopicName = instanceDeployment.Artifacts.OutputTopicName
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID

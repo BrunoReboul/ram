@@ -30,9 +30,10 @@ import (
 type InstanceDeployment struct {
 	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
 	Artifacts     struct {
-		JobName   string `yaml:"jobName"`
-		TopicName string `yaml:"topicName"`
-		Schedule  string
+		JobName         string `yaml:"jobName"`
+		TopicName       string `yaml:"topicName"`
+		Schedule        string
+		OutputTopicName string `yaml:"outputTopicName"`
 	}
 	Core     *deploy.Core
 	Settings struct {
@@ -44,7 +45,6 @@ type InstanceDeployment struct {
 			KeyJSONFileName         string `yaml:"keyJSONFileName"`
 			LogEventEveryXPubSubMsg uint64 `yaml:"logEventEveryXPubSubMsg"`
 			MaxResultsPerPage       int64  `yaml:"maxResultsPerPage"`
-			OutputTopicName         string `yaml:"outputTopicName"`
 		}
 		Instance struct {
 			GCI struct {
@@ -96,7 +96,6 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.KeyJSONFileName = "key.json"
 	instanceDeployment.Settings.Service.LogEventEveryXPubSubMsg = 1000
 	instanceDeployment.Settings.Service.MaxResultsPerPage = 200
-	instanceDeployment.Settings.Service.OutputTopicName = "gci-groups"
 
 	return &instanceDeployment
 }

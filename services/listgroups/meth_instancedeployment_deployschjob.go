@@ -21,6 +21,8 @@ import (
 func (instanceDeployment *InstanceDeployment) deploySCHJob() (err error) {
 	jobDeployment := sch.NewJobDeployment()
 	jobDeployment.Core = instanceDeployment.Core
-	jobDeployment.Artifacts = instanceDeployment.Artifacts
+	jobDeployment.Artifacts.JobName = instanceDeployment.Artifacts.JobName
+	jobDeployment.Artifacts.Schedule = instanceDeployment.Artifacts.Schedule
+	jobDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
 	return jobDeployment.Deploy()
 }
