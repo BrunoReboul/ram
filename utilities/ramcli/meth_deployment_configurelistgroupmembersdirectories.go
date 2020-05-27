@@ -24,7 +24,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
-// configureListGroupMembersDirectories for assets types defined in solution.yaml writes listgroupmembers instance.yaml files and subfolders
+// configureListGroupMembersDirectories
 func (deployment *Deployment) configureListGroupMembersDirectories() (err error) {
 	serviceName := "listgroupmembers"
 	log.Printf("configure %s directories", serviceName)

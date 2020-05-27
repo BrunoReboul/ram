@@ -124,6 +124,12 @@ func RAMCli(deployment *Deployment) (err error) {
 		if err = deployment.configureDumpInventoryAssetTypes(); err != nil {
 			log.Fatal(err)
 		}
+		if err = deployment.configureSplitDumpSingleInstance(); err != nil {
+			log.Fatal(err)
+		}
+		if err = deployment.configurePublish2fsInstances(); err != nil {
+			log.Fatal(err)
+		}
 		if err = deployment.configureStream2bqAssetTypes(); err != nil {
 			log.Fatal(err)
 		}

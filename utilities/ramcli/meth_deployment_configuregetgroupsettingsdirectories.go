@@ -24,7 +24,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
-// configureGetGroupSettingsDirectories for assets types defined in solution.yaml writes getgroupsettings instance.yaml files and subfolders
+// configureGetGroupSettingsDirectories
 func (deployment *Deployment) configureGetGroupSettingsDirectories() (err error) {
 	serviceName := "getgroupsettings"
 	log.Printf("configure %s directories", serviceName)
