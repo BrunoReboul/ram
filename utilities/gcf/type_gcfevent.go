@@ -16,6 +16,6 @@ package gcf
 
 // Event structure
 type Event struct {
-	TriggerTopic string `yaml:"triggerTopic"`
-	BucketName   string `yaml:"bucketName"`
+	TriggerTopic string `yaml:"triggerTopic,omitempty"`
+	BucketName   string `yaml:"bucketName,omitempty"`
 }

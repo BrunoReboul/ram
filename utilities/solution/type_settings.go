@@ -79,6 +79,13 @@ type Settings struct {
 			JobName  string `yaml:"jobName"`
 			Schedule string
 		} `yaml:"defaultSchedulers"`
+		DirectoryCustomerIDs map[string]struct {
+			SuperAdminEmail string `yaml:"superAdminEmail"`
+		} `yaml:"directoryCustomerIDs"`
+		ListGroupsDefaultSchedulers map[string]struct {
+			JobName  string `yaml:"jobName"`
+			Schedule string
+		} `yaml:"listGroupsDefaultSchedulers"`
 		AssetTypes struct {
 			IAMPolicies []string `yaml:"iamPolicies"`
 			Resources   []string `yaml:"resources"`
