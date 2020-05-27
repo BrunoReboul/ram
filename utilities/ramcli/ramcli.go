@@ -130,6 +130,15 @@ func RAMCli(deployment *Deployment) (err error) {
 		if err = deployment.configureUpload2gcsAssetTypes(); err != nil {
 			log.Fatal(err)
 		}
+		if err = deployment.configureListGroupsDirectories(); err != nil {
+			log.Fatal(err)
+		}
+		if err = deployment.configureListGroupMembersDirectories(); err != nil {
+			log.Fatal(err)
+		}
+		if err = deployment.configureGetGroupSettingsDirectories(); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
 		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
