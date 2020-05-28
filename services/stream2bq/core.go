@@ -19,9 +19,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/gbq"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
@@ -197,7 +197,6 @@ func Initialize(ctx context.Context, global *Global) {
 	var err error
 	var instanceDeployment InstanceDeployment
 	var bigQueryClient *bigquery.Client
-	var dataset *bigquery.Dataset
 	var table *bigquery.Table
 	var tableNameList = []string{"complianceStatus", "violations", "assets"}
 
@@ -218,31 +217,34 @@ func Initialize(ctx context.Context, global *Global) {
 	global.violationResolverLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.ViolationResolver
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 
-	if !ram.Find(tableNameList, global.tableName) {
-		log.Printf("ERROR - Unsupported tablename %s supported are %v\n", global.tableName, tableNameList)
-		global.initFailed = true
-		return
-	}
 	bigQueryClient, err = bigquery.NewClient(global.ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - bigquery.NewClient: %v", err)
 		global.initFailed = true
 		return
 	}
-	dataset, err = getDataset(global.ctx, datasetName, datasetLocation, bigQueryClient)
-	if err != nil {
-		log.Printf("ERROR - getDataset %s %v", datasetName, err)
-		global.initFailed = true
-		return
-	}
-	table, err = getTable(global.ctx, global.tableName, dataset)
-	if err != nil {
-		log.Printf("ERROR - getTable %s %v", global.tableName, err)
-		global.initFailed = true
-		return
-	}
-	global.inserter = table.Inserter()
-	if global.tableName == "assets" {
+	switch global.tableName {
+	case "complianceStatus":
+		table, err = gbq.GetComplianceStatus(ctx, bigQueryClient, datasetLocation, datasetName)
+		if err != nil {
+			log.Printf("ERROR - gbq.GetAssets %v", err)
+			global.initFailed = true
+			return
+		}
+	case "violations":
+		table, err = gbq.GetViolations(ctx, bigQueryClient, datasetLocation, datasetName)
+		if err != nil {
+			log.Printf("ERROR - gbq.GetAssets %v", err)
+			global.initFailed = true
+			return
+		}
+	case "assets":
+		table, err = gbq.GetAssets(ctx, bigQueryClient, datasetLocation, datasetName)
+		if err != nil {
+			log.Printf("ERROR - gbq.GetAssets %v", err)
+			global.initFailed = true
+			return
+		}
 		global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(global.ctx)
 		if err != nil {
 			log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
@@ -261,121 +263,12 @@ func Initialize(ctx context.Context, global *Global) {
 			global.initFailed = true
 			return
 		}
+	default:
+		log.Printf("ERROR - Unsupported tablename %s supported are %v\n", global.tableName, tableNameList)
+		global.initFailed = true
+		return
 	}
-}
-
-func getDataset(ctx context.Context, datasetName string, location string, bigQueryClient *bigquery.Client) (dataset *bigquery.Dataset, err error) {
-	dataset = bigQueryClient.Dataset(datasetName)
-	datasetMetadata, err := dataset.Metadata(ctx)
-	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "notfound") {
-			var datasetToCreateMetadata bigquery.DatasetMetadata
-			datasetToCreateMetadata.Name = datasetName
-			datasetToCreateMetadata.Location = location
-			datasetToCreateMetadata.Description = "Real-time Asset Monitor"
-			datasetToCreateMetadata.Labels = map[string]string{"name": strings.ToLower(datasetName)}
-
-			err = dataset.Create(ctx, &datasetToCreateMetadata)
-			if err != nil {
-				// deal with concurent executions
-				if strings.Contains(strings.ToLower(err.Error()), "already exists") {
-					datasetMetadata, err = dataset.Metadata(ctx)
-					if err != nil {
-						return nil, err
-					}
-				}
-				return nil, fmt.Errorf("dataset.Create %v", err)
-			}
-			log.Printf("Created dataset %s", datasetName)
-			return dataset, nil
-		}
-	}
-	needToUpdate := false
-	if datasetMetadata.Labels != nil {
-		if value, ok := datasetMetadata.Labels["name"]; ok {
-			if value != datasetMetadata.Name {
-				needToUpdate = true
-			}
-		} else {
-			needToUpdate = true
-		}
-	} else {
-		needToUpdate = true
-	}
-	if needToUpdate {
-		var datasetMetadataToUpdate bigquery.DatasetMetadataToUpdate
-		datasetMetadataToUpdate.SetLabel("name", strings.ToLower(datasetName))
-		datasetMetadata, err = dataset.Update(ctx, datasetMetadataToUpdate, "")
-		if err != nil {
-			return nil, fmt.Errorf("ERROR when updating dataset labels %v", err)
-		}
-		log.Printf("Update dataset labels %s", datasetName)
-	}
-	return dataset, nil
-}
-
-func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) (table *bigquery.Table, err error) {
-	var schema bigquery.Schema
-	switch tableName {
-	case "complianceStatus":
-		schema = getComplianceStatusSchema()
-	case "violations":
-		schema = getViolationsSchema()
-	case "assets":
-		schema = getAssetsSchema()
-	}
-
-	table = dataset.Table(tableName)
-	tableMetadata, err := table.Metadata(ctx)
-	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "notfound") {
-			var tableToCreateMetadata bigquery.TableMetadata
-			tableToCreateMetadata.Name = tableName
-			tableToCreateMetadata.Description = fmt.Sprintf("Real-time Asset Monitor - %s", tableName)
-			tableToCreateMetadata.Labels = map[string]string{"name": strings.ToLower(tableName)}
-
-			var timePartitioning bigquery.TimePartitioning
-			timePartitioning.Expiration, _ = time.ParseDuration("24h")
-			tableToCreateMetadata.TimePartitioning = &timePartitioning
-			tableToCreateMetadata.Schema = schema
-
-			err = table.Create(ctx, &tableToCreateMetadata)
-			if err != nil {
-				// deal with concurent executions
-				if strings.Contains(strings.ToLower(err.Error()), "already exists") {
-					tableMetadata, err = table.Metadata(ctx)
-					if err != nil {
-						return nil, err
-					}
-				}
-				return nil, fmt.Errorf("table.Create %v", err)
-			}
-			log.Printf("Created table %s", tableName)
-			return table, nil
-		}
-	}
-	needToUpdate := false
-	if tableMetadata.Labels != nil {
-		if value, ok := tableMetadata.Labels["name"]; ok {
-			if value != tableMetadata.Name {
-				needToUpdate = true
-			}
-		} else {
-			needToUpdate = true
-		}
-	} else {
-		needToUpdate = true
-	}
-	if needToUpdate {
-		var tableMetadataToUpdate bigquery.TableMetadataToUpdate
-		tableMetadataToUpdate.SetLabel("name", strings.ToLower(tableName))
-		tableMetadata, err = table.Update(ctx, tableMetadataToUpdate, "")
-		if err != nil {
-			return nil, fmt.Errorf("ERROR when updating table labels %v", err)
-		}
-		log.Printf("Update table labels %s", tableName)
-	}
-	return table, nil
+	global.inserter = table.Inserter()
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
@@ -410,7 +303,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
 	}
 	insertID := fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
 	savers := []*bigquery.StructSaver{
-		{Struct: complianceStatus, Schema: getComplianceStatusSchema(), InsertID: insertID},
+		{Struct: complianceStatus, Schema: gbq.GetComplianceStatusSchema(), InsertID: insertID},
 	}
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
 		return fmt.Errorf("inserter.Put %v", err)
@@ -458,7 +351,7 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 
 	insertID := fmt.Sprintf("%s%v%s%v%s", violationBQ.FeedMessage.Asset.Name, violation.FeedMessage.Window.StartTime, violation.FunctionConfig.FunctionName, violation.FunctionConfig.DeploymentTime, violation.NonCompliance.Message)
 	savers := []*bigquery.StructSaver{
-		{Struct: violationBQ, Schema: getViolationsSchema(), InsertID: insertID},
+		{Struct: violationBQ, Schema: gbq.GetViolationsSchema(), InsertID: insertID},
 	}
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
 		return fmt.Errorf("inserter.Put %v", err)
@@ -494,7 +387,7 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 
 	insertID := fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
 	savers := []*bigquery.StructSaver{
-		{Struct: assetFeedMessageBQ.Asset, Schema: getAssetsSchema(), InsertID: insertID},
+		{Struct: assetFeedMessageBQ.Asset, Schema: gbq.GetAssetsSchema(), InsertID: insertID},
 	}
 
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
@@ -502,113 +395,4 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	}
 	log.Println("insert asset ok", insertID)
 	return nil
-}
-
-func getViolationsSchema() bigquery.Schema {
-	return bigquery.Schema{
-		{
-			Name:        "nonCompliance",
-			Type:        bigquery.RecordFieldType,
-			Description: "The violation information, aka why it is not compliant",
-			Schema: bigquery.Schema{
-				{Name: "message", Required: true, Type: bigquery.StringFieldType},
-				{Name: "metadata", Required: false, Type: bigquery.StringFieldType},
-			},
-		},
-		{
-			Name:        "functionConfig",
-			Type:        bigquery.RecordFieldType,
-			Description: "The settings of the cloud function hosting the rule check",
-			Schema: bigquery.Schema{
-				{Name: "functionName", Required: true, Type: bigquery.StringFieldType},
-				{Name: "deploymentTime", Required: true, Type: bigquery.TimestampFieldType},
-				{Name: "projectID", Required: false, Type: bigquery.StringFieldType},
-				{Name: "environment", Required: false, Type: bigquery.StringFieldType},
-			},
-		},
-		{
-			Name:        "constraintConfig",
-			Type:        bigquery.RecordFieldType,
-			Description: "The settings of the constraint used in conjonction with the rego template to assess the rule",
-			Schema: bigquery.Schema{
-				{Name: "kind", Required: false, Type: bigquery.StringFieldType},
-				{
-					Name: "metadata",
-					Type: bigquery.RecordFieldType,
-					Schema: bigquery.Schema{
-						{Name: "name", Required: false, Type: bigquery.StringFieldType},
-						{Name: "annotation", Required: false, Type: bigquery.StringFieldType},
-					},
-				},
-				{
-					Name: "spec",
-					Type: bigquery.RecordFieldType,
-					Schema: bigquery.Schema{
-						{Name: "severity", Required: false, Type: bigquery.StringFieldType},
-						{Name: "match", Required: false, Type: bigquery.StringFieldType},
-						{Name: "parameters", Required: false, Type: bigquery.StringFieldType},
-					},
-				},
-			},
-		},
-		{
-			Name:        "feedMessage",
-			Type:        bigquery.RecordFieldType,
-			Description: "The message from Cloud Asset Inventory in realtime or from split dump in batch",
-			Schema: bigquery.Schema{
-				{
-					Name: "asset",
-					Type: bigquery.RecordFieldType,
-					Schema: bigquery.Schema{
-						{Name: "name", Required: true, Type: bigquery.StringFieldType},
-						{Name: "owner", Required: false, Type: bigquery.StringFieldType},
-						{Name: "violationResolver", Required: false, Type: bigquery.StringFieldType},
-						{Name: "ancestryPathDisplayName", Required: false, Type: bigquery.StringFieldType},
-						{Name: "ancestryPath", Required: false, Type: bigquery.StringFieldType},
-						{Name: "ancestorsDisplayName", Required: false, Type: bigquery.StringFieldType},
-						{Name: "ancestors", Required: false, Type: bigquery.StringFieldType},
-						{Name: "assetType", Required: true, Type: bigquery.StringFieldType},
-						{Name: "iamPolicy", Required: false, Type: bigquery.StringFieldType},
-						{Name: "resource", Required: false, Type: bigquery.StringFieldType},
-					},
-				},
-				{
-					Name: "window",
-					Type: bigquery.RecordFieldType,
-					Schema: bigquery.Schema{
-						{Name: "startTime", Required: true, Type: bigquery.TimestampFieldType},
-					},
-				},
-				{Name: "origin", Required: false, Type: bigquery.StringFieldType},
-			},
-		},
-		{Name: "regoModules", Required: false, Type: bigquery.StringFieldType, Description: "The rego code, including the rule template used to assess the rule as a JSON document"},
-	}
-}
-
-func getComplianceStatusSchema() bigquery.Schema {
-	return bigquery.Schema{
-		{Name: "assetName", Required: true, Type: bigquery.StringFieldType},
-		{Name: "assetInventoryTimeStamp", Required: true, Type: bigquery.TimestampFieldType, Description: "When the asset change was captured"},
-		{Name: "assetInventoryOrigin", Required: false, Type: bigquery.StringFieldType, Description: "Mean to capture the asset change: real-time or batch-export"},
-		{Name: "ruleName", Required: true, Type: bigquery.StringFieldType},
-		{Name: "ruleDeploymentTimeStamp", Required: true, Type: bigquery.TimestampFieldType, Description: "When the rule was assessed"},
-		{Name: "compliant", Required: true, Type: bigquery.BooleanFieldType},
-		{Name: "deleted", Required: true, Type: bigquery.BooleanFieldType},
-	}
-}
-
-func getAssetsSchema() bigquery.Schema {
-	return bigquery.Schema{
-		{Name: "timestamp", Required: true, Type: bigquery.TimestampFieldType},
-		{Name: "name", Required: true, Type: bigquery.StringFieldType},
-		{Name: "owner", Required: false, Type: bigquery.StringFieldType},
-		{Name: "violationResolver", Required: false, Type: bigquery.StringFieldType},
-		{Name: "ancestryPathDisplayName", Required: false, Type: bigquery.StringFieldType},
-		{Name: "ancestryPath", Required: false, Type: bigquery.StringFieldType},
-		{Name: "ancestorsDisplayName", Repeated: true, Type: bigquery.StringFieldType},
-		{Name: "ancestors", Repeated: true, Type: bigquery.StringFieldType},
-		{Name: "assetType", Required: true, Type: bigquery.TimestampFieldType},
-		{Name: "deleted", Required: true, Type: bigquery.BooleanFieldType},
-	}
 }
