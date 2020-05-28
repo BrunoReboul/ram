@@ -27,7 +27,7 @@ func GetAssetsSchema() bigquery.Schema {
 		{Name: "ancestryPath", Required: false, Type: bigquery.StringFieldType},
 		{Name: "ancestorsDisplayName", Repeated: true, Type: bigquery.StringFieldType},
 		{Name: "ancestors", Repeated: true, Type: bigquery.StringFieldType},
-		{Name: "assetType", Required: true, Type: bigquery.TimestampFieldType},
+		{Name: "assetType", Required: true, Type: bigquery.StringFieldType},
 		{Name: "deleted", Required: true, Type: bigquery.BooleanFieldType},
 	}
 }
