@@ -16,6 +16,12 @@ package ramcli
 
 // deployInstanceReleasePipeline an instance trigger
 func (deployment *Deployment) deployInstanceReleasePipeline() (err error) {
+	if err = deployment.enableBILBillingAccountOnProject(); err != nil {
+		return err
+	}
+	if err = deployment.deployGSUAPI(); err != nil {
+		return err
+	}
 	// Extended hosting org
 	if err = deployment.deployIAMHostingOrgRole(); err != nil {
 		return err
@@ -37,13 +43,7 @@ func (deployment *Deployment) deployInstanceReleasePipeline() (err error) {
 	if err = deployment.deployGRMProject(); err != nil {
 		return err
 	}
-	if err = deployment.enableBILBillingAccountOnProject(); err != nil {
-		return err
-	}
 	if err = deployment.deployIAMProjectRoles(); err != nil {
-		return err
-	}
-	if err = deployment.deployGSUAPI(); err != nil {
 		return err
 	}
 	if err = deployment.deployGRMProjectBindings(); err != nil {
