@@ -24,7 +24,7 @@ import (
 
 // Deploy bucket
 func (bucketDeployment *BucketDeployment) Deploy() (err error) {
-	log.Printf("%s gcs bucket", bucketDeployment.Core.InstanceName)
+	log.Printf("%s gcs bucket %s", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
 	bucket := bucketDeployment.Core.Services.StorageClient.Bucket(bucketDeployment.Settings.BucketName)
 	retreivedAttrs, err := bucket.Attrs(bucketDeployment.Core.Ctx)
 	if err != nil {
