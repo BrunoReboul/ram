@@ -132,9 +132,9 @@ ORDER BY
 `
 
 func getLastComplianceStatusQuery(projectID string, datasetName string) (query string) {
-	lastAssetsViewName := fmt.Sprintf("'%s.%s.last_assets'", projectID, datasetName)
+	lastAssetsViewName := fmt.Sprintf("`%s.%s.last_assets`", projectID, datasetName)
 	query = strings.Replace(lastComplianceStatusQuery, "<last_assets>", lastAssetsViewName, -1)
-	complianceStatusTableName := fmt.Sprintf("'%s.%s.complianceStatus'", projectID, datasetName)
+	complianceStatusTableName := fmt.Sprintf("`%s.%s.complianceStatus`", projectID, datasetName)
 	query = strings.Replace(query, "<complianceStatus>", complianceStatusTableName, -1)
 	return query
 }

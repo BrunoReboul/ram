@@ -51,9 +51,9 @@ FROM
 `
 
 func getActiveViolationsQuery(projectID string, datasetName string) (query string) {
-	lastComplianceStatusViewName := fmt.Sprintf("'%s.%s.last_compliancestatus'", projectID, datasetName)
+	lastComplianceStatusViewName := fmt.Sprintf("`%s.%s.last_compliancestatus`", projectID, datasetName)
 	query = strings.Replace(activeViolationsQuery, "<last_compliancestatus>", lastComplianceStatusViewName, -1)
-	violationsTableName := fmt.Sprintf("'%s.%s.violations'", projectID, datasetName)
+	violationsTableName := fmt.Sprintf("`%s.%s.violations`", projectID, datasetName)
 	query = strings.Replace(query, "<violations>", violationsTableName, -1)
 	return query
 }

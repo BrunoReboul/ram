@@ -50,6 +50,6 @@ FROM
 `
 
 func getLastAssetsQuery(projectID string, datasetName string) (query string) {
-	assetsTableName := fmt.Sprintf("'%s.%s.assets'", projectID, datasetName)
+	assetsTableName := fmt.Sprintf("`%s.%s.assets`", projectID, datasetName)
 	return strings.Replace(lastAssetsQuery, "<assets>", assetsTableName, -1)
 }
