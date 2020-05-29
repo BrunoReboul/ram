@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gcb helps with Google cloud build
+// Package gcb helps with Google Cloud Build
 package gcb

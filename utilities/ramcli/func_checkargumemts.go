@@ -24,7 +24,7 @@ import (
 
 // CheckArguments check cli arguments and build the list of microservices instances
 func (deployment *Deployment) CheckArguments() {
-	deployment.Core.GoVersion, deployment.Core.RAMVersion = GetVersions()
+	deployment.Core.GoVersion, deployment.Core.RAMVersion = getVersions()
 	// flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
 	flag.BoolVar(&deployment.Core.Commands.Initialize, "init", false, "initial setup to be launched first, before manual, aka not automatable setup tasks")
 	flag.BoolVar(&deployment.Core.Commands.ConfigureAssetTypes, "config", false, "For assets types defined in solution.yaml writes setfeeds, dumpinventory, stream2bq instance.yaml files and subfolders")

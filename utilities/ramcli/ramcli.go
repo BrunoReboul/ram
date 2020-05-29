@@ -148,7 +148,7 @@ func RAMCli(deployment *Deployment) (err error) {
 	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
 		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
-			deployment.Core.ServiceName, deployment.Core.InstanceName = GetServiceAndInstanceNames(instanceFolderRelativePath)
+			deployment.Core.ServiceName, deployment.Core.InstanceName = getServiceAndInstanceNames(instanceFolderRelativePath)
 			switch deployment.Core.ServiceName {
 			case "setfeeds":
 				deployment.deploySetFeeds()
