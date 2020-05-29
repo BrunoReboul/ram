@@ -23,13 +23,11 @@ Messages in related PubSub topics.
 
 Instances
 
-One per Big Query table.
+- one per AssetType for resource, all streaming to assets table.
 
-- assets.
+- one for compliance states, streaming to complianteStates table.
 
-- compliance states.
-
-- violations.
+- one for violations, streaming to violations table.
 
 Output
 
@@ -42,18 +40,6 @@ One-one, one pubsub message - one stream inserted in BigQuery.
 Automatic retrying
 
 Yes.
-
-Required environment variables
-
-- ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents
-
-- BQ_DATASET name of the Big Query dataset hosting the table
-
-- BQ_TABLE name of the Big Query table where to insert streams
-
-- OWNERLABELKEYNAME key name for the label identifying the asset owner
-
-- VIOLATIONRESOLVERLABELKEYNAMEkey name for the label identifying the asset violation resolver
 
 Implementation example
 

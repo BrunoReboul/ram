@@ -23,7 +23,7 @@ Messages in related PubSub topics.
 
 Instances
 
-one-one, one pubsub message - one file created (with override) or deleted.
+- one per AssetType for resource metadata exports.
 
 Output
 
@@ -31,21 +31,11 @@ JSON files into a GCS bucket.
 
 Cardinality
 
-One-one: one feed message - one operation performed in FireStore.
+one-one, one pubsub message - one file created (with override) or deleted.
 
 Automatic retrying
 
 Yes.
-
-Required environment variables
-
-- ASSETSCOLLECTIONID the name of the FireStore collection grouping all assets documents
-
-- BUCKETNAME name of the Google Cloud Storage bucket where to write JSON files
-
-- OWNERLABELKEYNAME key name for the label identifying the asset owner
-
-- VIOLATIONRESOLVERLABELKEYNAME key name for the label identifying the asset violation resolver
 
 Implementation example
 

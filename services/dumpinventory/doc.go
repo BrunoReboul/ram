@@ -33,12 +33,6 @@ Automatic retrying
 
 Yes.
 
-Required environment variables
-
-- CAIEXPORTBUCKETNAME the name of the GCS bucket where CAI dumps should be delivered.
-
-- SETTINGSFILENAME name of the JSON setting file.
-
 Implementation example
 
  package p

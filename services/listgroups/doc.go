@@ -43,19 +43,41 @@ Is recurssive
 
 Yes.
 
-Required environment variables
+Domain Wide Delegation
 
-- GCIADMINUSERTOIMPERSONATE email of the Google Cloud Identity super admin to impersonate
+Yes. The service account used to run this cloud function must have domain wide delegation and the following Oauth scopes:
 
-- DIRECTORYCUSTOMERID Directory customer identifier. see gcloud organizations list
+- https://www.googleapis.com/auth/admin.directory.group.readonly
 
-- INPUTTOPICNAME name of the PubSub topic used to trigger it self in recursive mode
+- https://www.googleapis.com/auth/admin.directory.domain.readonly
 
-- KEYJSONFILENAME name for the service account JSON file containig the key to authenticate against CGI
+Key rotation strategy
 
-- OUTPUTTOPICNAME name of the PubSub topic where to deliver feed messages
+- A new service account key is created during the cloud function deployment in Cloud Build.
 
-- SERVICEACCOUNTNAME name of the service account used to asscess GCI
+- The json key file is available to the cloud function as a local source file and is not persisted in git.
+
+- The cloud function init function deletes any key but the current one.
+
+- So, how to rotate service accout key? just redeploy the cloud function.
+
+GCI authentication notes
+
+- Read the service account json key file created during the cloud function deployment.
+
+- Get a google jwt JSON Web token configuration from: Key JSON file, Scopes, GCI User to impersonate, aka subject, aka the super admin.
+
+- Get an HTTP client from the jwtConfig.
+
+- Get a clientOption from the HTTP client.
+
+- Get a service from admin directory package fron the client option.
+
+GCI request notes
+
+- "my_customer": As an account administrator, you can also use the my_customer alias to represent your account's customerId.
+
+- Prefer to use the "directory_customer_id" instead of "my_customer" to narrow the execution time of the function in case of multiple directories, e.g. sandboxes / managed
 
 Implementation example
 

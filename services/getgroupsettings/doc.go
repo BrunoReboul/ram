@@ -35,15 +35,11 @@ Automatic retrying
 
 Yes.
 
-Required environment variables
+Domain Wide Delegation
 
-- GCIADMINUSERTOIMPERSONATE email of the Google Cloud Identity super admin to impersonate
+Yes. The service account used to run this cloud function must have domain wide delegation and the following Oauth scopes:
 
-- KEYJSONFILENAME name for the service account JSON file containig the key to authenticate against CGI
-
-- OUTPUTTOPICNAME name of the PubSub topic where to deliver feed messages
-
-- SERVICEACCOUNTNAME name of the service account used to asscess GCI
+- https://www.googleapis.com/auth/apps.groups.settings
 
 Implementation example
 
