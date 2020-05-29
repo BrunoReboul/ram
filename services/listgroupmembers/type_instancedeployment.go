@@ -67,14 +67,14 @@ func NewInstanceDeployment() *InstanceDeployment {
 		projectRunRole()}
 	instanceDeployment.Settings.Service.IAM.DeployRoles.Project = []iam.Role{
 		projectDeployCoreRole(),
-		projectDeployExtendedRole()}
+		iamgt.ProjectDeployExtendedRole()}
 
 	instanceDeployment.Settings.Service.GCB.BuildTimeout = "600s"
 	instanceDeployment.Settings.Service.GCB.DeployIAMServiceAccount = true
 	instanceDeployment.Settings.Service.GCB.DeployIAMBindings = true
 	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
 		projectDeployCoreRole().Title,
-		projectDeployExtendedRole().Title}
+		iamgt.ProjectDeployExtendedRole().Title}
 	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.IAM.RolesOnServiceAccounts = []string{
 		"roles/iam.serviceAccountUser"}
 
@@ -120,25 +120,5 @@ func projectDeployCoreRole() (role iam.Role) {
 		"cloudfunctions.functions.create",
 		"cloudfunctions.functions.update",
 		"cloudfunctions.operations.get"}
-	return role
-}
-
-func projectDeployExtendedRole() (role iam.Role) {
-	role.Title = "ram_listgroupmembers_deploy_extended"
-	role.Description = "Real-time Asset Monitor list group members microservice extended permissions to deploy"
-	role.Stage = "GA"
-	role.IncludedPermissions = []string{
-		"serviceusage.services.list",
-		"serviceusage.services.enable",
-		"appengine.applications.get",
-		"appengine.applications.create",
-		"servicemanagement.services.bind",
-		"storage.buckets.create",
-		"iam.serviceAccounts.get",
-		"iam.serviceAccounts.create",
-		"resourcemanager.projects.getIamPolicy",
-		"resourcemanager.projects.setIamPolicy",
-		"iam.serviceAccounts.getIamPolicy",
-		"iam.serviceAccounts.setIamPolicy"}
 	return role
 }
