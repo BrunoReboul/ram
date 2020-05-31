@@ -35,6 +35,9 @@ func (deployment *Deployment) deploySetFeeds() {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+		if instanceDeployment.Settings.Instance.CAI.ContentType == "RESOURCE" {
+			deployment.Core.AssetType = instanceDeployment.Settings.Instance.CAI.AssetTypes[0]
+		}
 		err = deployment.deployInstanceReleasePipeline()
 	} else {
 		if deployment.Core.Commands.Deploy {
