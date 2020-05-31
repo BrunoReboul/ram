@@ -37,14 +37,15 @@ import (
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
-	ctx                      context.Context
-	initFailed               bool
-	retryTimeOutSeconds      int64
-	iamTopicName             string
-	pubsubPublisherClient    *pubsub.PublisherClient
-	projectID                string
-	splitThresholdLineNumber int64
-	storageBucket            *storage.BucketHandle
+	ctx                        context.Context
+	initFailed                 bool
+	retryTimeOutSeconds        int64
+	iamTopicName               string
+	pubsubPublisherClient      *pubsub.PublisherClient
+	projectID                  string
+	scannerBufferSizeKiloBytes int
+	splitThresholdLineNumber   int64
+	storageBucket              *storage.BucketHandle
 }
 
 // asset uses the new CAI feed format
@@ -90,10 +91,12 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
-	global.splitThresholdLineNumber = instanceDeployment.Settings.Instance.SplitThresholdLineNumber
+
 	global.iamTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
 	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
+	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
+	global.scannerBufferSizeKiloBytes = instanceDeployment.Settings.Instance.ScannerBufferSizeKiloBytes
+	global.splitThresholdLineNumber = instanceDeployment.Settings.Instance.SplitThresholdLineNumber
 
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
@@ -161,6 +164,8 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 	startTime = gcsEvent.Updated
 	dumpLineNumber = 0
 	scanner := bufio.NewScanner(teeStorageObjectReader)
+	scannerBuffer := make([]byte, global.scannerBufferSizeKiloBytes*1024)
+	scanner.Buffer(scannerBuffer, global.scannerBufferSizeKiloBytes*1024)
 	start := time.Now()
 	for scanner.Scan() {
 		dumpLineNumber++
@@ -193,6 +198,9 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 	var duration time.Duration
 
 	scanner := bufio.NewScanner(&buffer)
+	scannerBuffer := make([]byte, global.scannerBufferSizeKiloBytes*1024)
+	scanner.Buffer(scannerBuffer, global.scannerBufferSizeKiloBytes*1024)
+
 	dumpLineNumber = 0
 	childDumpNumber = 0
 
@@ -284,6 +292,9 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 func splitToLines(buffer bytes.Buffer, global *Global, pointerTopubSubMsgNumber *int64, topicListPointer *[]string, startTime time.Time) (int64, time.Duration) {
 	var dumpLineNumber int64
 	scanner := bufio.NewScanner(&buffer)
+	scannerBuffer := make([]byte, global.scannerBufferSizeKiloBytes*1024)
+	scanner.Buffer(scannerBuffer, global.scannerBufferSizeKiloBytes*1024)
+
 	dumpLineNumber = 0
 	*pointerTopubSubMsgNumber = 0
 	start := time.Now()

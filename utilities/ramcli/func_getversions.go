@@ -23,8 +23,8 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
-// GetVersions look for a go.mod in the curent path, returns Go and RAM versions, crashes execution on errors
-func GetVersions() (goVersion, ramVersion string) {
+// getVersions look for a go.mod in the curent path, returns Go and RAM versions, crashes execution on errors
+func getVersions() (goVersion, ramVersion string) {
 	goModFilePath := "./go.mod"
 	ram.CheckPath(goModFilePath)
 	file, err := os.Open(goModFilePath)

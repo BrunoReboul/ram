@@ -16,8 +16,8 @@ package ramcli
 
 import "strings"
 
-// GetServiceAndInstanceNames split the instance folder relative path to extract 1) serviceName 2) instanceName
-func GetServiceAndInstanceNames(instanceFolderRelativePath string) (serviceName, instanceName string) {
+// getServiceAndInstanceNames split the instance folder relative path to extract 1) serviceName 2) instanceName
+func getServiceAndInstanceNames(instanceFolderRelativePath string) (serviceName, instanceName string) {
 	parts := strings.Split(instanceFolderRelativePath, "/")
 	return parts[1], parts[3]
 }

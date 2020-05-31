@@ -124,5 +124,9 @@ func (triggerDeployment *TriggerDeployment) tagRegex() (tagRegex string) {
 	instanceTagRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", triggerDeployment.Core.InstanceName, triggerDeployment.Core.EnvironmentName)
 	serviceTagRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", triggerDeployment.Core.ServiceName, triggerDeployment.Core.EnvironmentName)
 	solutionTagRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", ram.SolutionName, triggerDeployment.Core.EnvironmentName)
-	return fmt.Sprintf("%s|%s|%s", instanceTagRegex, serviceTagRegex, solutionTagRegex)
+	if triggerDeployment.Artifacts.AssetShortTypeName == "" {
+		return fmt.Sprintf("%s|%s|%s", instanceTagRegex, serviceTagRegex, solutionTagRegex)
+	}
+	assetTypeRegex := fmt.Sprintf("(%s-v\\d*.\\d*.\\d*-%s)", triggerDeployment.Artifacts.AssetShortTypeName, triggerDeployment.Core.EnvironmentName)
+	return fmt.Sprintf("%s|%s|%s|%s", instanceTagRegex, serviceTagRegex, solutionTagRegex, assetTypeRegex)
 }

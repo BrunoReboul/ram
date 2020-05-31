@@ -12,21 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ramcli
-
-import (
-	"strings"
-
-	"github.com/BrunoReboul/ram/utilities/cai"
-	"github.com/BrunoReboul/ram/utilities/gcb"
-)
-
-func (deployment *Deployment) deployGCBTrigger() (err error) {
-	triggerDeployment := gcb.NewTriggerDeployment()
-	triggerDeployment.Core = &deployment.Core
-	triggerDeployment.Settings.Service.GCB = deployment.Settings.Service.GCB
-	if deployment.Core.AssetType != "" {
-		triggerDeployment.Artifacts.AssetShortTypeName = strings.Replace(cai.GetAssetShortTypeName(deployment.Core.AssetType), "-", "_", -1)
-	}
-	return triggerDeployment.Deploy()
-}
+// Package gcf helps with Google cloud functions
+package gcf

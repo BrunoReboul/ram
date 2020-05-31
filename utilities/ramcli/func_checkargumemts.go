@@ -24,7 +24,7 @@ import (
 
 // CheckArguments check cli arguments and build the list of microservices instances
 func (deployment *Deployment) CheckArguments() {
-	deployment.Core.GoVersion, deployment.Core.RAMVersion = GetVersions()
+	deployment.Core.GoVersion, deployment.Core.RAMVersion = getVersions()
 	// flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
 	flag.BoolVar(&deployment.Core.Commands.Initialize, "init", false, "initial setup to be launched first, before manual, aka not automatable setup tasks")
 	flag.BoolVar(&deployment.Core.Commands.ConfigureAssetTypes, "config", false, "For assets types defined in solution.yaml writes setfeeds, dumpinventory, stream2bq instance.yaml files and subfolders")
@@ -33,6 +33,7 @@ func (deployment *Deployment) CheckArguments() {
 	flag.BoolVar(&deployment.Core.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.SettingsFileName))
 	flag.StringVar(&deployment.Core.RepositoryPath, "repo", ".", "Path to the root of the code repository")
 	flag.StringVar(&deployment.Core.RamcliServiceAccount, "ramclisa", "", "Email of Service Account used when running ramcli")
+	var assetType = flag.String("asset", "", "asset type e.g. k8s.io/Pod")
 	var microserviceFolderName = flag.String("service", "", "Microservice folder name")
 	var instanceFolderName = flag.String("instance", "", "Instance folder name")
 	flag.StringVar(&deployment.Core.EnvironmentName, "environment", ram.DevelopmentEnvironmentName, "Environment name")
@@ -44,9 +45,9 @@ func (deployment *Deployment) CheckArguments() {
 			log.Fatalln("Missing service argument")
 		}
 		instanceRelativePath := fmt.Sprintf("%s/%s/%s/%s", ram.MicroserviceParentFolderName, *microserviceFolderName, ram.InstancesFolderName, *instanceFolderName)
+		deployment.Core.InstanceFolderRelativePaths = []string{instanceRelativePath}
 		instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
 		ram.CheckPath(instancePath)
-		deployment.Core.InstanceFolderRelativePaths = []string{instanceRelativePath}
 		return
 	}
 
@@ -54,6 +55,11 @@ func (deployment *Deployment) CheckArguments() {
 		// case one microservice
 		deployment.Core.InstanceFolderRelativePaths = ram.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s/%s", ram.MicroserviceParentFolderName, *microserviceFolderName, ram.InstancesFolderName))
 	} else {
+		// case one assetType
+		if *assetType != "" {
+			deployment.Core.AssetType = *assetType
+			return
+		}
 		// case all
 		for _, microserviceRelativeFolderPath := range ram.GetChild(deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName) {
 			instanceFolderRelativePaths := ram.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s", microserviceRelativeFolderPath, ram.InstancesFolderName))
