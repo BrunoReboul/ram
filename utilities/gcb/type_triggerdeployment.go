@@ -25,6 +25,7 @@ type TriggerDeployment struct {
 	Artifacts struct {
 		ProjectsTriggersService *cloudbuild.ProjectsTriggersService `yaml:"-"`
 		BuildTrigger            cloudbuild.BuildTrigger
+		AssetShortTypeName      string
 	}
 	Core     *deploy.Core
 	Settings struct {
