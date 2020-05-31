@@ -37,7 +37,8 @@ type InstanceDeployment struct {
 			GCF gcf.Parameters
 		}
 		Instance struct {
-			SplitThresholdLineNumber int64 `yaml:"splitThresholdLineNumber"`
+			SplitThresholdLineNumber   int64 `yaml:"splitThresholdLineNumber"`
+			ScannerBufferSizeKiloBytes int   `yaml:"scannerBufferSizeKiloBytes"`
 		}
 	}
 }
