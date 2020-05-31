@@ -41,6 +41,7 @@ type Core struct {
 	EnvironmentName             string
 	InstanceName                string
 	ServiceName                 string
+	AssetType                   string
 	ProjectNumber               int64
 	RepositoryPath              string
 	RAMVersion                  string
