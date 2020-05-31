@@ -16,6 +16,7 @@ package ramcli
 
 import (
 	"log"
+	"strings"
 
 	"github.com/BrunoReboul/ram/services/stream2bq"
 )
@@ -35,6 +36,9 @@ func (deployment *Deployment) deployStream2bq() {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+		if strings.Contains(instanceDeployment.Settings.Instance.GCF.TriggerTopic, "cai-rces-") {
+			deployment.Core.AssetType = strings.Replace(strings.Replace(instanceDeployment.Settings.Instance.GCF.TriggerTopic, "cai-rces-", "", -1), "-", ".placeholder/", -1)
+		}
 		err = deployment.deployInstanceReleasePipeline()
 	} else {
 		if deployment.Core.Commands.Deploy {
