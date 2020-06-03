@@ -100,14 +100,14 @@ type constraintConfigBQ struct {
 
 // constraintMetadata Constraint's metadata
 type constraintMetadata struct {
-	Name        string          `json:"name"`
-	Annotations json.RawMessage `json:"annotation"`
+	Name       string          `json:"name"`
+	Annotation json.RawMessage `json:"annotation"`
 }
 
 // constraintMetadataBQ format to persist in BQ
 type constraintMetadataBQ struct {
-	Name        string `json:"name"`
-	Annotations string `json:"annotation"`
+	Name       string `json:"name"`
+	Annotation string `json:"annotation"`
 }
 
 // spec Constraint's specifications
@@ -325,7 +325,7 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 	violationBQ.FunctionConfig = violation.FunctionConfig
 	violationBQ.ConstraintConfig.Kind = violation.ConstraintConfig.Kind
 	violationBQ.ConstraintConfig.Metadata.Name = violation.ConstraintConfig.Metadata.Name
-	violationBQ.ConstraintConfig.Metadata.Annotations = string(violation.ConstraintConfig.Metadata.Annotations)
+	violationBQ.ConstraintConfig.Metadata.Annotation = string(violation.ConstraintConfig.Metadata.Annotation)
 	violationBQ.ConstraintConfig.Spec.Severity = violation.ConstraintConfig.Spec.Severity
 	violationBQ.ConstraintConfig.Spec.Match = string(violation.ConstraintConfig.Spec.Match)
 	violationBQ.ConstraintConfig.Spec.Parameters = string(violation.ConstraintConfig.Spec.Parameters)
