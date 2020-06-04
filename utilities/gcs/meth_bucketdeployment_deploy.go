@@ -28,21 +28,21 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 	bucket := bucketDeployment.Core.Services.StorageClient.Bucket(bucketDeployment.Settings.BucketName)
 	retreivedAttrs, err := bucket.Attrs(bucketDeployment.Core.Ctx)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "doesn't exist") {
-			// Create
-			var bucketAttrs storage.BucketAttrs
-			bucketAttrs.Location = bucketDeployment.Core.SolutionSettings.Hosting.GCF.Region
-			bucketAttrs.StorageClass = "STANDARD"
-			bucketAttrs.Labels = map[string]string{"name": strings.ToLower(bucketDeployment.Settings.BucketName)}
-
-			err = bucket.Create(bucketDeployment.Core.Ctx, bucketDeployment.Core.SolutionSettings.Hosting.ProjectID, &bucketAttrs)
-			if err != nil {
-				return fmt.Errorf("bucket.Create %v", err)
-			}
-			log.Printf("%s gcs bucket created %s", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
-		} else {
+		if !strings.Contains(strings.ToLower(err.Error()), "doesn't exist") {
 			return fmt.Errorf("bucket.Attrs %v", err)
 		}
+		// Create
+		var bucketAttrs storage.BucketAttrs
+		bucketAttrs.Location = bucketDeployment.Core.SolutionSettings.Hosting.GCF.Region
+		bucketAttrs.StorageClass = "STANDARD"
+		bucketAttrs.Labels = map[string]string{"name": strings.ToLower(bucketDeployment.Settings.BucketName)}
+
+		err = bucket.Create(bucketDeployment.Core.Ctx, bucketDeployment.Core.SolutionSettings.Hosting.ProjectID, &bucketAttrs)
+		if err != nil {
+			return fmt.Errorf("bucket.Create %v", err)
+		}
+		log.Printf("%s gcs bucket created %s", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+		return nil
 	}
 	log.Printf("%s gcs bucket found %s", bucketDeployment.Core.InstanceName, retreivedAttrs.Name)
 	nameLabelToBeUpdated := false
