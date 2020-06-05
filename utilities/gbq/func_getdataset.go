@@ -48,6 +48,7 @@ func getDataset(ctx context.Context, datasetName string, location string, bigQue
 			log.Printf("Created dataset %s", datasetName)
 			return dataset, nil
 		}
+		return nil, fmt.Errorf("dataset.Metadata( %v", err)
 	}
 	needToUpdate := false
 	if datasetMetadata.Labels != nil {

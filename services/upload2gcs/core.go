@@ -152,6 +152,7 @@ func getBucketHandle(ctx context.Context, bucketName string, projectID string, l
 			log.Printf("Created bucket %s", bucketName)
 			return bucketHandle, nil
 		}
+		return nil, fmt.Errorf("bucketHandle.Attrs %v", err)
 	}
 	needToUpdate := false
 	if bucketAttrs.Labels != nil {
