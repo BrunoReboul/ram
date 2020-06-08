@@ -36,7 +36,6 @@ type InstanceDeployment struct {
 			GCB             gcb.Parameters
 			GCF             gcf.Parameters
 			KeyJSONFileName string `yaml:"keyJSONFileName"`
-			OutputTopicName string `yaml:"outputTopicName"`
 		}
 		Instance struct {
 			GCF gcf.Event
@@ -84,7 +83,6 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GCF.Timeout = "60s"
 
 	instanceDeployment.Settings.Service.KeyJSONFileName = "key.json"
-	instanceDeployment.Settings.Service.OutputTopicName = "gci-groupSettings"
 
 	return &instanceDeployment
 }

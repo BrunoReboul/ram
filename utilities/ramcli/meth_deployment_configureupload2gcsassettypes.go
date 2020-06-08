@@ -25,8 +25,8 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
-// configureUpload2gcsAssetTypes for assets types defined in solution.yaml writes upload2gcs instance.yaml files and subfolders
-func (deployment *Deployment) configureUpload2gcsAssetTypes() (err error) {
+// configureUpload2gcsMetadataTypes for assets types defined in solution.yaml writes upload2gcs instance.yaml files and subfolders
+func (deployment *Deployment) configureUpload2gcsMetadataTypes() (err error) {
 	serviceName := "upload2gcs"
 	log.Printf("configure %s asset types", serviceName)
 	var upload2gcsInstanceDeployment upload2gcs.InstanceDeployment
@@ -57,5 +57,56 @@ func (deployment *Deployment) configureUpload2gcsAssetTypes() (err error) {
 		}
 		log.Printf("done %s", instanceFolderPath)
 	}
+
+	// iam policy
+	upload2gcsInstance.GCF.TriggerTopic = deployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
+	instanceFolderPath := strings.Replace(
+		fmt.Sprintf("%s/%s_iam_policies",
+			instancesFolderPath,
+			serviceName), "-", "_", -1)
+	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
+		os.Mkdir(instanceFolderPath, 0755)
+	}
+	if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), upload2gcsInstance); err != nil {
+		return err
+	}
+	log.Printf("done %s", instanceFolderPath)
+
+	// groups by directory
+	for directoryCustomerID := range deployment.Core.SolutionSettings.Monitoring.DirectoryCustomerIDs {
+		upload2gcsInstance.GCF.TriggerTopic = fmt.Sprintf("gci-groups-%s", directoryCustomerID)
+		instanceFolderPath := strings.Replace(
+			fmt.Sprintf("%s/%s_%s",
+				instancesFolderPath,
+				serviceName,
+				upload2gcsInstance.GCF.TriggerTopic), "-", "_", -1)
+		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
+			os.Mkdir(instanceFolderPath, 0755)
+		}
+		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), upload2gcsInstance); err != nil {
+			return err
+		}
+		log.Printf("done %s", instanceFolderPath)
+	}
+
+	// group membership
+
+	for _, topicName := range []string{deployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupMembers,
+		deployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupSettings} {
+		upload2gcsInstance.GCF.TriggerTopic = topicName
+		instanceFolderPath := strings.Replace(
+			fmt.Sprintf("%s/%s_%s",
+				instancesFolderPath,
+				serviceName,
+				topicName), "-", "_", -1)
+		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
+			os.Mkdir(instanceFolderPath, 0755)
+		}
+		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), upload2gcsInstance); err != nil {
+			return err
+		}
+		log.Printf("done %s", instanceFolderPath)
+	}
+
 	return nil
 }

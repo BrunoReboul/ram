@@ -77,7 +77,7 @@ func Initialize(ctx context.Context, global *Global) {
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
 	global.logEventEveryXPubSubMsg = instanceDeployment.Settings.Service.LogEventEveryXPubSubMsg
-	global.outputTopicName = instanceDeployment.Settings.Service.OutputTopicName
+	global.outputTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupMembers
 	global.maxResultsPerPage = instanceDeployment.Settings.Service.MaxResultsPerPage
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName

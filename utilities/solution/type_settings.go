@@ -61,6 +61,8 @@ type Settings struct {
 				IAMPolicies         string `yaml:"IAMPolicies" valid:"isNotZeroValue"`
 				RAMViolation        string `yaml:"RAMViolation" valid:"isNotZeroValue"`
 				RAMComplianceStatus string `yaml:"RAMComplianceStatus" valid:"isNotZeroValue"`
+				GCIGroupMembers     string `yaml:"GCIGroupMembers" valid:"isNotZeroValue"`
+				GCIGroupSettings    string `yaml:"GCIGroupSettings" valid:"isNotZeroValue"`
 			} `yaml:"topicNames"`
 		}
 		FireStore struct {

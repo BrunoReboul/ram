@@ -23,6 +23,6 @@ func (instanceDeployment *InstanceDeployment) Situate() (err error) {
 	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
 	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("For each group advertised from Pubusub topic %s, list the group members into pubsub topic %s",
 		instanceDeployment.Settings.Instance.GCF.TriggerTopic,
-		instanceDeployment.Settings.Service.OutputTopicName)
+		instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupMembers)
 	return nil
 }
