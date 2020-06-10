@@ -41,7 +41,7 @@ func (deployment *Deployment) configureSplitDumpSingleInstance() (err error) {
 
 	// Default value
 	splitdumpInstance.SplitThresholdLineNumber = 1000
-	splitdumpInstance.ScannerBufferSizeKiloBytes = 512
+	splitdumpInstance.ScannerBufferSizeKiloBytes = 128
 
 	instanceFolderPath := strings.Replace(
 		fmt.Sprintf("%s/%s_single_instance",
