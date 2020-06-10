@@ -192,7 +192,7 @@ func RAMCli(deployment *Deployment) (err error) {
 		if err = deployment.configureStream2bqAssetTypes(); err != nil {
 			log.Fatal(err)
 		}
-		if err = deployment.configureUpload2gcsAssetTypes(); err != nil {
+		if err = deployment.configureUpload2gcsMetadataTypes(); err != nil {
 			log.Fatal(err)
 		}
 		if err = deployment.configureListGroupsDirectories(); err != nil {
