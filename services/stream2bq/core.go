@@ -306,7 +306,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
 		{Struct: complianceStatus, Schema: gbq.GetComplianceStatusSchema(), InsertID: insertID},
 	}
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
-		return fmt.Errorf("inserter.Put %v", err)
+		return fmt.Errorf("inserter.Put %v %v", err, savers)
 	}
 	log.Println("insert complianceStatus ok", insertID)
 	return nil
