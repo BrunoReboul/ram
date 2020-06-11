@@ -108,11 +108,7 @@ func projectRunRole() (role iam.Role) {
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"bigquery.datasets.get",
-		"bigquery.datasets.create",
-		"bigquery.datasets.update",
 		"bigquery.tables.get",
-		"bigquery.tables.create",
-		"bigquery.tables.update",
 		"bigquery.tables.updateData"}
 	return role
 }
@@ -125,6 +121,13 @@ func projectDeployCoreRole() (role iam.Role) {
 		"pubsub.topics.get",
 		"pubsub.topics.create",
 		"pubsub.topics.update",
+		"bigquery.datasets.get",
+		"bigquery.datasets.create",
+		"bigquery.datasets.updateTag",
+		"bigquery.datasets.update",
+		"bigquery.tables.get",
+		"bigquery.tables.create",
+		"bigquery.tables.update",
 		"cloudfunctions.functions.sourceCodeSet",
 		"cloudfunctions.functions.get",
 		"cloudfunctions.functions.create",
