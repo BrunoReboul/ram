@@ -94,8 +94,6 @@ func projectRunRole() (role iam.Role) {
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"storage.buckets.get",
-		"storage.buckets.create",
-		"storage.buckets.update",
 		"storage.objects.create",
 		"storage.objects.delete"}
 	return role
@@ -121,6 +119,9 @@ func projectDeployCoreRole() (role iam.Role) {
 		"pubsub.topics.get",
 		"pubsub.topics.create",
 		"pubsub.topics.update",
+		"storage.buckets.get",
+		"storage.buckets.create",
+		"storage.buckets.update",
 		"cloudfunctions.functions.sourceCodeSet",
 		"cloudfunctions.functions.get",
 		"cloudfunctions.functions.create",
