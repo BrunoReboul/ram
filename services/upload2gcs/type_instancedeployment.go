@@ -81,7 +81,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.Roles = []string{
 		"roles/datastore.viewer"}
 
-	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 128
+	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 256
 	instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds = 600
 	instanceDeployment.Settings.Service.GCF.Timeout = "60s"
 
@@ -94,8 +94,6 @@ func projectRunRole() (role iam.Role) {
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"storage.buckets.get",
-		"storage.buckets.create",
-		"storage.buckets.update",
 		"storage.objects.create",
 		"storage.objects.delete"}
 	return role
@@ -121,6 +119,9 @@ func projectDeployCoreRole() (role iam.Role) {
 		"pubsub.topics.get",
 		"pubsub.topics.create",
 		"pubsub.topics.update",
+		"storage.buckets.get",
+		"storage.buckets.create",
+		"storage.buckets.update",
 		"cloudfunctions.functions.sourceCodeSet",
 		"cloudfunctions.functions.get",
 		"cloudfunctions.functions.create",

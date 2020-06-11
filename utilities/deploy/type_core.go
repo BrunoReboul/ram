@@ -22,6 +22,7 @@ import (
 	"google.golang.org/api/sourcerepo/v1"
 
 	asset "cloud.google.com/go/asset/apiv1"
+	"cloud.google.com/go/bigquery"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	scheduler "cloud.google.com/go/scheduler/apiv1"
 	"cloud.google.com/go/storage"
@@ -63,6 +64,7 @@ type Core struct {
 		ServiceusageService           *serviceusage.Service           `yaml:"-"`
 		SourcerepoService             *sourcerepo.Service             `yaml:"-"`
 		StorageClient                 *storage.Client                 `yaml:"-"`
+		BigqueryClient                *bigquery.Client                `yaml:"-"`
 	} `yaml:"-"`
 	Commands struct {
 		// Makeyaml     bool

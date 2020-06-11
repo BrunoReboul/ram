@@ -49,6 +49,9 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	if err = instanceDeployment.deployGPSTopic(); err != nil {
 		return err
 	}
+	if err = instanceDeployment.deployGBQRces(); err != nil {
+		return err
+	}
 	if err = instanceDeployment.deployGCFFunction(); err != nil {
 		return err
 	}
