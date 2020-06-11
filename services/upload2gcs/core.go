@@ -88,23 +88,16 @@ func Initialize(ctx context.Context, global *Global) {
 		return
 	}
 
-	bucketName := instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.AssetsJSONFile.Name
 	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
+	global.bucketHandle = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.AssetsJSONFile.Name)
 	global.ownerLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.Owner
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 	global.violationResolverLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.ViolationResolver
-	location := instanceDeployment.Core.SolutionSettings.Hosting.GCF.Region
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
 		log.Printf("ERROR - storage.NewClient: %v", err)
-		global.initFailed = true
-		return
-	}
-	global.bucketHandle, err = getBucketHandle(global.ctx, bucketName, projectID, location, storageClient)
-	if err != nil {
-		log.Printf("ERROR - getBucketHandle: %v", err)
 		global.initFailed = true
 		return
 	}
@@ -126,56 +119,6 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-}
-
-func getBucketHandle(ctx context.Context, bucketName string, projectID string, location string, storageClient *storage.Client) (bucketHandle *storage.BucketHandle, err error) {
-	bucketHandle = storageClient.Bucket(bucketName)
-	bucketAttrs, err := bucketHandle.Attrs(ctx)
-	if err != nil {
-		if err == storage.ErrBucketNotExist {
-			var bucketTocreateAttrs storage.BucketAttrs
-			bucketTocreateAttrs.Location = location
-			bucketTocreateAttrs.StorageClass = "STANDARD"
-			bucketTocreateAttrs.Labels = map[string]string{"name": strings.ToLower(bucketName)}
-
-			err = bucketHandle.Create(ctx, projectID, &bucketTocreateAttrs)
-			if err != nil {
-				// deal with concurent executions
-				if strings.Contains(strings.ToLower(err.Error()), "already exists") {
-					bucketAttrs, err = bucketHandle.Attrs(ctx)
-					if err != nil {
-						return nil, err
-					}
-				}
-				return nil, fmt.Errorf("bucketHandle.Create %v", err)
-			}
-			log.Printf("Created bucket %s", bucketName)
-			return bucketHandle, nil
-		}
-		return nil, fmt.Errorf("bucketHandle.Attrs %v", err)
-	}
-	needToUpdate := false
-	if bucketAttrs.Labels != nil {
-		if value, ok := bucketAttrs.Labels["name"]; ok {
-			if value != bucketAttrs.Name {
-				needToUpdate = true
-			}
-		} else {
-			needToUpdate = true
-		}
-	} else {
-		needToUpdate = true
-	}
-	if needToUpdate {
-		var bucketAttrsToUpdate storage.BucketAttrsToUpdate
-		bucketAttrsToUpdate.SetLabel("name", strings.ToLower(bucketName))
-		bucketAttrs, err = bucketHandle.Update(ctx, bucketAttrsToUpdate)
-		if err != nil {
-			return nil, fmt.Errorf("ERROR when updating bucket labels %v", err)
-		}
-		log.Printf("Update bucket labels %s", bucketName)
-	}
-	return bucketHandle, err
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
