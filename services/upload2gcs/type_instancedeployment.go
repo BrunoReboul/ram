@@ -81,7 +81,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.Roles = []string{
 		"roles/datastore.viewer"}
 
-	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 128
+	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 256
 	instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds = 600
 	instanceDeployment.Settings.Service.GCF.Timeout = "60s"
 
