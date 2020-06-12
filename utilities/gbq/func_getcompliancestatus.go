@@ -30,8 +30,8 @@ func GetComplianceStatus(ctx context.Context, bigQueryClient *bigquery.Client, l
 	if err != nil {
 		return nil, err
 	}
-	// Ensure assets table exists
-	_, err = getTable(ctx, "assets", dataset)
+	// Ensure assets table and view exist
+	_, err = GetAssets(ctx, bigQueryClient, location, datasetName)
 	if err != nil {
 		return nil, err
 	}

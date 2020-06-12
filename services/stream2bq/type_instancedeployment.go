@@ -128,6 +128,7 @@ func projectDeployCoreRole() (role iam.Role) {
 		"bigquery.tables.get",
 		"bigquery.tables.create",
 		"bigquery.tables.update",
+		"bigquery.tables.getData",
 		"cloudfunctions.functions.sourceCodeSet",
 		"cloudfunctions.functions.get",
 		"cloudfunctions.functions.create",
