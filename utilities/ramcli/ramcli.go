@@ -27,6 +27,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ram"
 
+	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/storage"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/appengine/v1"
@@ -113,6 +114,15 @@ func RAMCli(deployment *Deployment) (err error) {
 	}
 	deployment.Core.SolutionSettings.Situate(deployment.Core.EnvironmentName)
 	deployment.Core.ProjectNumber, err = getProjectNumber(deployment.Core.Ctx, deployment.Core.Services.CloudresourcemanagerService, deployment.Core.SolutionSettings.Hosting.ProjectID)
+
+	creds, err := google.FindDefaultCredentials(deployment.Core.Ctx, "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
+	}
+	deployment.Core.Services.BigqueryClient, err = bigquery.NewClient(deployment.Core.Ctx, deployment.Core.SolutionSettings.Hosting.ProjectID, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	if deployment.Core.AssetType != "" {
 		// For one (new) assetType build the list of related instances to deploy accross services. aka transversal point of view

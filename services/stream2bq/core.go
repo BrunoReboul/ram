@@ -198,7 +198,6 @@ func Initialize(ctx context.Context, global *Global) {
 	var instanceDeployment InstanceDeployment
 	var bigQueryClient *bigquery.Client
 	var table *bigquery.Table
-	var tableNameList = []string{"complianceStatus", "violations", "assets"}
 
 	log.Println("Function COLD START")
 	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
@@ -208,7 +207,6 @@ func Initialize(ctx context.Context, global *Global) {
 		return
 	}
 
-	datasetLocation := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Dataset.Location
 	datasetName := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Dataset.Name
 	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
 	global.ownerLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.Owner
@@ -223,28 +221,22 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	switch global.tableName {
-	case "complianceStatus":
-		table, err = gbq.GetComplianceStatus(ctx, bigQueryClient, datasetLocation, datasetName)
-		if err != nil {
-			log.Printf("ERROR - gbq.GetAssets %v", err)
-			global.initFailed = true
-			return
-		}
-	case "violations":
-		table, err = gbq.GetViolations(ctx, bigQueryClient, datasetLocation, datasetName)
-		if err != nil {
-			log.Printf("ERROR - gbq.GetAssets %v", err)
-			global.initFailed = true
-			return
-		}
-	case "assets":
-		table, err = gbq.GetAssets(ctx, bigQueryClient, datasetLocation, datasetName)
-		if err != nil {
-			log.Printf("ERROR - gbq.GetAssets %v", err)
-			global.initFailed = true
-			return
-		}
+	dataset := bigQueryClient.Dataset(datasetName)
+	_, err = dataset.Metadata(ctx)
+	if err != nil {
+		log.Printf("ERROR - dataset.Metadata: %v", err)
+		global.initFailed = true
+		return
+	}
+	table = dataset.Table(global.tableName)
+	_, err = table.Metadata(ctx)
+	if err != nil {
+		log.Printf("ERROR - missing table %s %v", global.tableName, err)
+		global.initFailed = true
+		return
+	}
+	global.inserter = table.Inserter()
+	if global.tableName == "assets" {
 		global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(global.ctx)
 		if err != nil {
 			log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
@@ -263,12 +255,7 @@ func Initialize(ctx context.Context, global *Global) {
 			global.initFailed = true
 			return
 		}
-	default:
-		log.Printf("ERROR - Unsupported tablename %s supported are %v\n", global.tableName, tableNameList)
-		global.initFailed = true
-		return
 	}
-	global.inserter = table.Inserter()
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
@@ -306,7 +293,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
 		{Struct: complianceStatus, Schema: gbq.GetComplianceStatusSchema(), InsertID: insertID},
 	}
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
-		return fmt.Errorf("inserter.Put %v", err)
+		return fmt.Errorf("inserter.Put %v %v", err, savers)
 	}
 	log.Println("insert complianceStatus ok", insertID)
 	return nil
