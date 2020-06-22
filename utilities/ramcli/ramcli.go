@@ -239,6 +239,8 @@ func RAMCli(deployment *Deployment) (err error) {
 				deployment.deployListGroupMembers()
 			case "getgroupsettings":
 				deployment.deployGetGroupSettings()
+			case "setlogsinks":
+				deployment.deploySetLogSinks()
 			}
 		}
 	}
