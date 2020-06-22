@@ -90,8 +90,8 @@ func projectDeployCoreRole() (role iam.Role) {
 		"pubsub.topics.get",
 		"pubsub.topics.create",
 		"pubsub.topics.update",
-		"projects.topics.getIamPolicy",
-		"projects.topics.setIamPolicy"}
+		"pubsub.topics.getIamPolicy",
+		"pubsub.topics.setIamPolicy"}
 	return role
 }
 
