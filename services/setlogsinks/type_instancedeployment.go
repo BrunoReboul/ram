@@ -89,7 +89,9 @@ func projectDeployCoreRole() (role iam.Role) {
 	role.IncludedPermissions = []string{
 		"pubsub.topics.get",
 		"pubsub.topics.create",
-		"pubsub.topics.update"}
+		"pubsub.topics.update",
+		"projects.topics.getIamPolicy",
+		"projects.topics.setIamPolicy"}
 	return role
 }
 
