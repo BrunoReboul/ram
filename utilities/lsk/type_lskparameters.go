@@ -12,18 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setfeeds
+package lsk
 
-import (
-	"github.com/BrunoReboul/ram/utilities/cai"
-)
-
-func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
-	feedDeployment := cai.NewFeedDeployment()
-	feedDeployment.Core = instanceDeployment.Core
-	feedDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
-	feedDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
-	feedDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
-	feedDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
-	return feedDeployment.Deploy()
+// Parameters structure
+type Parameters struct {
+	Parent         string
+	SinkNameSuffix string `yaml:"sinkNameSuffix"`
+	Filter         string
+	TopicName      string `yaml:"topicName"`
 }

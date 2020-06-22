@@ -53,18 +53,18 @@ type Core struct {
 	Services                    struct {
 		AppengineAPIService           *appengine.APIService           `yaml:"-"`
 		AssetClient                   *asset.Client                   `yaml:"-"`
+		BigqueryClient                *bigquery.Client                `yaml:"-"`
+		CloudSchedulerClient          *scheduler.CloudSchedulerClient `yaml:"-"`
 		Cloudbillingservice           *cloudbilling.APIService        `yaml:"-"`
 		CloudbuildService             *cloudbuild.Service             `yaml:"-"`
 		CloudfunctionsService         *cloudfunctions.Service         `yaml:"-"`
 		CloudresourcemanagerService   *cloudresourcemanager.Service   `yaml:"-"`
 		CloudresourcemanagerServicev2 *cloudresourcemanagerv2.Service `yaml:"-"`
-		CloudSchedulerClient          *scheduler.CloudSchedulerClient `yaml:"-"`
 		IAMService                    *iam.Service                    `yaml:"-"`
 		PubsubPublisherClient         *pubsub.PublisherClient         `yaml:"-"`
 		ServiceusageService           *serviceusage.Service           `yaml:"-"`
 		SourcerepoService             *sourcerepo.Service             `yaml:"-"`
 		StorageClient                 *storage.Client                 `yaml:"-"`
-		BigqueryClient                *bigquery.Client                `yaml:"-"`
 	} `yaml:"-"`
 	Commands struct {
 		// Makeyaml     bool

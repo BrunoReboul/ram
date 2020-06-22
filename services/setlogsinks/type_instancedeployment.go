@@ -17,26 +17,30 @@ package setlogsinks
 import (
 	"time"
 
-	"cloud.google.com/go/logging/logadmin"
 	"github.com/BrunoReboul/ram/utilities/deploy"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/gsu"
 	"github.com/BrunoReboul/ram/utilities/iamgt"
+	"github.com/BrunoReboul/ram/utilities/lsk"
 	"google.golang.org/api/iam/v1"
 )
 
 // InstanceDeployment settings and artifacts structure
 type InstanceDeployment struct {
 	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
-	Core          *deploy.Core
-	Settings      struct {
+	Artifacts     struct {
+		SinkName    string `yaml:"sinkName"`
+		Destination string
+	}
+	Core     *deploy.Core
+	Settings struct {
 		Service struct {
 			GSU gsu.Parameters
 			IAM iamgt.Parameters
 			GCB gcb.Parameters
 		}
 		Instance struct {
-			sink logadmin.Sink
+			LSK lsk.Parameters
 		}
 	}
 }

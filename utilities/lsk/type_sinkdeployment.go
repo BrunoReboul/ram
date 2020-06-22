@@ -12,18 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setfeeds
+package lsk
 
 import (
-	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/deploy"
 )
 
-func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
-	feedDeployment := cai.NewFeedDeployment()
-	feedDeployment.Core = instanceDeployment.Core
-	feedDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
-	feedDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
-	feedDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
-	feedDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
-	return feedDeployment.Deploy()
+// SinkDeployment settings and artifacts structure
+type SinkDeployment struct {
+	Artifacts struct {
+		SinkName    string `yaml:"sinkName"`
+		Destination string
+	}
+	Core     *deploy.Core
+	Settings struct {
+		Instance struct {
+			LSK Parameters
+		}
+	}
+}
+
+// NewSinkDeployment create deployment structure
+func NewSinkDeployment() *SinkDeployment {
+	return &SinkDeployment{}
 }

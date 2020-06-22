@@ -12,18 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setfeeds
+package setlogsinks
 
 import (
-	"github.com/BrunoReboul/ram/utilities/cai"
+	"log"
+	"time"
 )
 
-func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
-	feedDeployment := cai.NewFeedDeployment()
-	feedDeployment.Core = instanceDeployment.Core
-	feedDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
-	feedDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
-	feedDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
-	feedDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
-	return feedDeployment.Deploy()
+// Deploy a service instance
+func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
+	start := time.Now()
+	// Extended project
+	if err = instanceDeployment.deployGSUAPI(); err != nil {
+		return err
+	}
+	// Core project
+	if err = instanceDeployment.deployGPSTopic(); err != nil {
+		return err
+	}
+	// Core monitoring orgs
+	if err = instanceDeployment.deployLogSink(); err != nil {
+		return err
+	}
+	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
+	return nil
 }

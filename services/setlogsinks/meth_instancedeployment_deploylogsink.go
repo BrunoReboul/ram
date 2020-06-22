@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setfeeds
+package setlogsinks
 
 import (
-	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/lsk"
 )
 
-func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
-	feedDeployment := cai.NewFeedDeployment()
-	feedDeployment.Core = instanceDeployment.Core
-	feedDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
-	feedDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
-	feedDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
-	feedDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
-	return feedDeployment.Deploy()
+func (instanceDeployment *InstanceDeployment) deployLogSink() (err error) {
+	sinkDeployment := lsk.NewSinkDeployment()
+	sinkDeployment.Core = instanceDeployment.Core
+	sinkDeployment.Artifacts.SinkName = instanceDeployment.Artifacts.SinkName
+	sinkDeployment.Artifacts.Destination = instanceDeployment.Artifacts.Destination
+	sinkDeployment.Settings.Instance.LSK = instanceDeployment.Settings.Instance.LSK
+	return sinkDeployment.Deploy()
 }

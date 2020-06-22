@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setfeeds
+package setlogsinks
 
 import (
-	"github.com/BrunoReboul/ram/utilities/cai"
+	"fmt"
 )
 
-func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
-	feedDeployment := cai.NewFeedDeployment()
-	feedDeployment.Core = instanceDeployment.Core
-	feedDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
-	feedDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
-	feedDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
-	feedDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
-	return feedDeployment.Deploy()
+// Situate complement settings taking in account the situation for service and instance settings
+func (instanceDeployment *InstanceDeployment) Situate() (err error) {
+	instanceDeployment.Artifacts.SinkName = fmt.Sprintf("ram-%s-%s",
+		instanceDeployment.Core.EnvironmentName,
+		instanceDeployment.Settings.Instance.LSK.SinkNameSuffix)
+	instanceDeployment.Artifacts.Destination = fmt.Sprintf("pubsub.googleapis.com/projects/%s/topics/%s",
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
+		instanceDeployment.Settings.Instance.LSK.TopicName)
+	return nil
 }
