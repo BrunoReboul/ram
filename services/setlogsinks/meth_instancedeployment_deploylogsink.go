@@ -21,8 +21,7 @@ import (
 func (instanceDeployment *InstanceDeployment) deployLogSink() (err error) {
 	sinkDeployment := lsk.NewSinkDeployment()
 	sinkDeployment.Core = instanceDeployment.Core
-	sinkDeployment.Artifacts.SinkName = instanceDeployment.Artifacts.SinkName
-	sinkDeployment.Artifacts.Destination = instanceDeployment.Artifacts.Destination
+	sinkDeployment.Artifacts = instanceDeployment.Artifacts
 	sinkDeployment.Settings.Instance.LSK = instanceDeployment.Settings.Instance.LSK
 	return sinkDeployment.Deploy()
 }

@@ -29,8 +29,9 @@ import (
 type InstanceDeployment struct {
 	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
 	Artifacts     struct {
-		SinkName    string `yaml:"sinkName"`
-		Destination string
+		SinkName      string `yaml:"sinkName"`
+		Destination   string
+		TopicFullName string `yaml:"topicFullName"`
 	}
 	Core     *deploy.Core
 	Settings struct {

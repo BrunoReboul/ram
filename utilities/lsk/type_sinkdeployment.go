@@ -21,8 +21,9 @@ import (
 // SinkDeployment settings and artifacts structure
 type SinkDeployment struct {
 	Artifacts struct {
-		SinkName    string `yaml:"sinkName"`
-		Destination string
+		SinkName      string `yaml:"sinkName"`
+		Destination   string
+		TopicFullName string `yaml:"topicFullName"`
 	}
 	Core     *deploy.Core
 	Settings struct {

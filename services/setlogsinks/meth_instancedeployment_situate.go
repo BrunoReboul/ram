@@ -23,8 +23,10 @@ func (instanceDeployment *InstanceDeployment) Situate() (err error) {
 	instanceDeployment.Artifacts.SinkName = fmt.Sprintf("ram-%s-%s",
 		instanceDeployment.Core.EnvironmentName,
 		instanceDeployment.Settings.Instance.LSK.SinkNameSuffix)
-	instanceDeployment.Artifacts.Destination = fmt.Sprintf("pubsub.googleapis.com/projects/%s/topics/%s",
+	instanceDeployment.Artifacts.TopicFullName = fmt.Sprintf("projects/%s/topics/%s",
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		instanceDeployment.Settings.Instance.LSK.TopicName)
+	instanceDeployment.Artifacts.Destination = fmt.Sprintf("pubsub.googleapis.com/%s",
+		instanceDeployment.Artifacts.TopicFullName)
 	return nil
 }
