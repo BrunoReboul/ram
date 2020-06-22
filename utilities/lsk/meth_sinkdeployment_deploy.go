@@ -48,15 +48,15 @@ func (sinkDeployment *SinkDeployment) Deploy() (err error) {
 	var sinkRetreived *logadmin.Sink
 	sinkRetreived, err = logAdminClient.Sink(sinkDeployment.Core.Ctx, sink.ID)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "notfound") {
-			sinkRetreived, err = logAdminClient.CreateSink(sinkDeployment.Core.Ctx, &sink)
-			if err != nil {
-				return fmt.Errorf("logAdminClient.CreateSink %v", err)
-			}
-			log.Printf("%s lsk created sink %s writer identity %s", sinkDeployment.Core.InstanceName, sinkRetreived.ID, sinkRetreived.WriterIdentity)
-			created = true
+		if !strings.Contains(strings.ToLower(err.Error()), "notfound") {
+			return fmt.Errorf("logAdminClient.Sink %v", err)
 		}
-		return fmt.Errorf("logAdminClient.Sink %v", err)
+		sinkRetreived, err = logAdminClient.CreateSink(sinkDeployment.Core.Ctx, &sink)
+		if err != nil {
+			return fmt.Errorf("logAdminClient.CreateSink %v", err)
+		}
+		log.Printf("%s lsk created sink %s writer identity %s", sinkDeployment.Core.InstanceName, sinkRetreived.ID, sinkRetreived.WriterIdentity)
+		created = true
 	}
 
 	if !created {
