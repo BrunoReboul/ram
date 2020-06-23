@@ -16,11 +16,12 @@ package convertlog2feed
 
 import (
 	"context"
-	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 
+	"cloud.google.com/go/logging"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
@@ -110,21 +111,25 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 	log.Printf("PubSubMessage.Data %s", PubSubMessage.Data)
 
+	var entry logging.Entry
+	err = json.Unmarshal(PubSubMessage.Data, entry)
+	if err != nil {
+		log.Printf("ERROR json.Unmarshal %v", err)
+	}
+	ram.JSONMarshalIndentPrint(entry)
+
 	// var data []byte
 	// count, err := base64.StdEncoding.Decode(data, PubSubMessage.Data)
 	// if err != nil {
 	// 	return fmt.Errorf("base64.StdEncoding.Decode %v", err)
 	// }
 	// log.Printf("count %d data %v", count, data)
-
-	data, err := base64.StdEncoding.DecodeString(string(PubSubMessage.Data))
-	if err != nil {
-		log.Printf("ERROR base64.StdEncoding.DecodeString %v", err)
-	}
-
-	log.Printf("data %s", data)
-
-	ram.JSONMarshalIndentPrint(data)
+	// data, err := base64.StdEncoding.DecodeString(string(PubSubMessage.Data))
+	// if err != nil {
+	// 	log.Printf("ERROR base64.StdEncoding.DecodeString %v", err)
+	// }
+	// log.Printf("data %s", data)
+	// ram.JSONMarshalIndentPrint(data)
 
 	return nil
 }
