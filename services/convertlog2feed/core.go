@@ -108,6 +108,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 		return err
 	}
 	log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+	log.Printf("PubSubMessage.Data %s", PubSubMessage.Data)
 
 	// var data []byte
 	// count, err := base64.StdEncoding.Decode(data, PubSubMessage.Data)
@@ -117,10 +118,10 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	// log.Printf("count %d data %v", count, data)
 
 	data, err := base64.StdEncoding.DecodeString(string(PubSubMessage.Data))
-
 	if err != nil {
-		return fmt.Errorf("base64.StdEncoding.DecodeString %v", err)
+		log.Printf("ERROR base64.StdEncoding.DecodeString %v", err)
 	}
+
 	log.Printf("data %s", data)
 
 	ram.JSONMarshalIndentPrint(data)
