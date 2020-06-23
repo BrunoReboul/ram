@@ -16,6 +16,7 @@ package convertlog2feed
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -108,7 +109,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	}
 	log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
-	ram.JSONMarshalIndentPrint(PubSubMessage.Data)
+	var data []byte
+	_, err = base64.StdEncoding.Decode(data, PubSubMessage.Data)
+	ram.JSONMarshalIndentPrint(data)
 
 	return nil
 }

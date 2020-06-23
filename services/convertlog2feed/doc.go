@@ -33,5 +33,7 @@ Notes
 
 - AdminSDK activity logs do not reference the group ID only the email, that is a mutable attribute. A cache in firestore is used to handle this.
 
+- Each message is a base64-encoded LogEntry object https://cloud.google.com/logging/docs/export/using_exported_logs#pubsub-overview .
+
 */
 package convertlog2feed
