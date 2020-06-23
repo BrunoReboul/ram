@@ -108,5 +108,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	}
 	log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
+	ram.JSONMarshalIndentPrint(PubSubMessage.Data)
+
 	return nil
 }
