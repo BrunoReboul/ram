@@ -83,7 +83,7 @@ func (sinkDeployment *SinkDeployment) Deploy() (err error) {
 	err = gps.SetTopicRole(sinkDeployment.Core.Ctx,
 		sinkDeployment.Core.Services.PubsubPublisherClient,
 		sinkDeployment.Artifacts.TopicFullName,
-		sink.WriterIdentity,
+		sinkRetreived.WriterIdentity,
 		"roles/pubsub.publisher")
 	if err != nil {
 		return fmt.Errorf("gps.SetTopicRole %v", err)

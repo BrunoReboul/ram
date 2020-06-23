@@ -26,9 +26,9 @@ import (
 
 // SetTopicRole check if a topic already exist, if not create it
 func SetTopicRole(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, topicName string, member string, role iam.RoleName) (err error) {
-	log.Printf("topicName %s", topicName)
-	log.Printf("member %s", member)
-	log.Printf("role %s", role)
+	// log.Printf("topicName %s", topicName)
+	// log.Printf("member %s", member)
+	// log.Printf("role %s", role)
 	var getTopicRequest pubsubpb.GetTopicRequest
 	getTopicRequest.Topic = topicName
 	topic, err := pubSubPulisherClient.GetTopic(ctx, &getTopicRequest)
