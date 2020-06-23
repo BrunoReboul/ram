@@ -112,7 +112,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	log.Printf("PubSubMessage.Data %s", PubSubMessage.Data)
 
 	var entry logging.Entry
-	err = json.Unmarshal(PubSubMessage.Data, entry)
+	err = json.Unmarshal(PubSubMessage.Data, &entry)
 	if err != nil {
 		log.Printf("ERROR json.Unmarshal %v", err)
 	}
