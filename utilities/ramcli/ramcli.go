@@ -241,6 +241,8 @@ func RAMCli(deployment *Deployment) (err error) {
 				deployment.deployGetGroupSettings()
 			case "setlogsinks":
 				deployment.deploySetLogSinks()
+			case "convertlog2feed":
+				deployment.deployConvertLog2Feed()
 			}
 		}
 	}
