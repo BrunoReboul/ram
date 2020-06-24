@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
-	"cloud.google.com/go/logging"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
@@ -29,7 +29,30 @@ import (
 	"cloud.google.com/go/firestore"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	admin "google.golang.org/api/admin/directory/v1"
+	loggingpb "google.golang.org/genproto/googleapis/logging/v2"
 )
+
+// https://developers.google.com/admin-sdk/reports/v1/reference/activity-ref-appendix-a/admin-event-names
+type adminActivitylogEntry struct {
+	Timestamp    time.Time `json:"timestamp"`
+	ProtoPayload struct {
+		Metadata struct {
+			Event struct {
+				EventName string          `json:"eventName"`
+				EventType string          `json:"eventType"`
+				Parameter json.RawMessage `json:"parameter"`
+			} `json:"event"`
+		} `json:"metadata"`
+	} `json:"protoPayload"`
+}
+
+// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#GROUP_SETTINGS
+type groupSettingsParameters []struct {
+	Label string `json:"label"`
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
@@ -108,28 +131,65 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	if !ok {
 		return err
 	}
-	log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
-	log.Printf("PubSubMessage.Data %s", PubSubMessage.Data)
+	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+	// log.Printf("PubSubMessage.Data %s", PubSubMessage.Data)
+	_ = metadata
 
-	var entry logging.Entry
-	err = json.Unmarshal(PubSubMessage.Data, &entry)
+	var logEntry loggingpb.LogEntry
+	err = json.Unmarshal(PubSubMessage.Data, &logEntry)
 	if err != nil {
-		log.Printf("ERROR json.Unmarshal %v", err)
+		log.Printf("ERROR json.Unmarshal logentry %v", err)
+		return nil
 	}
-	ram.JSONMarshalIndentPrint(entry)
 
-	// var data []byte
-	// count, err := base64.StdEncoding.Decode(data, PubSubMessage.Data)
-	// if err != nil {
-	// 	return fmt.Errorf("base64.StdEncoding.Decode %v", err)
-	// }
-	// log.Printf("count %d data %v", count, data)
-	// data, err := base64.StdEncoding.DecodeString(string(PubSubMessage.Data))
-	// if err != nil {
-	// 	log.Printf("ERROR base64.StdEncoding.DecodeString %v", err)
-	// }
-	// log.Printf("data %s", data)
-	// ram.JSONMarshalIndentPrint(data)
+	switch logEntry.Resource.Type {
+	case "audited_resource":
+		switch logEntry.Resource.Labels["service"] {
+		case "admin.googleapis.com":
+			return convertAdminActivityEvent(PubSubMessage.Data)
+		default:
+			log.Printf("Unmanaged  logEntry.Resource.Labels service  %s", logEntry.Resource.Labels["service"])
+			return nil
+		}
+	default:
+		log.Printf("Unmanaged logEntry.Resource.Type %s", logEntry.Resource.Type)
+		return nil
+	}
+}
 
-	return nil
+// https://developers.google.com/admin-sdk/reports/v1/reference/activity-ref-appendix-a/admin-event-names
+func convertAdminActivityEvent(data []byte) (err error) {
+	var adminActivitylogEntry adminActivitylogEntry
+
+	err = json.Unmarshal(data, &adminActivitylogEntry)
+	if err != nil {
+		log.Printf("ERROR json.Unmarshal adminActivitylogEntry %v", err)
+		return nil
+	}
+
+	switch adminActivitylogEntry.ProtoPayload.Metadata.Event.EventType {
+	case "GROUP_SETTINGS":
+		return convertGroupSettings(&adminActivitylogEntry)
+	default:
+		log.Printf("Unmanaged adminActivitylogEntry.ProtoPayload.Metadata.Event.EventType %s", adminActivitylogEntry.ProtoPayload.Metadata.Event.EventType)
+		return nil
+	}
+
+}
+
+func convertGroupSettings(adminActivitylogEntry *adminActivitylogEntry) (err error) {
+	var parameters groupSettingsParameters
+	err = json.Unmarshal(adminActivitylogEntry.ProtoPayload.Metadata.Event.Parameter, &parameters)
+	if err != nil {
+		log.Printf("ERROR json.Unmarshal groupSettingsParameters %v", err)
+		return nil
+	}
+	switch adminActivitylogEntry.ProtoPayload.Metadata.Event.EventName {
+	case "REMOVE_GROUP_MEMBER":
+		log.Printf("REMOVE_GROUP_MEMBER %v", parameters)
+		return nil
+	default:
+		log.Printf("Unmanaged adminActivitylogEntry.ProtoPayload.Metadata.Event.EventName %s", adminActivitylogEntry.ProtoPayload.Metadata.Event.EventName)
+		return nil
+	}
 }
