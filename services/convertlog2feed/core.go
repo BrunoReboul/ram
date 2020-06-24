@@ -22,7 +22,6 @@ import (
 	"os"
 	"time"
 
-	"cloud.google.com/go/logging"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
@@ -32,18 +31,28 @@ import (
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
+// Severity (string) incompatible with both pakage:
+// loggingpb "google.golang.org/genproto/googleapis/logging/v2" got erro json: cannot unmarshal string into Go struct field LogEntry.severity of type ltype.LogSeverity
+// "cloud.google.com/go/logging" got error json: cannot unmarshal string into Go struct field Entry.Severity of type logging.Severity
+type logEntry struct {
+	Timestamp        time.Time `json:"timestamp"`
+	ReceiveTimestamp time.Time `json:"receiveTimestamp"`
+	Resource         struct {
+		Type   string            `json:"type"`
+		Labels map[string]string `json:"labels"`
+	} `json:"resource"`
+	ProtoPayload json.RawMessage `json:"protoPayload"`
+}
+
 // https://developers.google.com/admin-sdk/reports/v1/reference/activity-ref-appendix-a/admin-event-names
-type adminActivitylogEntry struct {
-	Timestamp    time.Time `json:"timestamp"`
-	ProtoPayload struct {
-		Metadata struct {
-			Event struct {
-				EventName string          `json:"eventName"`
-				EventType string          `json:"eventType"`
-				Parameter json.RawMessage `json:"parameter"`
-			} `json:"event"`
-		} `json:"metadata"`
-	} `json:"protoPayload"`
+type protoPayload struct {
+	Metadata struct {
+		Event struct {
+			EventName string          `json:"eventName"`
+			EventType string          `json:"eventType"`
+			Parameter json.RawMessage `json:"parameter"`
+		} `json:"event"`
+	} `json:"metadata"`
 }
 
 // https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#GROUP_SETTINGS
@@ -135,9 +144,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	// log.Printf("PubSubMessage.Data %s", PubSubMessage.Data)
 	_ = metadata
 
-	// Need to use logging package
-	// with loggingpb "google.golang.org/genproto/googleapis/logging/v2" got erro json: cannot unmarshal string into Go struct field LogEntry.severity of type ltype.LogSeverity
-	var logEntry logging.Entry
+	var logEntry logEntry
 	err = json.Unmarshal(PubSubMessage.Data, &logEntry)
 	if err != nil {
 		log.Printf("ERROR json.Unmarshal logentry %v", err)
@@ -148,7 +155,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	case "audited_resource":
 		switch logEntry.Resource.Labels["service"] {
 		case "admin.googleapis.com":
-			return convertAdminActivityEvent(PubSubMessage.Data)
+			return convertAdminActivityEvent(logEntry.ProtoPayload)
 		default:
 			log.Printf("Unmanaged  logEntry.Resource.Labels service  %s", logEntry.Resource.Labels["service"])
 			return nil
@@ -161,37 +168,37 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 
 // https://developers.google.com/admin-sdk/reports/v1/reference/activity-ref-appendix-a/admin-event-names
 func convertAdminActivityEvent(data []byte) (err error) {
-	var adminActivitylogEntry adminActivitylogEntry
+	var protoPayload protoPayload
 
-	err = json.Unmarshal(data, &adminActivitylogEntry)
+	err = json.Unmarshal(data, &protoPayload)
 	if err != nil {
-		log.Printf("ERROR json.Unmarshal adminActivitylogEntry %v", err)
+		log.Printf("ERROR json.Unmarshal protoPaylaod %v", err)
 		return nil
 	}
 
-	switch adminActivitylogEntry.ProtoPayload.Metadata.Event.EventType {
+	switch protoPayload.Metadata.Event.EventType {
 	case "GROUP_SETTINGS":
-		return convertGroupSettings(&adminActivitylogEntry)
+		return convertGroupSettings(&protoPayload)
 	default:
-		log.Printf("Unmanaged adminActivitylogEntry.ProtoPayload.Metadata.Event.EventType %s", adminActivitylogEntry.ProtoPayload.Metadata.Event.EventType)
+		log.Printf("Unmanaged protoPayload.Metadata.Event.EventType %s", protoPayload.Metadata.Event.EventType)
 		return nil
 	}
 
 }
 
-func convertGroupSettings(adminActivitylogEntry *adminActivitylogEntry) (err error) {
+func convertGroupSettings(protoPayload *protoPayload) (err error) {
 	var parameters groupSettingsParameters
-	err = json.Unmarshal(adminActivitylogEntry.ProtoPayload.Metadata.Event.Parameter, &parameters)
+	err = json.Unmarshal(protoPayload.Metadata.Event.Parameter, &parameters)
 	if err != nil {
 		log.Printf("ERROR json.Unmarshal groupSettingsParameters %v", err)
 		return nil
 	}
-	switch adminActivitylogEntry.ProtoPayload.Metadata.Event.EventName {
+	switch protoPayload.Metadata.Event.EventName {
 	case "REMOVE_GROUP_MEMBER":
 		log.Printf("REMOVE_GROUP_MEMBER %v", parameters)
 		return nil
 	default:
-		log.Printf("Unmanaged adminActivitylogEntry.ProtoPayload.Metadata.Event.EventName %s", adminActivitylogEntry.ProtoPayload.Metadata.Event.EventName)
+		log.Printf("Unmanaged protoPayload.Metadata.Event.EventName %s", protoPayload.Metadata.Event.EventName)
 		return nil
 	}
 }
