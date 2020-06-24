@@ -22,6 +22,7 @@ import (
 	"os"
 	"time"
 
+	"cloud.google.com/go/logging"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
@@ -29,7 +30,6 @@ import (
 	"cloud.google.com/go/firestore"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	admin "google.golang.org/api/admin/directory/v1"
-	loggingpb "google.golang.org/genproto/googleapis/logging/v2"
 )
 
 // https://developers.google.com/admin-sdk/reports/v1/reference/activity-ref-appendix-a/admin-event-names
@@ -135,7 +135,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	// log.Printf("PubSubMessage.Data %s", PubSubMessage.Data)
 	_ = metadata
 
-	var logEntry loggingpb.LogEntry
+	// Need to use logging package
+	// with loggingpb "google.golang.org/genproto/googleapis/logging/v2" got erro json: cannot unmarshal string into Go struct field LogEntry.severity of type ltype.LogSeverity
+	var logEntry logging.Entry
 	err = json.Unmarshal(PubSubMessage.Data, &logEntry)
 	if err != nil {
 		log.Printf("ERROR json.Unmarshal logentry %v", err)
