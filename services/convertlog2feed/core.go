@@ -47,12 +47,14 @@ type logEntry struct {
 // https://developers.google.com/admin-sdk/reports/v1/reference/activity-ref-appendix-a/admin-event-names
 type protoPayload struct {
 	Metadata struct {
-		Event struct {
-			EventName string          `json:"eventName"`
-			EventType string          `json:"eventType"`
-			Parameter json.RawMessage `json:"parameter"`
-		} `json:"event"`
+		Events []event `json:"event"`
 	} `json:"metadata"`
+}
+
+type event struct {
+	EventName string          `json:"eventName"`
+	EventType string          `json:"eventType"`
+	Parameter json.RawMessage `json:"parameter"`
 }
 
 // https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#GROUP_SETTINGS
@@ -176,29 +178,31 @@ func convertAdminActivityEvent(data []byte) (err error) {
 		return nil
 	}
 
-	switch protoPayload.Metadata.Event.EventType {
-	case "GROUP_SETTINGS":
-		return convertGroupSettings(&protoPayload)
-	default:
-		log.Printf("Unmanaged protoPayload.Metadata.Event.EventType %s", protoPayload.Metadata.Event.EventType)
-		return nil
+	for _, event := range protoPayload.Metadata.Events {
+		switch event.EventType {
+		case "GROUP_SETTINGS":
+			return convertGroupSettings(&event)
+		default:
+			log.Printf("Unmanaged event.EventType %s", event.EventType)
+			return nil
+		}
 	}
-
+	return nil
 }
 
-func convertGroupSettings(protoPayload *protoPayload) (err error) {
+func convertGroupSettings(event *event) (err error) {
 	var parameters groupSettingsParameters
-	err = json.Unmarshal(protoPayload.Metadata.Event.Parameter, &parameters)
+	err = json.Unmarshal(event.Parameter, &parameters)
 	if err != nil {
 		log.Printf("ERROR json.Unmarshal groupSettingsParameters %v", err)
 		return nil
 	}
-	switch protoPayload.Metadata.Event.EventName {
+	switch event.EventName {
 	case "REMOVE_GROUP_MEMBER":
 		log.Printf("REMOVE_GROUP_MEMBER %v", parameters)
 		return nil
 	default:
-		log.Printf("Unmanaged protoPayload.Metadata.Event.EventName %s", protoPayload.Metadata.Event.EventName)
+		log.Printf("Unmanaged event.EventName %s", event.EventName)
 		return nil
 	}
 }
