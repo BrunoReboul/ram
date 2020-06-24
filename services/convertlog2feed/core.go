@@ -35,6 +35,7 @@ import (
 // loggingpb "google.golang.org/genproto/googleapis/logging/v2" got erro json: cannot unmarshal string into Go struct field LogEntry.severity of type ltype.LogSeverity
 // "cloud.google.com/go/logging" got error json: cannot unmarshal string into Go struct field Entry.Severity of type logging.Severity
 type logEntry struct {
+	InsertID         string    `json:"insertId"`
 	Timestamp        time.Time `json:"timestamp"`
 	ReceiveTimestamp time.Time `json:"receiveTimestamp"`
 	Resource         struct {
@@ -77,6 +78,7 @@ type Global struct {
 	projectID                 string
 	pubsubPublisherClient     *pubsub.PublisherClient
 	retryTimeOutSeconds       int64
+	logEntry                  logEntry
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -146,33 +148,32 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	// log.Printf("PubSubMessage.Data %s", PubSubMessage.Data)
 	_ = metadata
 
-	var logEntry logEntry
-	err = json.Unmarshal(PubSubMessage.Data, &logEntry)
+	err = json.Unmarshal(PubSubMessage.Data, &global.logEntry)
 	if err != nil {
 		log.Printf("ERROR json.Unmarshal logentry %v", err)
 		return nil
 	}
 
-	switch logEntry.Resource.Type {
+	switch global.logEntry.Resource.Type {
 	case "audited_resource":
-		switch logEntry.Resource.Labels["service"] {
+		switch global.logEntry.Resource.Labels["service"] {
 		case "admin.googleapis.com":
-			return convertAdminActivityEvent(logEntry.ProtoPayload)
+			return convertAdminActivityEvent(global)
 		default:
-			log.Printf("Unmanaged  logEntry.Resource.Labels service  %s", logEntry.Resource.Labels["service"])
+			log.Printf("Unmanaged  global.logEntry.Resource.Labels service  %s", global.logEntry.Resource.Labels["service"])
 			return nil
 		}
 	default:
-		log.Printf("Unmanaged logEntry.Resource.Type %s", logEntry.Resource.Type)
+		log.Printf("Unmanaged logEntry.Resource.Type %s", global.logEntry.Resource.Type)
 		return nil
 	}
 }
 
 // https://developers.google.com/admin-sdk/reports/v1/reference/activity-ref-appendix-a/admin-event-names
-func convertAdminActivityEvent(data []byte) (err error) {
+func convertAdminActivityEvent(global *Global) (err error) {
 	var protoPayload protoPayload
 
-	err = json.Unmarshal(data, &protoPayload)
+	err = json.Unmarshal(global.logEntry.ProtoPayload, &protoPayload)
 	if err != nil {
 		log.Printf("ERROR json.Unmarshal protoPaylaod %v", err)
 		return nil
@@ -181,7 +182,7 @@ func convertAdminActivityEvent(data []byte) (err error) {
 	for _, event := range protoPayload.Metadata.Events {
 		switch event.EventType {
 		case "GROUP_SETTINGS":
-			return convertGroupSettings(&event)
+			return convertGroupSettings(&event, global)
 		default:
 			log.Printf("Unmanaged event.EventType %s", event.EventType)
 			return nil
@@ -190,7 +191,7 @@ func convertAdminActivityEvent(data []byte) (err error) {
 	return nil
 }
 
-func convertGroupSettings(event *event) (err error) {
+func convertGroupSettings(event *event, global *Global) (err error) {
 	var parameters groupSettingsParameters
 	err = json.Unmarshal(event.Parameter, &parameters)
 	if err != nil {
@@ -198,11 +199,39 @@ func convertGroupSettings(event *event) (err error) {
 		return nil
 	}
 	switch event.EventName {
-	case "REMOVE_GROUP_MEMBER":
-		log.Printf("REMOVE_GROUP_MEMBER %v", parameters)
+	case "CHANGE_GROUP_SETTING":
+		for _, parameter := range parameters {
+			if parameter.Name == "GROUP_EMAIL" {
+				return publishGroupSettings(parameter.Value, false, global)
+			}
+		}
+		log.Printf("ERROR CHANGE_GROUP_SETTING expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
 		return nil
 	default:
 		log.Printf("Unmanaged event.EventName %s", event.EventName)
 		return nil
 	}
+}
+
+func publishGroupSettings(groupEmail string, isDeleted bool, global *Global) (err error) {
+	var feedMessageGroupSettings ram.FeedMessageGroupSettings
+	feedMessageGroupSettings.Window.StartTime = global.logEntry.Timestamp
+	feedMessageGroupSettings.Origin = "real-time"
+	feedMessageGroupSettings.Asset.AssetType = "groupssettings.googleapis.com/groupSettings"
+	feedMessageGroupSettings.Deleted = isDeleted
+
+	if !isDeleted {
+		groupSettings, err := global.groupsSettingsService.Groups.Get(groupEmail).Do()
+		if err != nil {
+			return fmt.Errorf("groupsSettingsService.Groups.Get: %v", err) // RETRY
+		}
+		feedMessageGroupSettings.Asset.Resource = groupSettings
+	}
+
+	// feedMessageGroupSettings.Asset.Ancestors = feedMessageGroup.Asset.Ancestors
+	// feedMessageGroupSettings.Asset.Name = feedMessageGroup.Asset.Name + "/groupSettings"
+
+	log.Printf("CHANGE_GROUP_SETTING %s %v", groupEmail, feedMessageGroupSettings.Asset.Resource)
+
+	return nil
 }
