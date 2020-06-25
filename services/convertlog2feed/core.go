@@ -111,6 +111,7 @@ func Initialize(ctx context.Context, global *Global) {
 	}
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
+	global.collectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
 	global.GCIGroupMembersTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupMembers
 	global.GCIGroupSettingsTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupSettings
 	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
@@ -118,7 +119,7 @@ func Initialize(ctx context.Context, global *Global) {
 	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
 	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
 
-	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, global.projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
+	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, global.projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"}); !ok {
 		return
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
@@ -197,6 +198,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 
 	parts := strings.Split(protoPayload.ResourceName, "/")
 	global.organizationID = parts[1]
+	// log.Printf("global.organizationID", global.organizationID)
 	err = getCustomerID(global)
 	if err != nil {
 		return err // retry
@@ -299,6 +301,7 @@ func getCustomerID(global *Global) (err error) {
 	documentID := fmt.Sprintf("//cloudresourcemanager.googleapis.com/organizations/%s", global.organizationID)
 	documentID = ram.RevertSlash(documentID)
 	documentPath := global.collectionID + "/" + documentID
+	log.Printf("documentPath", documentPath)
 	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, 10)
 	if found {
 		assetMap := documentSnap.Data()
