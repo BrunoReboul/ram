@@ -76,9 +76,10 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.IAM.RolesOnServiceAccounts = []string{
 		"roles/iam.serviceAccountUser"}
 
-	// Data store permissions are not supported in custom roles
 	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
-		projectRunRole().Title,
+		projectRunRole().Title}
+	// Data store permissions are not supported in custom roles
+	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.Roles = []string{
 		"roles/datastore.viewer"}
 
 	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 128
