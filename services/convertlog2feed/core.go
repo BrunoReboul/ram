@@ -301,7 +301,7 @@ func getCustomerID(global *Global) (err error) {
 	documentID := fmt.Sprintf("//cloudresourcemanager.googleapis.com/organizations/%s", global.organizationID)
 	documentID = ram.RevertSlash(documentID)
 	documentPath := global.collectionID + "/" + documentID
-	log.Printf("documentPath", documentPath)
+	log.Printf("documentPath %s", documentPath)
 	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, 10)
 	if found {
 		assetMap := documentSnap.Data()
