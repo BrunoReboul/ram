@@ -47,7 +47,7 @@ func (projectRolesDeployment *ProjectRolesDeployment) Deploy() (err error) {
 				return nil
 			}
 		} else {
-			log.Printf("%s iam custom project role founded %s", projectRolesDeployment.Core.InstanceName, retreivedCustomRole.Name)
+			log.Printf("%s iam custom project role found %s", projectRolesDeployment.Core.InstanceName, retreivedCustomRole.Name)
 			retreivedCustomRole, err = projectsRolesService.Patch(name, &customRole).Context(projectRolesDeployment.Core.Ctx).Do()
 			if err != nil {
 				log.Printf("%s iam WARNING impossible to PATCH custom project roles %v", projectRolesDeployment.Core.InstanceName, err)
