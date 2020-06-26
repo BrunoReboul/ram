@@ -308,7 +308,7 @@ func getCustomerID(global *Global) (err error) {
 	// log.Printf("documentPath %s", documentPath)
 	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, 10)
 	if found {
-		log.Printf("Found firestore document %s", documentPath)
+		// log.Printf("Found firestore document %s", documentPath)
 
 		assetMap := documentSnap.Data()
 		assetMapJSON, err := json.Marshal(assetMap)
@@ -316,7 +316,8 @@ func getCustomerID(global *Global) (err error) {
 			log.Println("ERROR - json.Marshal(assetMap)")
 			return nil // NO RETRY
 		}
-		log.Printf("%s", string(assetMapJSON))
+		// log.Printf("%s", string(assetMapJSON))
+		_ = assetMapJSON
 
 		var assetInterface interface{} = assetMap["asset"]
 		if asset, ok := assetInterface.(map[string]interface{}); ok {

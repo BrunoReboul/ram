@@ -122,7 +122,7 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-	log.Println("Done COLD START")
+	// log.Println("Done COLD START")
 
 }
 
@@ -160,8 +160,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 		log.Println("ERROR - json.Marshal(feedMessage)")
 		return nil // NO RETRY
 	}
-
-	log.Printf("%s", string(feedMessageJSON))
+	// log.Printf("%s", string(feedMessageJSON))
+	_ = feedMessageJSON
 
 	var objectNameSuffix string
 	if feedMessage.Asset.IamPolicy == nil {
@@ -171,7 +171,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	}
 
 	objectName := strings.Replace(feedMessage.Asset.Name, "/", "", 2) + objectNameSuffix
-	log.Println("objectName", objectName)
+	// log.Println("objectName", objectName)
 	storageObject := global.bucketHandle.Object(objectName)
 
 	if feedMessage.Deleted == true {
