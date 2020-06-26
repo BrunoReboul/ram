@@ -219,88 +219,6 @@ func convertAdminActivityEvent(global *Global) (err error) {
 	}
 	return nil
 }
-
-func convertGroupSettings(event *event, global *Global) (err error) {
-	var parameters groupSettingsParameters
-	err = json.Unmarshal(event.Parameter, &parameters)
-	if err != nil {
-		log.Printf("ERROR json.Unmarshal groupSettingsParameters %v", err)
-		return nil
-	}
-	switch event.EventName {
-	case "CHANGE_GROUP_SETTING":
-		for _, parameter := range parameters {
-			if parameter.Name == "GROUP_EMAIL" {
-				return publishGroupSettings(parameter.Value, false, global)
-			}
-		}
-		log.Printf("ERROR CHANGE_GROUP_SETTING expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
-		return nil
-	default:
-		log.Printf("Unmanaged event.EventName %s", event.EventName)
-		return nil
-	}
-}
-
-func publishGroupSettings(groupEmail string, isDeleted bool, global *Global) (err error) {
-	var feedMessageGroupSettings ram.FeedMessageGroupSettings
-	feedMessageGroupSettings.Window.StartTime = global.logEntry.Timestamp
-	feedMessageGroupSettings.Origin = "real-time-log-export"
-	feedMessageGroupSettings.Asset.AssetType = "groupssettings.googleapis.com/groupSettings"
-	feedMessageGroupSettings.Deleted = isDeleted
-
-	var groupID string
-	if !isDeleted {
-		groupSettings, err := global.groupsSettingsService.Groups.Get(groupEmail).Do()
-		if err != nil {
-			return fmt.Errorf("groupsSettingsService.Groups.Get: %v", err) // RETRY
-		}
-		feedMessageGroupSettings.Asset.Resource = groupSettings
-
-		// groupKey: he value can be the group's email address, group alias, or the unique group ID.
-		// https://developers.google.com/admin-sdk/directory/v1/reference/groups/get
-		group, err := global.dirAdminService.Groups.Get(groupEmail).Context(global.ctx).Do()
-		if err != nil {
-			return fmt.Errorf("dirAdminService.Groups.Get %v", err)
-		}
-		groupID = group.Id
-	} else {
-		// WIP get group from firestore cache
-		groupID = ""
-	}
-
-	feedMessageGroupSettings.Asset.Ancestors = []string{fmt.Sprintf("directories/%s", global.directoryCustomerID)}
-	feedMessageGroupSettings.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s/groupSettings", global.directoryCustomerID, groupID)
-
-	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
-	if err != nil {
-		log.Println("ERROR - json.Marshal(feedMessageGroupSettings)")
-		return nil // NO RETRY
-	}
-
-	var pubSubMessage pubsubpb.PubsubMessage
-	pubSubMessage.Data = feedMessageGroupSettingsJSON
-
-	var pubsubMessages []*pubsubpb.PubsubMessage
-	pubsubMessages = append(pubsubMessages, &pubSubMessage)
-
-	var publishRequest pubsubpb.PublishRequest
-	publishRequest.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, global.GCIGroupSettingsTopicName)
-	publishRequest.Messages = pubsubMessages
-
-	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
-	if err != nil {
-		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err) // RETRY
-	}
-	log.Printf("Group %s %s settings published to pubsub topic %s ids %v %s",
-		feedMessageGroupSettings.Asset.Name,
-		feedMessageGroupSettings.Asset.Resource.Email,
-		global.GCIGroupSettingsTopicName,
-		pubsubResponse.MessageIds,
-		string(feedMessageGroupSettingsJSON))
-	return nil
-}
-
 func getCustomerID(global *Global) (err error) {
 	documentID := fmt.Sprintf("//cloudresourcemanager.googleapis.com/organizations/%s", global.organizationID)
 	documentID = ram.RevertSlash(documentID)
@@ -348,5 +266,195 @@ func getCustomerID(global *Global) (err error) {
 			return nil
 		}
 	}
+	return nil
+}
+
+func convertGroupSettings(event *event, global *Global) (err error) {
+	var parameters groupSettingsParameters
+	err = json.Unmarshal(event.Parameter, &parameters)
+	if err != nil {
+		log.Printf("ERROR json.Unmarshal groupSettingsParameters %v", err)
+		return nil
+	}
+	switch event.EventName {
+	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
+	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#DELETE_GROUP
+	case "ADD_GROUP_MEMBER":
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#ADD_GROUP_MEMBER
+		var groupEmail, memberEmail string
+		for _, parameter := range parameters {
+			switch parameter.Name {
+			case "GROUP_EMAIL":
+				groupEmail = parameter.Value
+			case "USER_EMAIL":
+				// The parmeter is no only a user email. It is a member email, can be group, service account or user
+				memberEmail = parameter.Value
+			}
+		}
+		if groupEmail == "" {
+			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
+			return nil
+		}
+		if memberEmail == "" {
+			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
+			return nil
+		}
+		return publishGroupMember(groupEmail, memberEmail, false, global)
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#REMOVE_GROUP_MEMBER
+	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER
+	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
+	case "CHANGE_GROUP_SETTING":
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_SETTING
+		for _, parameter := range parameters {
+			if parameter.Name == "GROUP_EMAIL" {
+				return publishGroupSettings(parameter.Value, false, global)
+			}
+		}
+		log.Printf("ERROR CHANGE_GROUP_SETTING expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
+		return nil
+	default:
+		log.Printf("Unmanaged event.EventName %s", event.EventName)
+		return nil
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_DESCRIPTION
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#GROUP_LIST_DOWNLOAD
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER_DELIVERY_SETTINGS
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER_DELIVERY_SETTINGS_CAN_EMAIL_OVERRIDE
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#GROUP_MEMBER_BULK_UPLOAD
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#GROUP_MEMBERS_DOWNLOAD
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#WHITELISTED_GROUPS_UPDATED
+	}
+}
+
+func publishGroupSettings(groupEmail string, isDeleted bool, global *Global) (err error) {
+	var feedMessageGroupSettings ram.FeedMessageGroupSettings
+	feedMessageGroupSettings.Window.StartTime = global.logEntry.Timestamp
+	feedMessageGroupSettings.Origin = "real-time-log-export"
+	feedMessageGroupSettings.Asset.AssetType = "groupssettings.googleapis.com/groupSettings"
+	feedMessageGroupSettings.Deleted = isDeleted
+
+	var groupID string
+	if !isDeleted {
+		groupSettings, err := global.groupsSettingsService.Groups.Get(groupEmail).Do()
+		if err != nil {
+			return fmt.Errorf("groupsSettingsService.Groups.Get: %v", err) // RETRY
+		}
+		feedMessageGroupSettings.Asset.Resource = groupSettings
+
+		groupID, err = getGroupIDFromEmail(groupEmail, global)
+		if err != nil {
+			return err
+		}
+	} else {
+		// WIP get group from firestore cache
+		groupID = ""
+	}
+
+	feedMessageGroupSettings.Asset.Ancestors = []string{fmt.Sprintf("directories/%s", global.directoryCustomerID)}
+	feedMessageGroupSettings.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s/groupSettings", global.directoryCustomerID, groupID)
+
+	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
+	if err != nil {
+		log.Println("ERROR - json.Marshal(feedMessageGroupSettings)")
+		return nil // NO RETRY
+	}
+
+	var pubSubMessage pubsubpb.PubsubMessage
+	pubSubMessage.Data = feedMessageGroupSettingsJSON
+
+	var pubsubMessages []*pubsubpb.PubsubMessage
+	pubsubMessages = append(pubsubMessages, &pubSubMessage)
+
+	var publishRequest pubsubpb.PublishRequest
+	publishRequest.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, global.GCIGroupSettingsTopicName)
+	publishRequest.Messages = pubsubMessages
+
+	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
+	if err != nil {
+		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
+	}
+	log.Printf("Group %s %s settings published to pubsub topic %s ids %v %s",
+		feedMessageGroupSettings.Asset.Name,
+		feedMessageGroupSettings.Asset.Resource.Email,
+		global.GCIGroupSettingsTopicName,
+		pubsubResponse.MessageIds,
+		string(feedMessageGroupSettingsJSON))
+	return nil
+}
+
+func getGroupIDFromEmail(groupEmail string, global *Global) (groupID string, err error) {
+	// groupKey: The value can be the group's email address, group alias, or the unique group ID.
+	// https://developers.google.com/admin-sdk/directory/v1/reference/groups/get
+	group, err := global.dirAdminService.Groups.Get(groupEmail).Context(global.ctx).Do()
+	if err != nil {
+		return "", fmt.Errorf("dirAdminService.Groups.Get %v", err)
+	}
+	return group.Id, nil
+}
+
+func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, global *Global) (err error) {
+	var feedMessageMember ram.FeedMessageMember
+	feedMessageMember.Window.StartTime = global.logEntry.Timestamp
+	feedMessageMember.Origin = "real-time-log-export"
+	feedMessageMember.Asset.AssetType = "www.googleapis.com/admin/directory/members"
+	feedMessageMember.Deleted = isDeleted
+
+	var groupMember *admin.Member
+	var groupID string
+	if !isDeleted {
+		// groupKey: The value can be the group's email address, group alias, or the unique group ID.
+		// memberKey: The value can be the member's (group or user) primary email address, alias, or unique ID
+		// https://developers.google.com/admin-sdk/directory/v1/reference/members/get
+		groupMember, err = global.dirAdminService.Members.Get(groupEmail, memberEmail).Context(global.ctx).Do()
+		if err != nil {
+			return fmt.Errorf("dirAdminService.Members.Get %v", err)
+		}
+		groupID, err = getGroupIDFromEmail(groupEmail, global)
+		if err != nil {
+			return err
+		}
+	} else {
+		// WIP get groupMember from firestore cache
+		groupID = ""
+	}
+
+	feedMessageMember.Asset.Ancestors = []string{
+		fmt.Sprintf("groups/%s", groupID),
+		fmt.Sprintf("directories/%s", global.directoryCustomerID)}
+
+	feedMessageMember.Asset.AncestryPath = fmt.Sprintf("directories/%s/groups/%s", global.directoryCustomerID, groupID)
+	feedMessageMember.Asset.Name = "//" + feedMessageMember.Asset.AncestryPath + "/members/" + groupMember.Id
+	feedMessageMember.Asset.Resource.GroupEmail = groupEmail
+	feedMessageMember.Asset.Resource.MemberEmail = memberEmail
+	feedMessageMember.Asset.Resource.ID = groupMember.Id
+	feedMessageMember.Asset.Resource.Kind = groupMember.Kind
+	feedMessageMember.Asset.Resource.Role = groupMember.Role
+	feedMessageMember.Asset.Resource.Type = groupMember.Type
+	feedMessageMemberJSON, err := json.Marshal(feedMessageMember)
+	if err != nil {
+		log.Printf("ERROR - %s json.Marshal(feedMessageMember): %v", memberEmail, err)
+	}
+
+	var pubSubMessage pubsubpb.PubsubMessage
+	pubSubMessage.Data = feedMessageMemberJSON
+
+	var pubsubMessages []*pubsubpb.PubsubMessage
+	pubsubMessages = append(pubsubMessages, &pubSubMessage)
+
+	var publishRequest pubsubpb.PublishRequest
+	publishRequest.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, global.GCIGroupMembersTopicName)
+	publishRequest.Messages = pubsubMessages
+
+	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
+	if err != nil {
+		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
+	}
+	log.Printf("Member %s %s %s settings published to pubsub topic %s ids %v %s",
+		feedMessageMember.Asset.Name,
+		feedMessageMember.Asset.Resource.GroupEmail,
+		feedMessageMember.Asset.Resource.MemberEmail,
+		global.GCIGroupSettingsTopicName,
+		pubsubResponse.MessageIds,
+		string(feedMessageMemberJSON))
+
 	return nil
 }
