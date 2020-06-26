@@ -102,6 +102,8 @@ func Initialize(ctx context.Context, global *Global) {
 	}
 	// bucketHandle must be evaluated after storateClient init
 	global.bucketHandle = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.AssetsJSONFile.Name)
+	ram.JSONMarshalIndentPrint(global.bucketHandle.Attrs)
+
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
 		log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
@@ -153,7 +155,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	feedMessage.Asset.AssetTypeLegacy = feedMessage.Asset.AssetType
 	feedMessage.Asset.AncestryPathLegacy = feedMessage.Asset.AncestryPath
 
-	// log.Printf("%v", feedMessage)
+	log.Printf("%v", feedMessage)
 
 	var objectNameSuffix string
 	if feedMessage.Asset.IamPolicy == nil {
@@ -163,7 +165,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	}
 
 	objectName := strings.Replace(feedMessage.Asset.Name, "/", "", 2) + objectNameSuffix
-	// log.Println("objectName", objectName)
+	log.Println("objectName", objectName)
 	storageObject := global.bucketHandle.Object(objectName)
 
 	if feedMessage.Deleted == true {
