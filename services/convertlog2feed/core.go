@@ -203,7 +203,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 	if err != nil {
 		return err // retry
 	}
-	if global.directoryCustomerID = "" {
+	if global.directoryCustomerID == "" {
 		log.Println("ERROR directoryCustomerID not found")
 		return nil
 	}
@@ -309,13 +309,13 @@ func getCustomerID(global *Global) (err error) {
 	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, 10)
 	if found {
 		log.Printf("Found firestore document %s", documentPath)
-	
+
 		assetMap := documentSnap.Data()
 		assetMapJSON, err := json.Marshal(assetMap)
 		if err != nil {
 			log.Println("ERROR - json.Marshal(assetMap)")
 			return nil // NO RETRY
-		}	
+		}
 		log.Printf("%s", string(assetMapJSON))
 
 		var assetInterface interface{} = assetMap["asset"]
