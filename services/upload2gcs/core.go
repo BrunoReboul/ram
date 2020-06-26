@@ -155,7 +155,13 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	feedMessage.Asset.AssetTypeLegacy = feedMessage.Asset.AssetType
 	feedMessage.Asset.AncestryPathLegacy = feedMessage.Asset.AncestryPath
 
-	log.Printf("%v", feedMessage)
+	feedMessageJSON, err := json.Marshal(feedMessage)
+	if err != nil {
+		log.Println("ERROR - json.Marshal(feedMessage)")
+		return nil // NO RETRY
+	}
+
+	log.Printf("%s", string(feedMessageJSON))
 
 	var objectNameSuffix string
 	if feedMessage.Asset.IamPolicy == nil {

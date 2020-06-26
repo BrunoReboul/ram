@@ -203,6 +203,10 @@ func convertAdminActivityEvent(global *Global) (err error) {
 	if err != nil {
 		return err // retry
 	}
+	if global.directoryCustomerID = "" {
+		log.Println("ERROR directoryCustomerID not found")
+		return nil
+	}
 
 	for _, event := range protoPayload.Metadata.Events {
 		switch event.EventType {
@@ -270,7 +274,7 @@ func publishGroupSettings(groupEmail string, isDeleted bool, global *Global) (er
 
 	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
 	if err != nil {
-		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
+		log.Println("ERROR - json.Marshal(feedMessageGroupSettings)")
 		return nil // NO RETRY
 	}
 
@@ -301,11 +305,19 @@ func getCustomerID(global *Global) (err error) {
 	documentID := fmt.Sprintf("//cloudresourcemanager.googleapis.com/organizations/%s", global.organizationID)
 	documentID = ram.RevertSlash(documentID)
 	documentPath := global.collectionID + "/" + documentID
-	log.Printf("documentPath %s", documentPath)
+	// log.Printf("documentPath %s", documentPath)
 	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, 10)
 	if found {
+		log.Printf("Found firestore document %s", documentPath)
+	
 		assetMap := documentSnap.Data()
-		// log.Println(assetMap)
+		assetMapJSON, err := json.Marshal(assetMap)
+		if err != nil {
+			log.Println("ERROR - json.Marshal(assetMap)")
+			return nil // NO RETRY
+		}	
+		log.Printf("%s", string(assetMapJSON))
+
 		var assetInterface interface{} = assetMap["asset"]
 		if asset, ok := assetInterface.(map[string]interface{}); ok {
 			var resourceInterface interface{} = asset["resource"]
@@ -314,7 +326,7 @@ func getCustomerID(global *Global) (err error) {
 				if data, ok := dataInterface.(map[string]interface{}); ok {
 					var ownerInterface interface{} = data["owner"]
 					if owner, ok := ownerInterface.(map[string]interface{}); ok {
-						var directoryCustomerIDInterface interface{} = owner["displayName"]
+						var directoryCustomerIDInterface interface{} = owner["directoryCustomerId"]
 						if directoryCustomerID, ok := directoryCustomerIDInterface.(string); ok {
 							global.directoryCustomerID = directoryCustomerID
 							return nil
