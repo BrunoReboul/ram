@@ -35,7 +35,8 @@ type InstanceDeployment struct {
 			IAM             iamgt.Parameters
 			GCB             gcb.Parameters
 			GCF             gcf.Parameters
-			KeyJSONFileName string `yaml:"keyJSONFileName"`
+			KeyJSONFileName string        `yaml:"keyJSONFileName"`
+			RetriesNumber   time.Duration `yaml:"time.Duration"`
 		}
 		Instance struct {
 			GCF gcf.Event
@@ -87,6 +88,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GCF.Timeout = "60s"
 
 	instanceDeployment.Settings.Service.KeyJSONFileName = "key.json"
+	instanceDeployment.Settings.Service.RetriesNumber = 10
 
 	return &instanceDeployment
 }

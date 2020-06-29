@@ -23,9 +23,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/groupssettings/v1"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
 	"cloud.google.com/go/firestore"
@@ -74,21 +76,23 @@ type groupSettingsParameters []struct {
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
-	GCIGroupMembersTopicName    string
-	GCIGroupSettingsTopicName   string
 	cloudresourcemanagerService *cloudresourcemanager.Service
 	collectionID                string
 	ctx                         context.Context
 	dirAdminService             *admin.Service
 	directoryCustomerID         string
 	firestoreClient             *firestore.Client
+	GCIGroupMembersTopicName    string
+	GCIGroupSettingsTopicName   string
 	groupsSettingsService       *groupssettings.Service
 	initFailed                  bool
 	logEntry                    logEntry
 	organizationID              string
 	projectID                   string
 	pubsubPublisherClient       *pubsub.PublisherClient
+	retriesNumber               time.Duration
 	retryTimeOutSeconds         int64
+	topicList                   []string
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -115,6 +119,7 @@ func Initialize(ctx context.Context, global *Global) {
 	global.GCIGroupMembersTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupMembers
 	global.GCIGroupSettingsTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupSettings
 	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
+	global.retriesNumber = instanceDeployment.Settings.Service.RetriesNumber
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
 	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
@@ -149,6 +154,12 @@ func Initialize(ctx context.Context, global *Global) {
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
 		log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
+		global.initFailed = true
+		return
+	}
+	err = gps.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &global.topicList)
+	if err != nil {
+		log.Printf("ERROR - gps.GetTopicList: %v", err)
 		global.initFailed = true
 		return
 	}
@@ -224,7 +235,7 @@ func getCustomerID(global *Global) (err error) {
 	documentID = ram.RevertSlash(documentID)
 	documentPath := global.collectionID + "/" + documentID
 	// log.Printf("documentPath %s", documentPath)
-	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, 10)
+	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, global.retriesNumber)
 	if found {
 		// log.Printf("Found firestore document %s", documentPath)
 
@@ -277,7 +288,20 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		return nil
 	}
 	switch event.EventName {
-	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
+	case "CREATE_GROUP":
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
+		var groupEmail string
+		for _, parameter := range parameters {
+			switch parameter.Name {
+			case "GROUP_EMAIL":
+				groupEmail = parameter.Value
+			}
+		}
+		if groupEmail == "" {
+			log.Printf("ERROR CREATE_GROUP expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
+			return nil
+		}
+		return publishGroupCreation(groupEmail, global)
 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#DELETE_GROUP
 	case "ADD_GROUP_MEMBER":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#ADD_GROUP_MEMBER
@@ -325,6 +349,51 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 	}
 }
 
+func publishGroupCreation(groupEmail string, global *Global) (err error) {
+	group, err := getGroupFromEmail(groupEmail, global)
+	var feedMessage ram.FeedMessageGroup
+	feedMessage.Window.StartTime = global.logEntry.Timestamp
+	feedMessage.Origin = "real-time-log-export"
+	feedMessage.Deleted = false
+	feedMessage.Asset.Ancestors = []string{fmt.Sprintf("directories/%s", global.directoryCustomerID)}
+	feedMessage.Asset.AncestryPath = fmt.Sprintf("directories/%s", global.directoryCustomerID)
+	feedMessage.Asset.AssetType = "www.googleapis.com/admin/directory/groups"
+	feedMessage.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s", global.directoryCustomerID, group.Id)
+	feedMessage.Asset.Resource = group
+	feedMessage.Asset.Resource.Etag = ""
+	feedMessageJSON, err := json.Marshal(feedMessage)
+	if err != nil {
+		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", group.Email, err)
+		return nil // NO RETRY
+	}
+	var pubSubMessage pubsubpb.PubsubMessage
+	pubSubMessage.Data = feedMessageJSON
+
+	var pubsubMessages []*pubsubpb.PubsubMessage
+	pubsubMessages = append(pubsubMessages, &pubSubMessage)
+
+	var publishRequest pubsubpb.PublishRequest
+	topicName := fmt.Sprintf("projects/%s/topics/gci-groups-%s", global.projectID, global.directoryCustomerID)
+	if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, &global.topicList, topicName, global.projectID); err != nil {
+		log.Printf("ERROR - %s gps.CreateTopic: %v", topicName, err)
+		return nil // NO RETRY
+	}
+	publishRequest.Topic = topicName
+	publishRequest.Messages = pubsubMessages
+
+	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
+	if err != nil {
+		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
+	}
+	log.Printf("Group %s %s creation published to pubsub topic %s ids %v %s",
+		feedMessage.Asset.Name,
+		feedMessage.Asset.Resource.Email,
+		topicName,
+		pubsubResponse.MessageIds,
+		string(feedMessageJSON))
+	return nil
+}
+
 func publishGroupSettings(groupEmail string, isDeleted bool, global *Global) (err error) {
 	var feedMessageGroupSettings ram.FeedMessageGroupSettings
 	feedMessageGroupSettings.Window.StartTime = global.logEntry.Timestamp
@@ -340,10 +409,11 @@ func publishGroupSettings(groupEmail string, isDeleted bool, global *Global) (er
 		}
 		feedMessageGroupSettings.Asset.Resource = groupSettings
 
-		groupID, err = getGroupIDFromEmail(groupEmail, global)
+		group, err := getGroupFromEmail(groupEmail, global)
 		if err != nil {
 			return err
 		}
+		groupID = group.Id
 	} else {
 		// WIP get group from firestore cache
 		groupID = ""
@@ -381,14 +451,14 @@ func publishGroupSettings(groupEmail string, isDeleted bool, global *Global) (er
 	return nil
 }
 
-func getGroupIDFromEmail(groupEmail string, global *Global) (groupID string, err error) {
+func getGroupFromEmail(groupEmail string, global *Global) (group *admin.Group, err error) {
 	// groupKey: The value can be the group's email address, group alias, or the unique group ID.
 	// https://developers.google.com/admin-sdk/directory/v1/reference/groups/get
-	group, err := global.dirAdminService.Groups.Get(groupEmail).Context(global.ctx).Do()
+	group, err = global.dirAdminService.Groups.Get(groupEmail).Context(global.ctx).Do()
 	if err != nil {
-		return "", fmt.Errorf("dirAdminService.Groups.Get %v", err)
+		return group, fmt.Errorf("dirAdminService.Groups.Get %v", err)
 	}
-	return group.Id, nil
+	return group, nil
 }
 
 func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, global *Global) (err error) {
@@ -408,13 +478,58 @@ func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, g
 		if err != nil {
 			return fmt.Errorf("dirAdminService.Members.Get %v", err)
 		}
-		groupID, err = getGroupIDFromEmail(groupEmail, global)
+		group, err := getGroupFromEmail(groupEmail, global)
 		if err != nil {
 			return err
 		}
+		groupID = group.Id
 	} else {
-		// WIP get groupMember from firestore cache
-		groupID = ""
+		assets := global.firestoreClient.Collection(global.collectionID)
+		query := assets.Where(
+			"asset.assetType", "==", "www.googleapis.com/admin/directory/members").Where(
+			"asset.resource.groupEmail", "==", groupEmail).Where(
+			"asset.resource.memberEmail", "==", memberEmail)
+		var i time.Duration
+		var documentSnap *firestore.DocumentSnapshot
+		for i = 0; i < global.retriesNumber; i++ {
+			iter := query.Documents(global.ctx)
+			defer iter.Stop()
+			// the query is expected to return only one document
+			for {
+				documentSnap, err = iter.Next()
+				if err == iterator.Done {
+					break
+				}
+			}
+			if err != nil && err != iterator.Done {
+				log.Printf("ERROR - iteration %d iter.Next() %v", i, err)
+				time.Sleep(i * 100 * time.Millisecond)
+			} else {
+				break
+			}
+
+		}
+		if documentSnap.Exists() {
+			assetMap := documentSnap.Data()
+			assetMapJSON, err := json.Marshal(assetMap)
+			if err != nil {
+				log.Println("ERROR - json.Marshal(assetMap)")
+				return nil // NO RETRY
+			}
+			log.Printf("%s", string(assetMapJSON))
+			_ = assetMapJSON
+
+			var assetInterface interface{} = assetMap["asset"]
+			if asset, ok := assetInterface.(map[string]interface{}); ok {
+				var nameInterface interface{} = asset["name"]
+				if name, ok := nameInterface.(string); ok {
+					parts := strings.Split(name, "/")
+					for n, part := range parts {
+						log.Printf("part %d value %s", n, part)
+					}
+				}
+			}
+		}
 	}
 
 	feedMessageMember.Asset.Ancestors = []string{
@@ -452,7 +567,7 @@ func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, g
 		feedMessageMember.Asset.Name,
 		feedMessageMember.Asset.Resource.GroupEmail,
 		feedMessageMember.Asset.Resource.MemberEmail,
-		global.GCIGroupSettingsTopicName,
+		global.GCIGroupMembersTopicName,
 		pubsubResponse.MessageIds,
 		string(feedMessageMemberJSON))
 
