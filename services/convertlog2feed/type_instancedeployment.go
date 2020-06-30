@@ -100,6 +100,8 @@ func projectRunRole() (role iam.Role) {
 	role.IncludedPermissions = []string{
 		"iam.serviceAccountKeys.list",
 		"iam.serviceAccountKeys.delete",
+		"pubsub.topics.create",
+		"pubsub.topics.list",
 		"pubsub.topics.publish"}
 	return role
 }
