@@ -366,6 +366,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 	if err != nil {
 		return err
 	}
+	log.Printf("groupID %s", groupID)
 	if groupID != "" {
 		var feedMessage ram.FeedMessageGroup
 		feedMessage.Window.StartTime = global.logEntry.Timestamp
@@ -373,6 +374,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 		feedMessage.Deleted = true
 		feedMessage.Asset.AssetType = "www.googleapis.com/admin/directory/groups"
 		feedMessage.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s", global.directoryCustomerID, groupID)
+		log.Println("publishGroupDeletion before publishGroup")
 		return publishGroup(feedMessage, global)
 	}
 	return nil
@@ -384,6 +386,8 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", feedMessage.Asset.Name, err)
 		return nil // NO RETRY
 	}
+	log.Println("publishGroup after marshal")
+
 	var pubSubMessage pubsubpb.PubsubMessage
 	pubSubMessage.Data = feedMessageJSON
 
@@ -502,12 +506,6 @@ func getGroupIDFromCache(groupEmail string, global *Global) (groupID string, err
 				if name, ok := nameInterface.(string); ok {
 					parts := strings.Split(name, "/")
 					groupID = parts[len(parts)-1]
-
-					log.Printf("number of parts %d", len(parts))
-					for n, part := range parts {
-						log.Printf("part %d value %s", n, part)
-					}
-
 					return groupID, nil
 				}
 			}
