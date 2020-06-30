@@ -373,11 +373,12 @@ func publishGroupCreation(groupEmail string, global *Global) (err error) {
 	pubsubMessages = append(pubsubMessages, &pubSubMessage)
 
 	var publishRequest pubsubpb.PublishRequest
-	topicName := fmt.Sprintf("projects/%s/topics/gci-groups-%s", global.projectID, global.directoryCustomerID)
-	if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, &global.topicList, topicName, global.projectID); err != nil {
-		log.Printf("ERROR - %s gps.CreateTopic: %v", topicName, err)
+	topicShortName := fmt.Sprintf("gci-groups-%s", global.directoryCustomerID)
+	if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, &global.topicList, topicShortName, global.projectID); err != nil {
+		log.Printf("ERROR - %s gps.CreateTopic: %v", topicShortName, err)
 		return nil // NO RETRY
 	}
+	topicName := fmt.Sprintf("projects/%s/topics/%s", global.projectID, topicShortName)
 	publishRequest.Topic = topicName
 	publishRequest.Messages = pubsubMessages
 
