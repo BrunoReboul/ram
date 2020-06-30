@@ -366,7 +366,6 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 	if err != nil {
 		return err
 	}
-	log.Printf("groupID %s", groupID)
 	if groupID != "" {
 		var feedMessage ram.FeedMessageGroup
 		feedMessage.Window.StartTime = global.logEntry.Timestamp
@@ -374,7 +373,6 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 		feedMessage.Deleted = true
 		feedMessage.Asset.AssetType = "www.googleapis.com/admin/directory/groups"
 		feedMessage.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s", global.directoryCustomerID, groupID)
-		log.Println("publishGroupDeletion before publishGroup")
 		return publishGroup(feedMessage, global)
 	}
 	return nil
@@ -386,7 +384,6 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", feedMessage.Asset.Name, err)
 		return nil // NO RETRY
 	}
-	log.Println("publishGroup after marshal")
 
 	var pubSubMessage pubsubpb.PubsubMessage
 	pubSubMessage.Data = feedMessageJSON
@@ -396,11 +393,13 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 
 	var publishRequest pubsubpb.PublishRequest
 	topicShortName := fmt.Sprintf("gci-groups-%s", global.directoryCustomerID)
+	log.Printf("topicShortName %s", topicShortName)
 	if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, &global.topicList, topicShortName, global.projectID); err != nil {
 		log.Printf("ERROR - %s gps.CreateTopic: %v", topicShortName, err)
 		return nil // NO RETRY
 	}
 	topicName := fmt.Sprintf("projects/%s/topics/%s", global.projectID, topicShortName)
+	log.Printf("topicName %s", topicName)
 	publishRequest.Topic = topicName
 	publishRequest.Messages = pubsubMessages
 
