@@ -287,37 +287,37 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		log.Printf("ERROR json.Unmarshal groupSettingsParameters %v", err)
 		return nil
 	}
+	var groupEmail string
+	for _, parameter := range parameters {
+		switch parameter.Name {
+		case "GROUP_EMAIL":
+			groupEmail = parameter.Value
+		}
+	}
+	if groupEmail == "" {
+		log.Printf("ERROR expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
+		return nil
+	}
 	switch event.EventName {
 	case "CREATE_GROUP":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
-		var groupEmail string
-		for _, parameter := range parameters {
-			switch parameter.Name {
-			case "GROUP_EMAIL":
-				groupEmail = parameter.Value
-			}
-		}
-		if groupEmail == "" {
-			log.Printf("ERROR CREATE_GROUP expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
-			return nil
-		}
 		return publishGroupCreation(groupEmail, global)
-	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#DELETE_GROUP
+	case "DELETE_GROUP":
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#DELETE_GROUP
+		err = publishGroupDeletion(groupEmail, global)
+		if err != nil {
+			return fmt.Errorf("publishGroupDeletion %s %s", groupEmail, err)
+		}
+		return nil
 	case "ADD_GROUP_MEMBER":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#ADD_GROUP_MEMBER
-		var groupEmail, memberEmail string
+		var memberEmail string
 		for _, parameter := range parameters {
 			switch parameter.Name {
-			case "GROUP_EMAIL":
-				groupEmail = parameter.Value
 			case "USER_EMAIL":
 				// The parmeter is no only a user email. It is a member email, can be group, service account or user
 				memberEmail = parameter.Value
 			}
-		}
-		if groupEmail == "" {
-			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
-			return nil
 		}
 		if memberEmail == "" {
 			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
@@ -329,13 +329,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
 	case "CHANGE_GROUP_SETTING":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_SETTING
-		for _, parameter := range parameters {
-			if parameter.Name == "GROUP_EMAIL" {
-				return publishGroupSettings(parameter.Value, false, global)
-			}
-		}
-		log.Printf("ERROR CHANGE_GROUP_SETTING expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
-		return nil
+		return publishGroupSettings(groupEmail, global)
 	default:
 		log.Printf("Unmanaged event.EventName %s", event.EventName)
 		return nil
@@ -351,6 +345,9 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 
 func publishGroupCreation(groupEmail string, global *Global) (err error) {
 	group, err := getGroupFromEmail(groupEmail, global)
+	if err != nil {
+		return err
+	}
 	var feedMessage ram.FeedMessageGroup
 	feedMessage.Window.StartTime = global.logEntry.Timestamp
 	feedMessage.Origin = "real-time-log-export"
@@ -361,9 +358,30 @@ func publishGroupCreation(groupEmail string, global *Global) (err error) {
 	feedMessage.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s", global.directoryCustomerID, group.Id)
 	feedMessage.Asset.Resource = group
 	feedMessage.Asset.Resource.Etag = ""
+	return publishGroup(feedMessage, global)
+}
+
+func publishGroupDeletion(groupEmail string, global *Global) (err error) {
+	groupID, err := getGroupIDFromCache(groupEmail, global)
+	if err != nil {
+		return err
+	}
+	if groupID != "" {
+		var feedMessage ram.FeedMessageGroup
+		feedMessage.Window.StartTime = global.logEntry.Timestamp
+		feedMessage.Origin = "real-time-log-export"
+		feedMessage.Deleted = true
+		feedMessage.Asset.AssetType = "www.googleapis.com/admin/directory/groups"
+		feedMessage.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s", global.directoryCustomerID, groupID)
+		return publishGroup(feedMessage, global)
+	}
+	return nil
+}
+
+func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) {
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
-		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", group.Email, err)
+		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", feedMessage.Asset.Name, err)
 		return nil // NO RETRY
 	}
 	var pubSubMessage pubsubpb.PubsubMessage
@@ -386,7 +404,7 @@ func publishGroupCreation(groupEmail string, global *Global) (err error) {
 	if err != nil {
 		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
 	}
-	log.Printf("Group %s %s creation published to pubsub topic %s ids %v %s",
+	log.Printf("Group %s %s published to pubsub topic %s ids %v %s",
 		feedMessage.Asset.Name,
 		feedMessage.Asset.Resource.Email,
 		topicName,
@@ -395,30 +413,25 @@ func publishGroupCreation(groupEmail string, global *Global) (err error) {
 	return nil
 }
 
-func publishGroupSettings(groupEmail string, isDeleted bool, global *Global) (err error) {
+func publishGroupSettings(groupEmail string, global *Global) (err error) {
 	var feedMessageGroupSettings ram.FeedMessageGroupSettings
 	feedMessageGroupSettings.Window.StartTime = global.logEntry.Timestamp
 	feedMessageGroupSettings.Origin = "real-time-log-export"
 	feedMessageGroupSettings.Asset.AssetType = "groupssettings.googleapis.com/groupSettings"
-	feedMessageGroupSettings.Deleted = isDeleted
+	feedMessageGroupSettings.Deleted = false
 
 	var groupID string
-	if !isDeleted {
-		groupSettings, err := global.groupsSettingsService.Groups.Get(groupEmail).Do()
-		if err != nil {
-			return fmt.Errorf("groupsSettingsService.Groups.Get: %v", err) // RETRY
-		}
-		feedMessageGroupSettings.Asset.Resource = groupSettings
-
-		group, err := getGroupFromEmail(groupEmail, global)
-		if err != nil {
-			return err
-		}
-		groupID = group.Id
-	} else {
-		// WIP get group from firestore cache
-		groupID = ""
+	groupSettings, err := global.groupsSettingsService.Groups.Get(groupEmail).Do()
+	if err != nil {
+		return fmt.Errorf("groupsSettingsService.Groups.Get: %v", err) // RETRY
 	}
+	feedMessageGroupSettings.Asset.Resource = groupSettings
+
+	group, err := getGroupFromEmail(groupEmail, global)
+	if err != nil {
+		return err
+	}
+	groupID = group.Id
 
 	feedMessageGroupSettings.Asset.Ancestors = []string{fmt.Sprintf("directories/%s", global.directoryCustomerID)}
 	feedMessageGroupSettings.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s/groupSettings", global.directoryCustomerID, groupID)
@@ -457,9 +470,50 @@ func getGroupFromEmail(groupEmail string, global *Global) (group *admin.Group, e
 	// https://developers.google.com/admin-sdk/directory/v1/reference/groups/get
 	group, err = global.dirAdminService.Groups.Get(groupEmail).Context(global.ctx).Do()
 	if err != nil {
-		return group, fmt.Errorf("dirAdminService.Groups.Get %v", err)
+		return group, fmt.Errorf("dirAdminService.Groups.Get %v", err) //
 	}
 	return group, nil
+}
+
+func getGroupIDFromCache(groupEmail string, global *Global) (groupID string, err error) {
+	assets := global.firestoreClient.Collection(global.collectionID)
+	query := assets.Where(
+		"asset.assetType", "==", "www.googleapis.com/admin/directory/groups").Where(
+		"asset.resource.email", "==", groupEmail)
+	var documentSnap *firestore.DocumentSnapshot
+	iter := query.Documents(global.ctx)
+	defer iter.Stop()
+	// the query is expected to return only one document
+	for {
+		documentSnap, err = iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return "", fmt.Errorf("iter.Next() %v", err) // RETRY
+		}
+	}
+
+	if documentSnap.Exists() {
+		assetMap := documentSnap.Data()
+		var assetInterface interface{} = assetMap["asset"]
+		if asset, ok := assetInterface.(map[string]interface{}); ok {
+			var nameInterface interface{} = asset["name"]
+			if name, ok := nameInterface.(string); ok {
+				parts := strings.Split(name, "/")
+				groupID = parts[len(parts)-1]
+
+				log.Printf("number of parts %d", len(parts))
+				for n, part := range parts {
+					log.Printf("part %d value %s", n, part)
+				}
+
+				return groupID, nil
+			}
+		}
+	}
+	log.Printf("ERROR - deleted group not found in cache, cannot clean up RAM data %s", groupEmail)
+	return "", nil // no RETRY
 }
 
 func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, global *Global) (err error) {
@@ -530,7 +584,10 @@ func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, g
 					}
 				}
 			}
+		} else {
+			log.Printf("ERROR - deleted groupMember %s in group %s not found in cache, cannot clean up RAM data", memberEmail, groupEmail)
 		}
+		return nil
 	}
 
 	feedMessageMember.Asset.Ancestors = []string{
