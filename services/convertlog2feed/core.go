@@ -298,7 +298,6 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		log.Printf("ERROR expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
 		return nil
 	}
-	log.Printf("groupEmail %s", groupEmail)
 	switch event.EventName {
 	// case "CREATE_GROUP":
 	// 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
@@ -485,15 +484,18 @@ func getGroupIDFromCache(groupEmail string, global *Global) (groupID string, err
 	iter := query.Documents(global.ctx)
 	defer iter.Stop()
 	// the query is expected to return only one document
-	log.Println("getGroupIDFromCache before for")
 	for {
+		log.Println("getGroupIDFromCache before iterNext")
 		documentSnap, err = iter.Next()
 		if err == iterator.Done {
+			log.Println("getGroupIDFromCache iter done")
 			break
 		}
 		if err != nil {
+			log.Println("getGroupIDFromCache iter err")
 			return "", fmt.Errorf("iter.Next() %v", err) // RETRY
 		}
+		log.Println("getGroupIDFromCache end for")
 	}
 
 	if documentSnap.Exists() {
