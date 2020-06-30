@@ -298,10 +298,11 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		log.Printf("ERROR expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
 		return nil
 	}
+	log.Printf("groupEmail %s", groupEmail)
 	switch event.EventName {
-	case "CREATE_GROUP":
-		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
-		return publishGroupCreation(groupEmail, global)
+	// case "CREATE_GROUP":
+	// 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
+	// 	return publishGroupCreation(groupEmail, global)
 	case "DELETE_GROUP":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#DELETE_GROUP
 		err = publishGroupDeletion(groupEmail, global)
@@ -309,27 +310,27 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			return fmt.Errorf("publishGroupDeletion %s %s", groupEmail, err)
 		}
 		return nil
-	case "ADD_GROUP_MEMBER":
-		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#ADD_GROUP_MEMBER
-		var memberEmail string
-		for _, parameter := range parameters {
-			switch parameter.Name {
-			case "USER_EMAIL":
-				// The parmeter is no only a user email. It is a member email, can be group, service account or user
-				memberEmail = parameter.Value
-			}
-		}
-		if memberEmail == "" {
-			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
-			return nil
-		}
-		return publishGroupMember(groupEmail, memberEmail, false, global)
-		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#REMOVE_GROUP_MEMBER
-	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER
-	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
-	case "CHANGE_GROUP_SETTING":
-		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_SETTING
-		return publishGroupSettings(groupEmail, global)
+	// case "ADD_GROUP_MEMBER":
+	// 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#ADD_GROUP_MEMBER
+	// 	var memberEmail string
+	// 	for _, parameter := range parameters {
+	// 		switch parameter.Name {
+	// 		case "USER_EMAIL":
+	// 			// The parmeter is no only a user email. It is a member email, can be group, service account or user
+	// 			memberEmail = parameter.Value
+	// 		}
+	// 	}
+	// 	if memberEmail == "" {
+	// 		log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
+	// 		return nil
+	// 	}
+	// 	return publishGroupMember(groupEmail, memberEmail, false, global)
+	// 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#REMOVE_GROUP_MEMBER
+	// // https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER
+	// // https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
+	// case "CHANGE_GROUP_SETTING":
+	// 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_SETTING
+	// 	return publishGroupSettings(groupEmail, global)
 	default:
 		log.Printf("Unmanaged event.EventName %s", event.EventName)
 		return nil
@@ -484,6 +485,7 @@ func getGroupIDFromCache(groupEmail string, global *Global) (groupID string, err
 	iter := query.Documents(global.ctx)
 	defer iter.Stop()
 	// the query is expected to return only one document
+	log.Println("getGroupIDFromCache before for")
 	for {
 		documentSnap, err = iter.Next()
 		if err == iterator.Done {
@@ -495,6 +497,7 @@ func getGroupIDFromCache(groupEmail string, global *Global) (groupID string, err
 	}
 
 	if documentSnap.Exists() {
+		log.Println("getGroupIDFromCache document found")
 		assetMap := documentSnap.Data()
 		var assetInterface interface{} = assetMap["asset"]
 		if asset, ok := assetInterface.(map[string]interface{}); ok {
