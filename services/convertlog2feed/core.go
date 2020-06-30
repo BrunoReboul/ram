@@ -485,35 +485,31 @@ func getGroupIDFromCache(groupEmail string, global *Global) (groupID string, err
 	defer iter.Stop()
 	// the query is expected to return only one document
 	for {
-		log.Println("getGroupIDFromCache before iterNext")
 		documentSnap, err = iter.Next()
 		if err == iterator.Done {
-			log.Println("getGroupIDFromCache iter done")
 			break
 		}
 		if err != nil {
 			log.Println("getGroupIDFromCache iter err")
 			return "", fmt.Errorf("iter.Next() %v", err) // RETRY
 		}
-		log.Println("getGroupIDFromCache end for")
-	}
+		if documentSnap.Exists() {
+			log.Println("getGroupIDFromCache document found")
+			assetMap := documentSnap.Data()
+			var assetInterface interface{} = assetMap["asset"]
+			if asset, ok := assetInterface.(map[string]interface{}); ok {
+				var nameInterface interface{} = asset["name"]
+				if name, ok := nameInterface.(string); ok {
+					parts := strings.Split(name, "/")
+					groupID = parts[len(parts)-1]
 
-	if documentSnap.Exists() {
-		log.Println("getGroupIDFromCache document found")
-		assetMap := documentSnap.Data()
-		var assetInterface interface{} = assetMap["asset"]
-		if asset, ok := assetInterface.(map[string]interface{}); ok {
-			var nameInterface interface{} = asset["name"]
-			if name, ok := nameInterface.(string); ok {
-				parts := strings.Split(name, "/")
-				groupID = parts[len(parts)-1]
+					log.Printf("number of parts %d", len(parts))
+					for n, part := range parts {
+						log.Printf("part %d value %s", n, part)
+					}
 
-				log.Printf("number of parts %d", len(parts))
-				for n, part := range parts {
-					log.Printf("part %d value %s", n, part)
+					return groupID, nil
 				}
-
-				return groupID, nil
 			}
 		}
 	}
