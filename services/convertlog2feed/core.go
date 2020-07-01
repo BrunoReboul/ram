@@ -508,18 +508,18 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 				return fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
 			}
 
-			ram.JSONMarshalIndentPrint(retreivedFeedMessageGroup)
+			// ram.JSONMarshalIndentPrint(retreivedFeedMessageGroup)
 
 			// Then mapping valid fields
-			feedMessageGroup.Asset.Ancestors = retreivedFeedMessageGroup.Asset.Ancestors
-			feedMessageGroup.Asset.AncestryPath = retreivedFeedMessageGroup.Asset.AncestryPath
-			feedMessageGroup.Asset.AssetType = retreivedFeedMessageGroup.Asset.AssetType
+			// feedMessageGroup.Asset.Ancestors = retreivedFeedMessageGroup.Asset.Ancestors
+			// feedMessageGroup.Asset.AncestryPath = retreivedFeedMessageGroup.Asset.AncestryPath
+			// feedMessageGroup.Asset.AssetType = retreivedFeedMessageGroup.Asset.AssetType
 			feedMessageGroup.Asset.Name = retreivedFeedMessageGroup.Asset.Name
 			// feedMessageGroup.Asset.Resource.AdminCreated = retreivedFeedMessageGroup.Asset.Resource.AdminCreated
-			feedMessageGroup.Asset.Resource.Email = retreivedFeedMessageGroup.Asset.Resource.Email
+			// feedMessageGroup.Asset.Resource.Email = retreivedFeedMessageGroup.Asset.Resource.Email
 			// feedMessageGroup.Asset.Resource.Id = retreivedFeedMessageGroup.Asset.Resource.ID
-			feedMessageGroup.Asset.Resource.Kind = retreivedFeedMessageGroup.Asset.Resource.Kind
-			feedMessageGroup.Asset.Resource.Name = retreivedFeedMessageGroup.Asset.Resource.Name
+			// feedMessageGroup.Asset.Resource.Kind = retreivedFeedMessageGroup.Asset.Resource.Kind
+			// feedMessageGroup.Asset.Resource.Name = retreivedFeedMessageGroup.Asset.Resource.Name
 			log.Println("assigning retreived field Done")
 
 			// Updating fields
