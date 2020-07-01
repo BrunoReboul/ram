@@ -355,16 +355,15 @@ func publishGroupCreation(groupEmail string, global *Global) (err error) {
 	feedMessage.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s", global.directoryCustomerID, group.Id)
 	feedMessage.Asset.Resource = group
 	feedMessage.Asset.Resource.Etag = ""
-	return publishGroup(feedMessage, global)
+	return publishGroup(feedMessage, feedMessage.Deleted, groupEmail, feedMessage.Asset.Name, global)
 }
 
-func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) {
+func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, assetName string, global *Global) (err error) {
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
-		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", feedMessage.Asset.Name, err)
+		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", assetName, err)
 		return nil // NO RETRY
 	}
-	log.Printf("publishGroup feedMessageJSON %s", string(feedMessageJSON))
 	var pubSubMessage pubsubpb.PubsubMessage
 	pubSubMessage.Data = feedMessageJSON
 
@@ -388,9 +387,9 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 	}
 
 	log.Printf("Group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
-		feedMessage.Asset.Resource.Email,
-		feedMessage.Deleted,
-		feedMessage.Asset.Name,
+		groupEmail,
+		isDeleted,
+		assetName,
 		topicName,
 		pubsubResponse.MessageIds,
 		string(feedMessageJSON))
@@ -471,26 +470,31 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 	// multiple documents may be found in case of orphans in cache
 	type cachedFeedMessageGroup struct {
 		Asset struct {
-			Name         string   `firestore:"name"`
-			AssetType    string   `firestore:"assetType"`
-			Ancestors    []string `firestore:"ancestors"`
-			AncestryPath string   `firestore:"ancestryPath"`
+			Name         string   `firestore:"name" json:"name"`
+			AssetType    string   `firestore:"assetType" json:"assetType"`
+			Ancestors    []string `firestore:"ancestors" json:"ancestors"`
+			AncestryPath string   `firestore:"ancestryPath" json:"ancestryPath"`
 			Resource     struct {
-				AdminCreated bool   `firestore:"adminCreated"`
-				Email        string `firestore:"email"`
-				ID           string `firestore:"id"`
-				Kind         string `firestore:"kind"`
-				Name         string `firestore:"name"`
-			} `firestore:"resource"`
-		} `firestore:"asset"`
+				Email string `firestore:"email" json:"email"`
+				ID    string `firestore:"id" json:"id"`
+				Kind  string `firestore:"kind" json:"kind"`
+				Name  string `firestore:"name" json:"name"`
+			} `firestore:"resource" json:"resource"`
+		} `firestore:"asset" json:"asset"`
+		Deleted bool   `firestore:"deleted" json:"deleted"`
+		Origin  string `firestore:"origin" json:"origin"`
+		Window  struct {
+			StartTime time.Time `firestore:"startTime" json:"startTime"`
+		} `firestore:"window" json:"window"`
 	}
 	var retreivedFeedMessageGroup cachedFeedMessageGroup
-	var feedMessageGroup ram.FeedMessageGroup
 	found := false
 	var i int64
 	for {
+		if i > 0 {
+			log.Printf("Cleaning cache orphans iteration %d", i)
+		}
 		i++
-		log.Printf("iteration %d", i)
 		documentSnap, err = iter.Next()
 		if err == iterator.Done {
 			break
@@ -502,35 +506,23 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
 			// Work arround re define the type with out using admin.group
 			found = true
-			// log.Printf("Found %s", documentSnap.Ref.Path)
 			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
 			if err != nil {
 				return fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
 			}
 
-			// ram.JSONMarshalIndentPrint(retreivedFeedMessageGroup)
-
-			// Then mapping valid fields
-			// feedMessageGroup.Asset.Ancestors = retreivedFeedMessageGroup.Asset.Ancestors
-			// feedMessageGroup.Asset.AncestryPath = retreivedFeedMessageGroup.Asset.AncestryPath
-			// feedMessageGroup.Asset.AssetType = retreivedFeedMessageGroup.Asset.AssetType
-			feedMessageGroup.Asset.Name = retreivedFeedMessageGroup.Asset.Name
-			// feedMessageGroup.Asset.Resource.AdminCreated = retreivedFeedMessageGroup.Asset.Resource.AdminCreated
-			// feedMessageGroup.Asset.Resource.Email = retreivedFeedMessageGroup.Asset.Resource.Email
-			// feedMessageGroup.Asset.Resource.Id = retreivedFeedMessageGroup.Asset.Resource.ID
-			// feedMessageGroup.Asset.Resource.Kind = retreivedFeedMessageGroup.Asset.Resource.Kind
-			// feedMessageGroup.Asset.Resource.Name = retreivedFeedMessageGroup.Asset.Resource.Name
-			log.Println("assigning retreived field Done")
-
 			// Updating fields
-			feedMessageGroup.Window.StartTime = global.logEntry.Timestamp
-			feedMessageGroup.Origin = "real-time-log-export"
-			feedMessageGroup.Deleted = true
-			log.Println("assigning retreived field Done")
+			retreivedFeedMessageGroup.Window.StartTime = global.logEntry.Timestamp
+			retreivedFeedMessageGroup.Origin = "real-time-log-export"
+			retreivedFeedMessageGroup.Deleted = true
 
-			err = publishGroup(feedMessageGroup, global)
+			err = publishGroup(retreivedFeedMessageGroup,
+				retreivedFeedMessageGroup.Deleted,
+				retreivedFeedMessageGroup.Asset.Resource.Email,
+				retreivedFeedMessageGroup.Asset.Name,
+				global)
 			if err != nil {
-				return fmt.Errorf("publishGroup(feedMessageGroup, global) %v", err) // RETRY
+				return fmt.Errorf("publishGroup(retreivedFeedMessageGroup %v", err) // RETRY
 			}
 		} else {
 			return fmt.Errorf("document does not exist %s", documentSnap.Ref.Path) // RETRY
