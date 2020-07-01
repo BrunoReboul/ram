@@ -403,9 +403,10 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", topicShortName, err) // RETRY
 	}
 
-	log.Printf("Group %s %s published to pubsub topic %s ids %v %s",
-		feedMessage.Asset.Name,
+	log.Printf("Group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
 		feedMessage.Asset.Resource.Email,
+		feedMessage.Deleted,
+		feedMessage.Asset.Name,
 		topicName,
 		pubsubResponse.MessageIds,
 		string(feedMessageJSON))
@@ -455,9 +456,10 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 	if err != nil {
 		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
 	}
-	log.Printf("Group %s %s settings published to pubsub topic %s ids %v %s",
-		feedMessageGroupSettings.Asset.Name,
+	log.Printf("Group settings %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
 		feedMessageGroupSettings.Asset.Resource.Email,
+		feedMessageGroupSettings.Deleted,
+		feedMessageGroupSettings.Asset.Name,
 		global.GCIGroupSettingsTopicName,
 		pubsubResponse.MessageIds,
 		string(feedMessageGroupSettingsJSON))
@@ -495,7 +497,7 @@ func getFeedMessageGroupFromCache(groupEmail string, global *Global) (feedMessag
 		if documentSnap.Exists() {
 			err = documentSnap.DataTo(&feedMessageGroup)
 			if err != nil {
-				return emptyFeedMessageGroup, fmt.Errorf("iter.Next() %v", err) // RETRY
+				return emptyFeedMessageGroup, fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
 			}
 		}
 	}
