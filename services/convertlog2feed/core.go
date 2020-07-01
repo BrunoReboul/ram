@@ -463,7 +463,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 	assets := global.firestoreClient.Collection(global.collectionID)
 	query := assets.Where(
 		"asset.assetType", "==", "www.googleapis.com/admin/directory/groups").Where(
-		"asset.resource.email", "==", strings.ToLower(groupEmail)).OrderBy("window.startTime", firestore.Desc)
+		"asset.resource.email", "==", strings.ToLower(groupEmail))
 	var documentSnap *firestore.DocumentSnapshot
 	iter := query.Documents(global.ctx)
 	defer iter.Stop()
