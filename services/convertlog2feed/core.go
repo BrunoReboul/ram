@@ -502,7 +502,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
 			// Work arround re define the type with out using admin.group
 			found = true
-			log.Printf("Found %s", documentSnap.Ref.Path)
+			// log.Printf("Found %s", documentSnap.Ref.Path)
 			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
 			if err != nil {
 				return fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
@@ -515,9 +515,9 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			feedMessageGroup.Asset.AncestryPath = retreivedFeedMessageGroup.Asset.AncestryPath
 			feedMessageGroup.Asset.AssetType = retreivedFeedMessageGroup.Asset.AssetType
 			feedMessageGroup.Asset.Name = retreivedFeedMessageGroup.Asset.Name
-			feedMessageGroup.Asset.Resource.AdminCreated = retreivedFeedMessageGroup.Asset.Resource.AdminCreated
+			// feedMessageGroup.Asset.Resource.AdminCreated = retreivedFeedMessageGroup.Asset.Resource.AdminCreated
 			feedMessageGroup.Asset.Resource.Email = retreivedFeedMessageGroup.Asset.Resource.Email
-			feedMessageGroup.Asset.Resource.Id = retreivedFeedMessageGroup.Asset.Resource.ID
+			// feedMessageGroup.Asset.Resource.Id = retreivedFeedMessageGroup.Asset.Resource.ID
 			feedMessageGroup.Asset.Resource.Kind = retreivedFeedMessageGroup.Asset.Resource.Kind
 			feedMessageGroup.Asset.Resource.Name = retreivedFeedMessageGroup.Asset.Resource.Name
 			log.Println("assigning retreived field Done")
