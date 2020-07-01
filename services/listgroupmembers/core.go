@@ -211,7 +211,7 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 					}
 				}
 			} else {
-				log.Printf("ERROR - document does not exists %v", documentSnap.Ref)
+				log.Printf("ERROR - document does not exists %s", documentSnap.Ref.Path)
 			}
 		}
 	}

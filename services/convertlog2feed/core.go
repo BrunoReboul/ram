@@ -291,7 +291,8 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 	for _, parameter := range parameters {
 		switch parameter.Name {
 		case "GROUP_EMAIL":
-			groupEmail = parameter.Value
+			groupEmail = strings.ToLower(parameter.Value)
+			log.Printf("groupEmail %s", groupEmail)
 		}
 	}
 	if groupEmail == "" {
@@ -363,7 +364,7 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", feedMessage.Asset.Name, err)
 		return nil // NO RETRY
 	}
-
+	log.Printf("publishGroup feedMessageJSON %s", string(feedMessageJSON))
 	var pubSubMessage pubsubpb.PubsubMessage
 	pubSubMessage.Data = feedMessageJSON
 
@@ -406,7 +407,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 	var groupID string
 	groupSettings, err := global.groupsSettingsService.Groups.Get(groupEmail).Do()
 	if err != nil {
-		return fmt.Errorf("groupsSettingsService.Groups.Get: %v", err) // RETRY
+		return fmt.Errorf("groupsSettingsService.Groups.Get: %s %v", groupEmail, err) // RETRY
 	}
 	feedMessageGroupSettings.Asset.Resource = groupSettings
 
@@ -490,7 +491,11 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 	var retreivedFeedMessageGroup cachedFeedMessageGroup
 	var feedMessageGroup ram.FeedMessageGroup
 	found := false
+	log.Println("Before publishGroupDeletion")
+	var i int64
 	for {
+		i++
+		log.Printf("iteration %d", i)
 		documentSnap, err = iter.Next()
 		if err == iterator.Done {
 			break
@@ -502,6 +507,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
 			// Work arround re define the type with out using admin.group
 			found = true
+			log.Printf("Found %s", documentSnap.Ref.Path)
 			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
 			if err != nil {
 				return fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
@@ -521,12 +527,13 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			feedMessageGroup.Window.StartTime = global.logEntry.Timestamp
 			feedMessageGroup.Origin = "real-time-log-export"
 			feedMessageGroup.Deleted = true
+
 			err = publishGroup(feedMessageGroup, global)
 			if err != nil {
 				return fmt.Errorf("publishGroup(feedMessageGroup, global) %v", err) // RETRY
 			}
 		} else {
-			return fmt.Errorf("document does not exist %v", documentSnap.Ref) // RETRY
+			return fmt.Errorf("document does not exist %s", documentSnap.Ref.Path) // RETRY
 		}
 	}
 	if !found {
