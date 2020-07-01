@@ -393,20 +393,20 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 
 	var publishRequest pubsubpb.PublishRequest
 	topicShortName := fmt.Sprintf("gci-groups-%s", global.directoryCustomerID)
-	log.Printf("topicShortName %s", topicShortName)
 	if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, &global.topicList, topicShortName, global.projectID); err != nil {
 		log.Printf("ERROR - %s gps.CreateTopic: %v", topicShortName, err)
 		return nil // NO RETRY
 	}
 	topicName := fmt.Sprintf("projects/%s/topics/%s", global.projectID, topicShortName)
-	log.Printf("topicName %s", topicName)
 	publishRequest.Topic = topicName
 	publishRequest.Messages = pubsubMessages
 
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
-		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
+		log.Printf("publish err no nil %v", err)
+		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", topicShortName, err) // RETRY
 	}
+
 	log.Printf("Group %s %s published to pubsub topic %s ids %v %s",
 		feedMessage.Asset.Name,
 		feedMessage.Asset.Resource.Email,
