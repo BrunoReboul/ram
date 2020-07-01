@@ -471,27 +471,22 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 	// multiple documents may be found in case of orphans in cache
 	type cachedFeedMessageGroup struct {
 		Asset struct {
-			Name         string          `json:"name"`
-			AssetType    string          `json:"assetType"`
-			Ancestors    []string        `json:"ancestors"`
-			AncestryPath string          `json:"ancestryPath"`
-			IamPolicy    json.RawMessage `json:"iamPolicy"`
+			Name         string   `firestore:"name"`
+			AssetType    string   `firestore:"assetType"`
+			Ancestors    []string `firestore:"ancestors"`
+			AncestryPath string   `firestore:"ancestryPath"`
 			Resource     struct {
-				AdminCreated bool   `json:"adminCreated"`
-				Email        string `json:"email"`
-				ID           string `json:"id"`
-				Kind         string `json:"kind"`
-				Name         string `json:"name"`
-			} `json:"resource"`
-		} `json:"asset"`
-		Window  ram.Window `json:"window"`
-		Deleted bool       `json:"deleted"`
-		Origin  string     `json:"origin"`
+				AdminCreated bool   `firestore:"adminCreated"`
+				Email        string `firestore:"email"`
+				ID           string `firestore:"id"`
+				Kind         string `firestore:"kind"`
+				Name         string `firestore:"name"`
+			} `firestore:"resource"`
+		} `firestore:"asset"`
 	}
 	var retreivedFeedMessageGroup cachedFeedMessageGroup
 	var feedMessageGroup ram.FeedMessageGroup
 	found := false
-	log.Println("Before publishGroupDeletion")
 	var i int64
 	for {
 		i++
@@ -509,9 +504,11 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			found = true
 			log.Printf("Found %s", documentSnap.Ref.Path)
 			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
+			log.Println("DataTo Done")
 			if err != nil {
 				return fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
 			}
+			log.Println("DataTo Done no err")
 			// Then mapping valid fields
 			feedMessageGroup.Asset.Ancestors = retreivedFeedMessageGroup.Asset.Ancestors
 			feedMessageGroup.Asset.AncestryPath = retreivedFeedMessageGroup.Asset.AncestryPath
