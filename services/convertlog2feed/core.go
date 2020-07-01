@@ -482,7 +482,7 @@ func getGroupIDFromCache(groupEmail string, global *Global) (groupID string, err
 	assets := global.firestoreClient.Collection(global.collectionID)
 	query := assets.Where(
 		"asset.assetType", "==", "www.googleapis.com/admin/directory/groups").Where(
-		"asset.resource.email", "==", groupEmail)
+		"asset.resource.email", "==", strings.ToLower(groupEmail))
 	var documentSnap *firestore.DocumentSnapshot
 	iter := query.Documents(global.ctx)
 	defer iter.Stop()
@@ -540,8 +540,8 @@ func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, g
 		assets := global.firestoreClient.Collection(global.collectionID)
 		query := assets.Where(
 			"asset.assetType", "==", "www.googleapis.com/admin/directory/members").Where(
-			"asset.resource.groupEmail", "==", groupEmail).Where(
-			"asset.resource.memberEmail", "==", memberEmail)
+			"asset.resource.groupEmail", "==", strings.ToLower(groupEmail)).Where(
+			"asset.resource.memberEmail", "==", strings.ToLower(memberEmail))
 		var i time.Duration
 		var documentSnap *firestore.DocumentSnapshot
 		for i = 0; i < global.retriesNumber; i++ {
