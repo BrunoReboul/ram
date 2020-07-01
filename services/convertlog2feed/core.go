@@ -299,37 +299,33 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		return nil
 	}
 	switch event.EventName {
-	// case "CREATE_GROUP":
-	// 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
-	// 	return publishGroupCreation(groupEmail, global)
+	case "CREATE_GROUP":
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
+		return publishGroupCreation(groupEmail, global)
 	case "DELETE_GROUP":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#DELETE_GROUP
-		err = publishGroupDeletion(groupEmail, global)
-		if err != nil {
-			return fmt.Errorf("publishGroupDeletion %s %s", groupEmail, err)
+		return publishGroupDeletion(groupEmail, global)
+	case "ADD_GROUP_MEMBER":
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#ADD_GROUP_MEMBER
+		var memberEmail string
+		for _, parameter := range parameters {
+			switch parameter.Name {
+			case "USER_EMAIL":
+				// The parmeter is no only a user email. It is a member email, can be group, service account or user
+				memberEmail = parameter.Value
+			}
 		}
-		return nil
-	// case "ADD_GROUP_MEMBER":
-	// 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#ADD_GROUP_MEMBER
-	// 	var memberEmail string
-	// 	for _, parameter := range parameters {
-	// 		switch parameter.Name {
-	// 		case "USER_EMAIL":
-	// 			// The parmeter is no only a user email. It is a member email, can be group, service account or user
-	// 			memberEmail = parameter.Value
-	// 		}
-	// 	}
-	// 	if memberEmail == "" {
-	// 		log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
-	// 		return nil
-	// 	}
-	// 	return publishGroupMember(groupEmail, memberEmail, false, global)
-	// 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#REMOVE_GROUP_MEMBER
-	// // https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER
-	// // https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
-	// case "CHANGE_GROUP_SETTING":
-	// 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_SETTING
-	// 	return publishGroupSettings(groupEmail, global)
+		if memberEmail == "" {
+			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
+			return nil
+		}
+		return publishGroupMember(groupEmail, memberEmail, false, global)
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#REMOVE_GROUP_MEMBER
+	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER
+	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
+	case "CHANGE_GROUP_SETTING":
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_SETTING
+		return publishGroupSettings(groupEmail, global)
 	default:
 		log.Printf("Unmanaged event.EventName %s", event.EventName)
 		return nil
@@ -401,6 +397,7 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 	publishRequest.Topic = topicName
 	publishRequest.Messages = pubsubMessages
 
+	log.Println("publishGroup before publish")
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
 		log.Printf("publish err no nil %v", err)
