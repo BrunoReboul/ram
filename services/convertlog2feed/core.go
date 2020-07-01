@@ -396,7 +396,6 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 	publishRequest.Topic = topicName
 	publishRequest.Messages = pubsubMessages
 
-	log.Printf("publishGroup before publish %s", string(feedMessageJSON))
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
 		log.Printf("publish err no nil %v", err)
@@ -486,6 +485,26 @@ func getFeedMessageGroupFromCache(groupEmail string, global *Global) (feedMessag
 	defer iter.Stop()
 	// the query is expected to return only one document
 	var emptyFeedMessageGroup ram.FeedMessageGroup
+	type cachedFeedMessageGroup struct {
+		Asset struct {
+			Name         string          `json:"name"`
+			AssetType    string          `json:"assetType"`
+			Ancestors    []string        `json:"ancestors"`
+			AncestryPath string          `json:"ancestryPath"`
+			IamPolicy    json.RawMessage `json:"iamPolicy"`
+			Resource     struct {
+				AdminCreated bool   `json:"adminCreated"`
+				Email        string `json:"email"`
+				ID           string `json:"id"`
+				Kind         string `json:"kind"`
+				Name         string `json:"name"`
+			} `json:"resource"`
+		} `json:"asset"`
+		Window  ram.Window `json:"window"`
+		Deleted bool       `json:"deleted"`
+		Origin  string     `json:"origin"`
+	}
+	var retreivedFeedMessageGroup cachedFeedMessageGroup
 	for {
 		documentSnap, err = iter.Next()
 		if err == iterator.Done {
@@ -496,68 +515,70 @@ func getFeedMessageGroupFromCache(groupEmail string, global *Global) (feedMessag
 		}
 		if documentSnap.Exists() {
 			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
-			// err = documentSnap.DataTo(&feedMessageGroup)
-			// if err != nil {
-			// 	return emptyFeedMessageGroup, fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
+			// Work arround re define the type with out using admin.group
+			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
+			if err != nil {
+				return emptyFeedMessageGroup, fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
+			}
+
+			// feedMap := documentSnap.Data()
+			// var deletedInterface interface{} = feedMap["deleted"]
+			// if deleted, ok := deletedInterface.(bool); ok {
+			// 	feedMessageGroup.Deleted = deleted
 			// }
-			feedMap := documentSnap.Data()
-			var deletedInterface interface{} = feedMap["deleted"]
-			if deleted, ok := deletedInterface.(bool); ok {
-				feedMessageGroup.Deleted = deleted
-			}
-			var originInterface interface{} = feedMap["origin"]
-			if origin, ok := originInterface.(string); ok {
-				feedMessageGroup.Origin = origin
-			}
-			var windowInterface interface{} = feedMap["window"]
-			if window, ok := windowInterface.(map[string]interface{}); ok {
-				var startTimeInterface interface{} = window["startTime"]
-				if startTime, ok := startTimeInterface.(time.Time); ok {
-					feedMessageGroup.Window.StartTime = startTime
-				}
-			}
-			var assetInterface interface{} = feedMap["asset"]
-			if asset, ok := assetInterface.(map[string]interface{}); ok {
-				var nameInterface interface{} = asset["name"]
-				if name, ok := nameInterface.(string); ok {
-					feedMessageGroup.Asset.Name = name
-				}
-				var assetTypeInterface interface{} = asset["assetType"]
-				if assetType, ok := assetTypeInterface.(string); ok {
-					feedMessageGroup.Asset.AssetType = assetType
-				}
-				var ancestryPathInterface interface{} = asset["ancestryPath"]
-				if ancestryPath, ok := ancestryPathInterface.(string); ok {
-					feedMessageGroup.Asset.AncestryPath = ancestryPath
-				}
-				var ancestorsInterface interface{} = asset["ancestors"]
-				if ancestors, ok := ancestorsInterface.([]string); ok {
-					feedMessageGroup.Asset.Ancestors = ancestors
-				}
-				var resourceInterface interface{} = asset["resource"]
-				if resource, ok := resourceInterface.(map[string]interface{}); ok {
-					var nameInterface interface{} = resource["name"]
-					if name, ok := nameInterface.(string); ok {
-						feedMessageGroup.Asset.Resource.Name = name
-					}
-					var kindInterface interface{} = resource["kind"]
-					if kind, ok := kindInterface.(string); ok {
-						feedMessageGroup.Asset.Resource.Kind = kind
-					}
-					var idInterface interface{} = resource["id"]
-					if id, ok := idInterface.(string); ok {
-						feedMessageGroup.Asset.Resource.Id = id
-					}
-					var emailInterface interface{} = resource["email"]
-					if email, ok := emailInterface.(string); ok {
-						feedMessageGroup.Asset.Resource.Email = email
-					}
-					var adminCreatedInterface interface{} = resource["adminCreated"]
-					if adminCreated, ok := adminCreatedInterface.(bool); ok {
-						feedMessageGroup.Asset.Resource.AdminCreated = adminCreated
-					}
-				}
-			}
+			// var originInterface interface{} = feedMap["origin"]
+			// if origin, ok := originInterface.(string); ok {
+			// 	feedMessageGroup.Origin = origin
+			// }
+			// var windowInterface interface{} = feedMap["window"]
+			// if window, ok := windowInterface.(map[string]interface{}); ok {
+			// 	var startTimeInterface interface{} = window["startTime"]
+			// 	if startTime, ok := startTimeInterface.(time.Time); ok {
+			// 		feedMessageGroup.Window.StartTime = startTime
+			// 	}
+			// }
+			// var assetInterface interface{} = feedMap["asset"]
+			// if asset, ok := assetInterface.(map[string]interface{}); ok {
+			// 	var nameInterface interface{} = asset["name"]
+			// 	if name, ok := nameInterface.(string); ok {
+			// 		feedMessageGroup.Asset.Name = name
+			// 	}
+			// 	var assetTypeInterface interface{} = asset["assetType"]
+			// 	if assetType, ok := assetTypeInterface.(string); ok {
+			// 		feedMessageGroup.Asset.AssetType = assetType
+			// 	}
+			// 	var ancestryPathInterface interface{} = asset["ancestryPath"]
+			// 	if ancestryPath, ok := ancestryPathInterface.(string); ok {
+			// 		feedMessageGroup.Asset.AncestryPath = ancestryPath
+			// 	}
+			// 	var ancestorsInterface interface{} = asset["ancestors"]
+			// 	if ancestors, ok := ancestorsInterface.([]string); ok {
+			// 		feedMessageGroup.Asset.Ancestors = ancestors
+			// 	}
+			// 	var resourceInterface interface{} = asset["resource"]
+			// 	if resource, ok := resourceInterface.(map[string]interface{}); ok {
+			// 		var nameInterface interface{} = resource["name"]
+			// 		if name, ok := nameInterface.(string); ok {
+			// 			feedMessageGroup.Asset.Resource.Name = name
+			// 		}
+			// 		var kindInterface interface{} = resource["kind"]
+			// 		if kind, ok := kindInterface.(string); ok {
+			// 			feedMessageGroup.Asset.Resource.Kind = kind
+			// 		}
+			// 		var idInterface interface{} = resource["id"]
+			// 		if id, ok := idInterface.(string); ok {
+			// 			feedMessageGroup.Asset.Resource.Id = id
+			// 		}
+			// 		var emailInterface interface{} = resource["email"]
+			// 		if email, ok := emailInterface.(string); ok {
+			// 			feedMessageGroup.Asset.Resource.Email = email
+			// 		}
+			// 		var adminCreatedInterface interface{} = resource["adminCreated"]
+			// 		if adminCreated, ok := adminCreatedInterface.(bool); ok {
+			// 			feedMessageGroup.Asset.Resource.AdminCreated = adminCreated
+			// 		}
+			// 	}
+			// }
 
 		}
 	}
@@ -565,6 +586,18 @@ func getFeedMessageGroupFromCache(groupEmail string, global *Global) (feedMessag
 		log.Printf("ERROR - deleted group not found in cache, cannot clean up RAM data %s", groupEmail)
 		return emptyFeedMessageGroup, nil // no RETRY
 	}
+	feedMessageGroup.Deleted = retreivedFeedMessageGroup.Deleted
+	feedMessageGroup.Origin = retreivedFeedMessageGroup.Origin
+	feedMessageGroup.Window = retreivedFeedMessageGroup.Window
+	feedMessageGroup.Asset.Ancestors = retreivedFeedMessageGroup.Asset.Ancestors
+	feedMessageGroup.Asset.AncestryPath = retreivedFeedMessageGroup.Asset.AncestryPath
+	feedMessageGroup.Asset.AssetType = retreivedFeedMessageGroup.Asset.AssetType
+	feedMessageGroup.Asset.Name = retreivedFeedMessageGroup.Asset.Name
+	feedMessageGroup.Asset.Resource.AdminCreated = retreivedFeedMessageGroup.Asset.Resource.AdminCreated
+	feedMessageGroup.Asset.Resource.Email = retreivedFeedMessageGroup.Asset.Resource.Email
+	feedMessageGroup.Asset.Resource.Id = retreivedFeedMessageGroup.Asset.Resource.ID
+	feedMessageGroup.Asset.Resource.Kind = retreivedFeedMessageGroup.Asset.Resource.Kind
+	feedMessageGroup.Asset.Resource.Name = retreivedFeedMessageGroup.Asset.Resource.Name
 	return feedMessageGroup, nil
 }
 
