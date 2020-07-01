@@ -292,7 +292,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		switch parameter.Name {
 		case "GROUP_EMAIL":
 			groupEmail = strings.ToLower(parameter.Value)
-			log.Printf("groupEmail %s", groupEmail)
+			// log.Printf("groupEmail %s", groupEmail)
 		}
 	}
 	if groupEmail == "" {
@@ -504,11 +504,12 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			found = true
 			log.Printf("Found %s", documentSnap.Ref.Path)
 			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
-			log.Println("DataTo Done")
 			if err != nil {
 				return fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
 			}
-			log.Println("DataTo Done no err")
+
+			ram.JSONMarshalIndentPrint(retreivedFeedMessageGroup)
+
 			// Then mapping valid fields
 			feedMessageGroup.Asset.Ancestors = retreivedFeedMessageGroup.Asset.Ancestors
 			feedMessageGroup.Asset.AncestryPath = retreivedFeedMessageGroup.Asset.AncestryPath
@@ -519,11 +520,13 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			feedMessageGroup.Asset.Resource.Id = retreivedFeedMessageGroup.Asset.Resource.ID
 			feedMessageGroup.Asset.Resource.Kind = retreivedFeedMessageGroup.Asset.Resource.Kind
 			feedMessageGroup.Asset.Resource.Name = retreivedFeedMessageGroup.Asset.Resource.Name
+			log.Println("assigning retreived field Done")
 
 			// Updating fields
 			feedMessageGroup.Window.StartTime = global.logEntry.Timestamp
 			feedMessageGroup.Origin = "real-time-log-export"
 			feedMessageGroup.Deleted = true
+			log.Println("assigning retreived field Done")
 
 			err = publishGroup(feedMessageGroup, global)
 			if err != nil {
