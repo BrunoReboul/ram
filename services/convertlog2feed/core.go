@@ -495,10 +495,70 @@ func getFeedMessageGroupFromCache(groupEmail string, global *Global) (feedMessag
 			return emptyFeedMessageGroup, fmt.Errorf("iter.Next() %v", err) // RETRY
 		}
 		if documentSnap.Exists() {
-			err = documentSnap.DataTo(&feedMessageGroup)
-			if err != nil {
-				return emptyFeedMessageGroup, fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
+			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
+			// err = documentSnap.DataTo(&feedMessageGroup)
+			// if err != nil {
+			// 	return emptyFeedMessageGroup, fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
+			// }
+			feedMap := documentSnap.Data()
+			var deletedInterface interface{} = feedMap["deleted"]
+			if deleted, ok := deletedInterface.(bool); ok {
+				feedMessageGroup.Deleted = deleted
 			}
+			var originInterface interface{} = feedMap["origin"]
+			if origin, ok := originInterface.(string); ok {
+				feedMessageGroup.Origin = origin
+			}
+			var windowInterface interface{} = feedMap["window"]
+			if window, ok := windowInterface.(map[string]interface{}); ok {
+				var startTimeInterface interface{} = window["startTime"]
+				if startTime, ok := startTimeInterface.(time.Time); ok {
+					feedMessageGroup.Window.StartTime = startTime
+				}
+			}
+			var assetInterface interface{} = feedMap["asset"]
+			if asset, ok := assetInterface.(map[string]interface{}); ok {
+				var nameInterface interface{} = asset["name"]
+				if name, ok := nameInterface.(string); ok {
+					feedMessageGroup.Asset.Name = name
+				}
+				var assetTypeInterface interface{} = asset["assetType"]
+				if assetType, ok := assetTypeInterface.(string); ok {
+					feedMessageGroup.Asset.AssetType = assetType
+				}
+				var ancestryPathInterface interface{} = asset["ancestryPath"]
+				if ancestryPath, ok := ancestryPathInterface.(string); ok {
+					feedMessageGroup.Asset.AncestryPath = ancestryPath
+				}
+				var ancestorsInterface interface{} = asset["ancestors"]
+				if ancestors, ok := ancestorsInterface.([]string); ok {
+					feedMessageGroup.Asset.Ancestors = ancestors
+				}
+				var resourceInterface interface{} = asset["resource"]
+				if resource, ok := resourceInterface.(map[string]interface{}); ok {
+					var nameInterface interface{} = resource["name"]
+					if name, ok := nameInterface.(string); ok {
+						feedMessageGroup.Asset.Resource.Name = name
+					}
+					var kindInterface interface{} = resource["kind"]
+					if kind, ok := kindInterface.(string); ok {
+						feedMessageGroup.Asset.Resource.Kind = kind
+					}
+					var idInterface interface{} = resource["id"]
+					if id, ok := idInterface.(string); ok {
+						feedMessageGroup.Asset.Resource.Id = id
+					}
+					var emailInterface interface{} = resource["email"]
+					if email, ok := emailInterface.(string); ok {
+						feedMessageGroup.Asset.Resource.Email = email
+					}
+					var adminCreatedInterface interface{} = resource["adminCreated"]
+					if adminCreated, ok := adminCreatedInterface.(bool); ok {
+						feedMessageGroup.Asset.Resource.AdminCreated = adminCreated
+					}
+				}
+			}
+
 		}
 	}
 	if feedMessageGroup.Asset.Name == "" {
@@ -558,13 +618,13 @@ func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, g
 		}
 		if documentSnap.Exists() {
 			assetMap := documentSnap.Data()
-			assetMapJSON, err := json.Marshal(assetMap)
-			if err != nil {
-				log.Println("ERROR - json.Marshal(assetMap)")
-				return nil // NO RETRY
-			}
-			log.Printf("%s", string(assetMapJSON))
-			_ = assetMapJSON
+			// assetMapJSON, err := json.Marshal(assetMap)
+			// if err != nil {
+			// 	log.Println("ERROR - json.Marshal(assetMap)")
+			// 	return nil // NO RETRY
+			// }
+			// log.Printf("%s", string(assetMapJSON))
+			// _ = assetMapJSON
 
 			var assetInterface interface{} = assetMap["asset"]
 			if asset, ok := assetInterface.(map[string]interface{}); ok {
