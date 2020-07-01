@@ -358,17 +358,19 @@ func publishGroupCreation(groupEmail string, global *Global) (err error) {
 }
 
 func publishGroupDeletion(groupEmail string, global *Global) (err error) {
-	groupID, err := getGroupIDFromCache(groupEmail, global)
+	group, err := getGroupIDFromCache(groupEmail, global)
 	if err != nil {
 		return err
 	}
-	if groupID != "" {
+	if group.Id != "" {
 		var feedMessage ram.FeedMessageGroup
 		feedMessage.Window.StartTime = global.logEntry.Timestamp
 		feedMessage.Origin = "real-time-log-export"
 		feedMessage.Deleted = true
 		feedMessage.Asset.AssetType = "www.googleapis.com/admin/directory/groups"
-		feedMessage.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s", global.directoryCustomerID, groupID)
+		feedMessage.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s", global.directoryCustomerID, group.Id)
+		feedMessage.Asset.Resource = group
+		feedMessage.Asset.Resource.Etag = ""
 		return publishGroup(feedMessage, global)
 	}
 	return nil
@@ -397,7 +399,7 @@ func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) 
 	publishRequest.Topic = topicName
 	publishRequest.Messages = pubsubMessages
 
-	log.Println("publishGroup before publish")
+	log.Printf("publishGroup before publish %s", string(feedMessageJSON))
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
 		log.Printf("publish err no nil %v", err)
@@ -475,7 +477,7 @@ func getGroupFromEmail(groupEmail string, global *Global) (group *admin.Group, e
 	return group, nil
 }
 
-func getGroupIDFromCache(groupEmail string, global *Global) (groupID string, err error) {
+func getGroupIDFromCache(groupEmail string, global *Global) (group *admin.Group, err error) {
 	assets := global.firestoreClient.Collection(global.collectionID)
 	query := assets.Where(
 		"asset.assetType", "==", "www.googleapis.com/admin/directory/groups").Where(
@@ -491,24 +493,28 @@ func getGroupIDFromCache(groupEmail string, global *Global) (groupID string, err
 		}
 		if err != nil {
 			log.Println("getGroupIDFromCache iter err")
-			return "", fmt.Errorf("iter.Next() %v", err) // RETRY
+			return group, fmt.Errorf("iter.Next() %v", err) // RETRY
 		}
 		if documentSnap.Exists() {
-			log.Println("getGroupIDFromCache document found")
+			// log.Println("getGroupIDFromCache document found")
 			assetMap := documentSnap.Data()
 			var assetInterface interface{} = assetMap["asset"]
 			if asset, ok := assetInterface.(map[string]interface{}); ok {
-				var nameInterface interface{} = asset["name"]
-				if name, ok := nameInterface.(string); ok {
-					parts := strings.Split(name, "/")
-					groupID = parts[len(parts)-1]
-					return groupID, nil
+				// var nameInterface interface{} = asset["name"]
+				// if name, ok := nameInterface.(string); ok {
+				// 	parts := strings.Split(name, "/")
+				// 	groupID = parts[len(parts)-1]
+				// 	return groupID, nil
+				// }
+				var groupInterface interface{} = asset["resource"]
+				if group, ok := groupInterface.(admin.Group); ok {
+					return &group, nil
 				}
 			}
 		}
 	}
 	log.Printf("ERROR - deleted group not found in cache, cannot clean up RAM data %s", groupEmail)
-	return "", nil // no RETRY
+	return group, nil // no RETRY
 }
 
 func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, global *Global) (err error) {
