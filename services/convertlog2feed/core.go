@@ -357,22 +357,6 @@ func publishGroupCreation(groupEmail string, global *Global) (err error) {
 	return publishGroup(feedMessage, global)
 }
 
-func publishGroupDeletion(groupEmail string, global *Global) (err error) {
-	retreivedFeedMessageGroup, err := getFeedMessageGroupFromCache(groupEmail, global)
-	if err != nil {
-		return err
-	}
-	if retreivedFeedMessageGroup.Asset.Name != "" {
-		var feedMessage ram.FeedMessageGroup
-		feedMessage = retreivedFeedMessageGroup
-		feedMessage.Window.StartTime = global.logEntry.Timestamp
-		feedMessage.Origin = "real-time-log-export"
-		feedMessage.Deleted = true
-		return publishGroup(feedMessage, global)
-	}
-	return nil
-}
-
 func publishGroup(feedMessage ram.FeedMessageGroup, global *Global) (err error) {
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
@@ -475,16 +459,15 @@ func getGroupFromEmail(groupEmail string, global *Global) (group *admin.Group, e
 	return group, nil
 }
 
-func getFeedMessageGroupFromCache(groupEmail string, global *Global) (feedMessageGroup ram.FeedMessageGroup, err error) {
+func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 	assets := global.firestoreClient.Collection(global.collectionID)
 	query := assets.Where(
 		"asset.assetType", "==", "www.googleapis.com/admin/directory/groups").Where(
-		"asset.resource.email", "==", strings.ToLower(groupEmail))
+		"asset.resource.email", "==", strings.ToLower(groupEmail)).OrderBy("window.startTime", firestore.Desc)
 	var documentSnap *firestore.DocumentSnapshot
 	iter := query.Documents(global.ctx)
 	defer iter.Stop()
-	// the query is expected to return only one document
-	var emptyFeedMessageGroup ram.FeedMessageGroup
+	// multiple documents may be found in case of orphans in cache
 	type cachedFeedMessageGroup struct {
 		Asset struct {
 			Name         string          `json:"name"`
@@ -505,100 +488,51 @@ func getFeedMessageGroupFromCache(groupEmail string, global *Global) (feedMessag
 		Origin  string     `json:"origin"`
 	}
 	var retreivedFeedMessageGroup cachedFeedMessageGroup
+	var feedMessageGroup ram.FeedMessageGroup
+	found := false
 	for {
 		documentSnap, err = iter.Next()
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
-			return emptyFeedMessageGroup, fmt.Errorf("iter.Next() %v", err) // RETRY
+			return fmt.Errorf("iter.Next() %v", err) // RETRY
 		}
 		if documentSnap.Exists() {
 			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
 			// Work arround re define the type with out using admin.group
+			found = true
 			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
 			if err != nil {
-				return emptyFeedMessageGroup, fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
+				return fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
 			}
+			// Then mapping valid fields
+			feedMessageGroup.Asset.Ancestors = retreivedFeedMessageGroup.Asset.Ancestors
+			feedMessageGroup.Asset.AncestryPath = retreivedFeedMessageGroup.Asset.AncestryPath
+			feedMessageGroup.Asset.AssetType = retreivedFeedMessageGroup.Asset.AssetType
+			feedMessageGroup.Asset.Name = retreivedFeedMessageGroup.Asset.Name
+			feedMessageGroup.Asset.Resource.AdminCreated = retreivedFeedMessageGroup.Asset.Resource.AdminCreated
+			feedMessageGroup.Asset.Resource.Email = retreivedFeedMessageGroup.Asset.Resource.Email
+			feedMessageGroup.Asset.Resource.Id = retreivedFeedMessageGroup.Asset.Resource.ID
+			feedMessageGroup.Asset.Resource.Kind = retreivedFeedMessageGroup.Asset.Resource.Kind
+			feedMessageGroup.Asset.Resource.Name = retreivedFeedMessageGroup.Asset.Resource.Name
 
-			// feedMap := documentSnap.Data()
-			// var deletedInterface interface{} = feedMap["deleted"]
-			// if deleted, ok := deletedInterface.(bool); ok {
-			// 	feedMessageGroup.Deleted = deleted
-			// }
-			// var originInterface interface{} = feedMap["origin"]
-			// if origin, ok := originInterface.(string); ok {
-			// 	feedMessageGroup.Origin = origin
-			// }
-			// var windowInterface interface{} = feedMap["window"]
-			// if window, ok := windowInterface.(map[string]interface{}); ok {
-			// 	var startTimeInterface interface{} = window["startTime"]
-			// 	if startTime, ok := startTimeInterface.(time.Time); ok {
-			// 		feedMessageGroup.Window.StartTime = startTime
-			// 	}
-			// }
-			// var assetInterface interface{} = feedMap["asset"]
-			// if asset, ok := assetInterface.(map[string]interface{}); ok {
-			// 	var nameInterface interface{} = asset["name"]
-			// 	if name, ok := nameInterface.(string); ok {
-			// 		feedMessageGroup.Asset.Name = name
-			// 	}
-			// 	var assetTypeInterface interface{} = asset["assetType"]
-			// 	if assetType, ok := assetTypeInterface.(string); ok {
-			// 		feedMessageGroup.Asset.AssetType = assetType
-			// 	}
-			// 	var ancestryPathInterface interface{} = asset["ancestryPath"]
-			// 	if ancestryPath, ok := ancestryPathInterface.(string); ok {
-			// 		feedMessageGroup.Asset.AncestryPath = ancestryPath
-			// 	}
-			// 	var ancestorsInterface interface{} = asset["ancestors"]
-			// 	if ancestors, ok := ancestorsInterface.([]string); ok {
-			// 		feedMessageGroup.Asset.Ancestors = ancestors
-			// 	}
-			// 	var resourceInterface interface{} = asset["resource"]
-			// 	if resource, ok := resourceInterface.(map[string]interface{}); ok {
-			// 		var nameInterface interface{} = resource["name"]
-			// 		if name, ok := nameInterface.(string); ok {
-			// 			feedMessageGroup.Asset.Resource.Name = name
-			// 		}
-			// 		var kindInterface interface{} = resource["kind"]
-			// 		if kind, ok := kindInterface.(string); ok {
-			// 			feedMessageGroup.Asset.Resource.Kind = kind
-			// 		}
-			// 		var idInterface interface{} = resource["id"]
-			// 		if id, ok := idInterface.(string); ok {
-			// 			feedMessageGroup.Asset.Resource.Id = id
-			// 		}
-			// 		var emailInterface interface{} = resource["email"]
-			// 		if email, ok := emailInterface.(string); ok {
-			// 			feedMessageGroup.Asset.Resource.Email = email
-			// 		}
-			// 		var adminCreatedInterface interface{} = resource["adminCreated"]
-			// 		if adminCreated, ok := adminCreatedInterface.(bool); ok {
-			// 			feedMessageGroup.Asset.Resource.AdminCreated = adminCreated
-			// 		}
-			// 	}
-			// }
-
+			// Updating fields
+			feedMessageGroup.Window.StartTime = global.logEntry.Timestamp
+			feedMessageGroup.Origin = "real-time-log-export"
+			feedMessageGroup.Deleted = true
+			err = publishGroup(feedMessageGroup, global)
+			if err != nil {
+				return fmt.Errorf("publishGroup(feedMessageGroup, global) %v", err) // RETRY
+			}
+		} else {
+			return fmt.Errorf("document does not exist %v", documentSnap.Ref) // RETRY
 		}
 	}
-	if feedMessageGroup.Asset.Name == "" {
+	if !found {
 		log.Printf("ERROR - deleted group not found in cache, cannot clean up RAM data %s", groupEmail)
-		return emptyFeedMessageGroup, nil // no RETRY
 	}
-	feedMessageGroup.Deleted = retreivedFeedMessageGroup.Deleted
-	feedMessageGroup.Origin = retreivedFeedMessageGroup.Origin
-	feedMessageGroup.Window = retreivedFeedMessageGroup.Window
-	feedMessageGroup.Asset.Ancestors = retreivedFeedMessageGroup.Asset.Ancestors
-	feedMessageGroup.Asset.AncestryPath = retreivedFeedMessageGroup.Asset.AncestryPath
-	feedMessageGroup.Asset.AssetType = retreivedFeedMessageGroup.Asset.AssetType
-	feedMessageGroup.Asset.Name = retreivedFeedMessageGroup.Asset.Name
-	feedMessageGroup.Asset.Resource.AdminCreated = retreivedFeedMessageGroup.Asset.Resource.AdminCreated
-	feedMessageGroup.Asset.Resource.Email = retreivedFeedMessageGroup.Asset.Resource.Email
-	feedMessageGroup.Asset.Resource.Id = retreivedFeedMessageGroup.Asset.Resource.ID
-	feedMessageGroup.Asset.Resource.Kind = retreivedFeedMessageGroup.Asset.Resource.Kind
-	feedMessageGroup.Asset.Resource.Name = retreivedFeedMessageGroup.Asset.Resource.Name
-	return feedMessageGroup, nil
+	return nil
 }
 
 func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, global *Global) (err error) {
