@@ -306,8 +306,9 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 	case "DELETE_GROUP":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#DELETE_GROUP
 		return publishGroupDeletion(groupEmail, global)
-	case "ADD_GROUP_MEMBER":
+	case "ADD_GROUP_MEMBER", "UPDATE_GROUP_MEMBER":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#ADD_GROUP_MEMBER
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER
 		var memberEmail string
 		for _, parameter := range parameters {
 			switch parameter.Name {
@@ -320,7 +321,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
 			return nil
 		}
-		return publishGroupMemberCreation(groupEmail, memberEmail, global)
+		return publishGroupMemberCreationOrUpdate(groupEmail, memberEmail, global)
 	case "REMOVE_GROUP_MEMBER":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#REMOVE_GROUP_MEMBER
 		var memberEmail string
@@ -336,7 +337,6 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			return nil
 		}
 		return publishGroupMemberDeletion(groupEmail, memberEmail, global)
-	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER
 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
 	case "CHANGE_GROUP_SETTING":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_SETTING
@@ -485,7 +485,7 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 	return nil
 }
 
-func publishGroupMemberCreation(groupEmail string, memberEmail string, global *Global) (err error) {
+func publishGroupMemberCreationOrUpdate(groupEmail string, memberEmail string, global *Global) (err error) {
 	var groupMember *admin.Member
 	var groupID string
 	// groupKey: The value can be the group's email address, group alias, or the unique group ID.
