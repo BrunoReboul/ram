@@ -214,6 +214,12 @@ func RAMCli(deployment *Deployment) (err error) {
 		if err = deployment.configureGetGroupSettingsDirectories(); err != nil {
 			log.Fatal(err)
 		}
+		if err = deployment.configureLogSinksOrganizations(); err != nil {
+			log.Fatal(err)
+		}
+		if err = deployment.configureConvertlog2feedOrganizations(); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
 		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
@@ -239,6 +245,10 @@ func RAMCli(deployment *Deployment) (err error) {
 				deployment.deployListGroupMembers()
 			case "getgroupsettings":
 				deployment.deployGetGroupSettings()
+			case "setlogsinks":
+				deployment.deploySetLogSinks()
+			case "convertlog2feed":
+				deployment.deployConvertLog2Feed()
 			}
 		}
 	}

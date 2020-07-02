@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package listgroupmembers
+package convertlog2feed
 
 import (
 	"time"
@@ -31,13 +31,12 @@ type InstanceDeployment struct {
 	Core          *deploy.Core
 	Settings      struct {
 		Service struct {
-			GSU                     gsu.Parameters
-			IAM                     iamgt.Parameters
-			GCB                     gcb.Parameters
-			GCF                     gcf.Parameters
-			KeyJSONFileName         string `yaml:"keyJSONFileName"`
-			LogEventEveryXPubSubMsg uint64 `yaml:"logEventEveryXPubSubMsg"`
-			MaxResultsPerPage       int64  `yaml:"maxResultsPerPage"`
+			GSU             gsu.Parameters
+			IAM             iamgt.Parameters
+			GCB             gcb.Parameters
+			GCF             gcf.Parameters
+			KeyJSONFileName string        `yaml:"keyJSONFileName"`
+			RetriesNumber   time.Duration `yaml:"time.Duration"`
 		}
 		Instance struct {
 			GCF gcf.Event
@@ -59,7 +58,8 @@ func NewInstanceDeployment() *InstanceDeployment {
 		"containerregistry.googleapis.com",
 		"iam.googleapis.com",
 		"pubsub.googleapis.com",
-		"admin.googleapis.com"}
+		"admin.googleapis.com",
+		"groupssettings.googleapis.com"}
 	instanceDeployment.Settings.Service.GSU.APIList = append(deploy.GetCommonAPIlist(), instanceDeployment.Settings.Service.GSU.APIList...)
 
 	instanceDeployment.Settings.Service.IAM.RunRoles.Project = []iam.Role{
@@ -85,18 +85,17 @@ func NewInstanceDeployment() *InstanceDeployment {
 
 	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 128
 	instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds = 600
-	instanceDeployment.Settings.Service.GCF.Timeout = "540s" // is max value
+	instanceDeployment.Settings.Service.GCF.Timeout = "60s"
 
 	instanceDeployment.Settings.Service.KeyJSONFileName = "key.json"
-	instanceDeployment.Settings.Service.LogEventEveryXPubSubMsg = 1000
-	instanceDeployment.Settings.Service.MaxResultsPerPage = 200
+	instanceDeployment.Settings.Service.RetriesNumber = 10
 
 	return &instanceDeployment
 }
 
 func projectRunRole() (role iam.Role) {
-	role.Title = "ram_listgroupmembers_run"
-	role.Description = "Real-time Asset Monitor list group members microservice permissions to run"
+	role.Title = "ram_convertlog2feed_run"
+	role.Description = "Real-time Asset Monitor convert log to feed microservice permissions to run"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"iam.serviceAccountKeys.list",
@@ -108,8 +107,8 @@ func projectRunRole() (role iam.Role) {
 }
 
 func projectDeployCoreRole() (role iam.Role) {
-	role.Title = "ram_listgroupmembers_deploy_core"
-	role.Description = "Real-time Asset Monitor list group members microservice core permissions to deploy"
+	role.Title = "ram_convertlog2feed_deploy_core"
+	role.Description = "Real-time Asset Monitor convert log to feed microservice core permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"iam.serviceAccountKeys.create",

@@ -89,7 +89,6 @@ func Initialize(ctx context.Context, global *Global) {
 	}
 
 	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
-	global.bucketHandle = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.AssetsJSONFile.Name)
 	global.ownerLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.Owner
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 	global.violationResolverLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.ViolationResolver
@@ -101,6 +100,9 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
+	// bucketHandle must be evaluated after storateClient init
+	global.bucketHandle = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.AssetsJSONFile.Name)
+
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
 		log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
@@ -119,6 +121,8 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
+	// log.Println("Done COLD START")
+
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
@@ -150,7 +154,13 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	feedMessage.Asset.AssetTypeLegacy = feedMessage.Asset.AssetType
 	feedMessage.Asset.AncestryPathLegacy = feedMessage.Asset.AncestryPath
 
-	// log.Printf("%v", feedMessage)
+	feedMessageJSON, err := json.Marshal(feedMessage)
+	if err != nil {
+		log.Println("ERROR - json.Marshal(feedMessage)")
+		return nil // NO RETRY
+	}
+	// log.Printf("%s", string(feedMessageJSON))
+	_ = feedMessageJSON
 
 	var objectNameSuffix string
 	if feedMessage.Asset.IamPolicy == nil {

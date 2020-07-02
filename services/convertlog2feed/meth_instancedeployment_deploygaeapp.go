@@ -12,18 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setfeeds
+package convertlog2feed
 
 import (
-	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/gae"
 )
 
-func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
-	feedDeployment := cai.NewFeedDeployment()
-	feedDeployment.Core = instanceDeployment.Core
-	feedDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
-	feedDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
-	feedDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
-	feedDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
-	return feedDeployment.Deploy()
+func (instanceDeployment *InstanceDeployment) deployGAEApp() (err error) {
+	appDeployment := gae.NewAppDeployment()
+	appDeployment.Core = instanceDeployment.Core
+	return appDeployment.Deploy()
 }

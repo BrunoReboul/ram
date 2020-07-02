@@ -12,18 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setfeeds
+/*
+Package setlogsinks set organization log sinks to pubsub
 
-import (
-	"github.com/BrunoReboul/ram/utilities/cai"
-)
+Instances
 
-func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
-	feedDeployment := cai.NewFeedDeployment()
-	feedDeployment.Core = instanceDeployment.Core
-	feedDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
-	feedDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
-	feedDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
-	feedDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
-	return feedDeployment.Deploy()
-}
+Multiple.
+
+At least one to export gsuite admin logs, related to groups members and groups settings, from GCP Cloud Audit Logs at organization level.
+
+Output
+
+Logging sink export set up.
+
+Notes
+
+- The sink can only export logs belonging to the parent resource.
+
+- gSuite admin Logs belongs to the related GCP organization.
+
+*/
+package setlogsinks

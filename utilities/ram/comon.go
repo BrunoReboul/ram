@@ -223,8 +223,8 @@ func Find(slice []string, val string) bool {
 	return false
 }
 
-// fireStoreGetDoc check if a document exist with retries
-func fireStoreGetDoc(ctx context.Context, firestoreClient *firestore.Client, documentPath string, retriesNumber time.Duration) (*firestore.DocumentSnapshot, bool) {
+// FireStoreGetDoc check if a document exist with retries
+func FireStoreGetDoc(ctx context.Context, firestoreClient *firestore.Client, documentPath string, retriesNumber time.Duration) (*firestore.DocumentSnapshot, bool) {
 	var documentSnap *firestore.DocumentSnapshot
 	var err error
 	var i time.Duration
@@ -282,7 +282,7 @@ func getDisplayName(ctx context.Context, name string, collectionID string, fires
 	documentPath := collectionID + "/" + documentID
 	// log.Printf("documentPath:%s", documentPath)
 	// documentSnap, err := firestoreClient.Doc(documentPath).Get(ctx)
-	documentSnap, found := fireStoreGetDoc(ctx, firestoreClient, documentPath, 10)
+	documentSnap, found := FireStoreGetDoc(ctx, firestoreClient, documentPath, 10)
 	if found {
 		assetMap := documentSnap.Data()
 		// log.Println(assetMap)

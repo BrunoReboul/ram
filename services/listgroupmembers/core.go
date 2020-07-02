@@ -20,12 +20,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/BrunoReboul/ram/utilities/ram"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
+	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/pubsub"
 	admin "google.golang.org/api/admin/directory/v1"
 )
@@ -46,12 +49,15 @@ var origin string
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
+	collectionID            string
 	ctx                     context.Context
 	dirAdminService         *admin.Service
+	firestoreClient         *firestore.Client
 	initFailed              bool
 	logEventEveryXPubSubMsg uint64
 	maxResultsPerPage       int64 // API Max = 200
 	outputTopicName         string
+	projectID               string
 	pubSubClient            *pubsub.Client
 	retryTimeOutSeconds     int64
 }
@@ -76,9 +82,11 @@ func Initialize(ctx context.Context, global *Global) {
 	}
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
+	global.collectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
 	global.logEventEveryXPubSubMsg = instanceDeployment.Settings.Service.LogEventEveryXPubSubMsg
 	global.outputTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupMembers
 	global.maxResultsPerPage = instanceDeployment.Settings.Service.MaxResultsPerPage
+	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
@@ -93,7 +101,12 @@ func Initialize(ctx context.Context, global *Global) {
 		global.initFailed = true
 		return
 	}
-
+	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
+	if err != nil {
+		log.Printf("ERROR - firestore.NewClient: %v", err)
+		global.initFailed = true
+		return
+	}
 	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		log.Printf("ERROR - pubsub.NewClient: %v", err)
@@ -135,12 +148,73 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 		ancestors = append(ancestors, ancestor)
 	}
 	origin = feedMessageGroup.Origin
-	// pages function except just the name of the callback function. Not an invocation of the function
-	err = global.dirAdminService.Members.List(feedMessageGroup.Asset.Resource.Id).MaxResults(global.maxResultsPerPage).Pages(ctx, browseMembers)
-	if err != nil {
-		return fmt.Errorf("dirAdminService.Members.List: %v", err) // RETRY
+	if feedMessageGroup.Deleted {
+		// retreive members from cache
+		err = browseFeedMessageGroupMembersFromCache(global)
+		if err != nil {
+			return fmt.Errorf("browseFeedMessageGroupMembersFromCache(global): %v", err) // RETRY
+		}
+	} else {
+		// retreive members from admin SDK
+		// pages function except just the name of the callback function. Not an invocation of the function
+		err = global.dirAdminService.Members.List(feedMessageGroup.Asset.Resource.Id).MaxResults(global.maxResultsPerPage).Pages(ctx, browseMembers)
+		if err != nil {
+			return fmt.Errorf("dirAdminService.Members.List: %v", err) // RETRY
+		}
 	}
-	log.Printf("Completed - Group %s %s Number of members published to pubsub topic %s: %d", feedMessageGroup.Asset.Resource.Id, feedMessageGroup.Asset.Resource.Email, outputTopicName, pubSubMsgNumber)
+	log.Printf("Completed - Group %s %s isDeleted %v Number of members published to pubsub topic %s: %d",
+		feedMessageGroup.Asset.Resource.Email,
+		feedMessageGroup.Asset.Resource.Id,
+		feedMessageGroup.Deleted,
+		outputTopicName,
+		pubSubMsgNumber)
+	return nil
+}
+
+func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
+	var waitgroup sync.WaitGroup
+	var documentSnap *firestore.DocumentSnapshot
+	var feedMessageMember ram.FeedMessageMember
+	topic := pubSubClient.Topic(outputTopicName)
+	assets := global.firestoreClient.Collection(global.collectionID)
+	query := assets.Where(
+		"asset.assetType", "==", "www.googleapis.com/admin/directory/members").Where(
+		"asset.resource.groupEmail", "==", strings.ToLower(groupEmail))
+	iter := query.Documents(global.ctx)
+	defer iter.Stop()
+	for {
+		documentSnap, err = iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			log.Printf("ERROR - iter.Next() %v", err) // log and move to next
+		} else {
+			if documentSnap.Exists() {
+				err = documentSnap.DataTo(&feedMessageMember)
+				if err != nil {
+					log.Printf("documentSnap.DataTo %v", err) // log and move to next
+				} else {
+					feedMessageMember.Deleted = true
+					feedMessageMember.Window.StartTime = timestamp
+					feedMessageMember.Origin = origin
+					feedMessageMemberJSON, err := json.Marshal(feedMessageMember)
+					if err != nil {
+						log.Printf("ERROR - %s json.Marshal(feedMessageMember): %v", feedMessageMember.Asset.Name, err)
+					} else {
+						pubSubMessage := &pubsub.Message{
+							Data: feedMessageMemberJSON,
+						}
+						publishResult := topic.Publish(ctx, pubSubMessage)
+						waitgroup.Add(1)
+						go ram.GetPublishCallResult(ctx, publishResult, &waitgroup, feedMessageMember.Asset.Name, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+					}
+				}
+			} else {
+				log.Printf("ERROR - document does not exists %s", documentSnap.Ref.Path)
+			}
+		}
+	}
 	return nil
 }
 

@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setfeeds
+package convertlog2feed
 
 import (
-	"github.com/BrunoReboul/ram/utilities/cai"
+	"fmt"
 )
 
-func (instanceDeployment *InstanceDeployment) deployCAIFeed() (err error) {
-	feedDeployment := cai.NewFeedDeployment()
-	feedDeployment.Core = instanceDeployment.Core
-	feedDeployment.Artifacts.FeedName = instanceDeployment.Artifacts.FeedName
-	feedDeployment.Artifacts.TopicName = instanceDeployment.Artifacts.TopicName
-	feedDeployment.Artifacts.ContentType = instanceDeployment.Artifacts.ContentType
-	feedDeployment.Settings.Instance.CAI = instanceDeployment.Settings.Instance.CAI
-	return feedDeployment.Deploy()
+// Situate complement settings taking in account the situation for service and instance settings
+func (instanceDeployment *InstanceDeployment) Situate() (err error) {
+	instanceDeployment.Settings.Service.GCF.FunctionType = "backgroundPubSub"
+	instanceDeployment.Settings.Service.GCF.Description = fmt.Sprintf("For each log entry published to Pubsub topic %s convert / enrich information to publish a feed like message to Pubsub adhoc topics",
+		instanceDeployment.Settings.Instance.GCF.TriggerTopic)
+	return nil
 }

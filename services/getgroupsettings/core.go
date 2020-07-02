@@ -135,7 +135,13 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	if err != nil {
 		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err) // RETRY
 	}
-	log.Printf("Group %s %s settings published to pubsub topic %s ids %v %s", feedMessageGroup.Asset.Resource.Id, feedMessageGroup.Asset.Resource.Email, global.outputTopicName, pubsubResponse.MessageIds, string(feedMessageGroupSettingsJSON))
+	log.Printf("Group settings %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+		feedMessageGroup.Asset.Resource.Email,
+		feedMessageGroup.Deleted,
+		feedMessageGroup.Asset.Resource.Id,
+		global.outputTopicName,
+		pubsubResponse.MessageIds,
+		string(feedMessageGroupSettingsJSON))
 
 	return nil
 }
