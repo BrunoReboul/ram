@@ -320,8 +320,22 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
 			return nil
 		}
-		return publishGroupMember(groupEmail, memberEmail, false, global)
+		return publishGroupMemberCreation(groupEmail, memberEmail, global)
+	case "REMOVE_GROUP_MEMBER":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#REMOVE_GROUP_MEMBER
+		var memberEmail string
+		for _, parameter := range parameters {
+			switch parameter.Name {
+			case "USER_EMAIL":
+				// The parmeter is no only a user email. It is a member email, can be group, service account or user
+				memberEmail = parameter.Value
+			}
+		}
+		if memberEmail == "" {
+			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
+			return nil
+		}
+		return publishGroupMemberDeletion(groupEmail, memberEmail, global)
 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER
 	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
 	case "CHANGE_GROUP_SETTING":
@@ -356,6 +370,81 @@ func publishGroupCreation(groupEmail string, global *Global) (err error) {
 	feedMessage.Asset.Resource = group
 	feedMessage.Asset.Resource.Etag = ""
 	return publishGroup(feedMessage, feedMessage.Deleted, groupEmail, feedMessage.Asset.Name, global)
+}
+
+func publishGroupDeletion(groupEmail string, global *Global) (err error) {
+	assets := global.firestoreClient.Collection(global.collectionID)
+	query := assets.Where(
+		"asset.assetType", "==", "www.googleapis.com/admin/directory/groups").Where(
+		"asset.resource.email", "==", strings.ToLower(groupEmail))
+	var documentSnap *firestore.DocumentSnapshot
+	iter := query.Documents(global.ctx)
+	defer iter.Stop()
+	// multiple documents may be found in case of orphans in cache
+	type cachedFeedMessageGroup struct {
+		Asset struct {
+			Name         string   `firestore:"name" json:"name"`
+			AssetType    string   `firestore:"assetType" json:"assetType"`
+			Ancestors    []string `firestore:"ancestors" json:"ancestors"`
+			AncestryPath string   `firestore:"ancestryPath" json:"ancestryPath"`
+			Resource     struct {
+				Email string `firestore:"email" json:"email"`
+				ID    string `firestore:"id" json:"id"`
+				Kind  string `firestore:"kind" json:"kind"`
+				Name  string `firestore:"name" json:"name"`
+			} `firestore:"resource" json:"resource"`
+		} `firestore:"asset" json:"asset"`
+		Deleted bool   `firestore:"deleted" json:"deleted"`
+		Origin  string `firestore:"origin" json:"origin"`
+		Window  struct {
+			StartTime time.Time `firestore:"startTime" json:"startTime"`
+		} `firestore:"window" json:"window"`
+	}
+	var retreivedFeedMessageGroup cachedFeedMessageGroup
+	found := false
+	var i int64
+	for {
+		if i > 0 {
+			log.Printf("Cleaning cache group orphans iteration %d", i)
+		}
+		i++
+		documentSnap, err = iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("publishGroupDeletion iter.Next() %v", err) // RETRY
+		}
+		if documentSnap.Exists() {
+			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
+			// Work arround re define the type with out using admin.group
+			found = true
+			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
+			if err != nil {
+				return fmt.Errorf("publishGroupDeletion documentSnap.DataTo %v", err) // RETRY
+			}
+
+			// Updating fields
+			retreivedFeedMessageGroup.Window.StartTime = global.logEntry.Timestamp
+			retreivedFeedMessageGroup.Origin = "real-time-log-export"
+			retreivedFeedMessageGroup.Deleted = true
+
+			err = publishGroup(retreivedFeedMessageGroup,
+				retreivedFeedMessageGroup.Deleted,
+				retreivedFeedMessageGroup.Asset.Resource.Email,
+				retreivedFeedMessageGroup.Asset.Name,
+				global)
+			if err != nil {
+				return fmt.Errorf("publishGroup(retreivedFeedMessageGroup %v", err) // RETRY
+			}
+		} else {
+			return fmt.Errorf("document does not exist %s", documentSnap.Ref.Path) // RETRY
+		}
+	}
+	if !found {
+		log.Printf("ERROR - deleted group not found in cache, cannot clean up RAM data %s", groupEmail)
+	}
+	return nil
 }
 
 func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, assetName string, global *Global) (err error) {
@@ -393,6 +482,152 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 		topicName,
 		pubsubResponse.MessageIds,
 		string(feedMessageJSON))
+	return nil
+}
+
+func publishGroupMemberCreation(groupEmail string, memberEmail string, global *Global) (err error) {
+	var groupMember *admin.Member
+	var groupID string
+	// groupKey: The value can be the group's email address, group alias, or the unique group ID.
+	// memberKey: The value can be the member's (group or user) primary email address, alias, or unique ID
+	// https://developers.google.com/admin-sdk/directory/v1/reference/members/get
+	groupMember, err = global.dirAdminService.Members.Get(groupEmail, memberEmail).Context(global.ctx).Do()
+	if err != nil {
+		return fmt.Errorf("dirAdminService.Members.Get %v", err)
+	}
+	group, err := getGroupFromEmail(groupEmail, global)
+	if err != nil {
+		return err
+	}
+	groupID = group.Id
+
+	var feedMessage ram.FeedMessageMember
+	feedMessage.Asset.Ancestors = []string{
+		fmt.Sprintf("groups/%s", groupID),
+		fmt.Sprintf("directories/%s", global.directoryCustomerID)}
+
+	feedMessage.Asset.AncestryPath = fmt.Sprintf("directories/%s/groups/%s", global.directoryCustomerID, groupID)
+	feedMessage.Asset.Name = "//" + feedMessage.Asset.AncestryPath + "/members/" + groupMember.Id
+	feedMessage.Asset.AssetType = "www.googleapis.com/admin/directory/members"
+	feedMessage.Asset.Resource.GroupEmail = groupEmail
+	feedMessage.Asset.Resource.MemberEmail = memberEmail
+	feedMessage.Asset.Resource.ID = groupMember.Id
+	feedMessage.Asset.Resource.Kind = groupMember.Kind
+	feedMessage.Asset.Resource.Role = groupMember.Role
+	feedMessage.Asset.Resource.Type = groupMember.Type
+
+	feedMessage.Window.StartTime = global.logEntry.Timestamp
+	feedMessage.Origin = "real-time-log-export"
+	feedMessage.Deleted = false
+	return publishGroupMember(feedMessage, feedMessage.Deleted, groupEmail, memberEmail, feedMessage.Asset.Name, global)
+}
+
+func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *Global) (err error) {
+	assets := global.firestoreClient.Collection(global.collectionID)
+	query := assets.Where(
+		"asset.assetType", "==", "www.googleapis.com/admin/directory/members").Where(
+		"asset.resource.groupEmail", "==", strings.ToLower(groupEmail)).Where(
+		"asset.resource.memberEmail", "==", strings.ToLower(memberEmail))
+	var documentSnap *firestore.DocumentSnapshot
+	iter := query.Documents(global.ctx)
+	defer iter.Stop()
+	// multiple documents may be found in case of orphans in cache
+	type cachedFeedMessageGroupMember struct {
+		Asset struct {
+			Name         string   `firestore:"name" json:"name"`
+			AssetType    string   `firestore:"assetType" json:"assetType"`
+			Ancestors    []string `firestore:"ancestors" json:"ancestors"`
+			AncestryPath string   `firestore:"ancestryPath" json:"ancestryPath"`
+			Resource     struct {
+				GroupEmail  string `firestore:"groupEmail" json:"groupEmail"`
+				ID          string `firestore:"id" json:"id"`
+				Kind        string `firestore:"kind" json:"kind"`
+				MemberEmail string `firestore:"memberEmail" json:"memberEmail"`
+				Role        string `firestore:"role" json:"role"`
+				Type        string `firestore:"type" json:"type"`
+			} `firestore:"resource" json:"resource"`
+		} `firestore:"asset" json:"asset"`
+		Deleted bool   `firestore:"deleted" json:"deleted"`
+		Origin  string `firestore:"origin" json:"origin"`
+		Window  struct {
+			StartTime time.Time `firestore:"startTime" json:"startTime"`
+		} `firestore:"window" json:"window"`
+	}
+	var retreivedFeedMessageGroupMember cachedFeedMessageGroupMember
+	found := false
+	var i int64
+	for {
+		if i > 0 {
+			log.Printf("Cleaning cache groupMember orphans iteration %d", i)
+		}
+		i++
+		documentSnap, err = iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("publishGroupMemberDeletion iter.Next() %v", err) // RETRY
+		}
+		if documentSnap.Exists() {
+			found = true
+			err = documentSnap.DataTo(&retreivedFeedMessageGroupMember)
+			if err != nil {
+				return fmt.Errorf("publishGroupMemberDeletion documentSnap.DataTo %v", err) // RETRY
+			}
+
+			// Updating fields
+			retreivedFeedMessageGroupMember.Window.StartTime = global.logEntry.Timestamp
+			retreivedFeedMessageGroupMember.Origin = "real-time-log-export"
+			retreivedFeedMessageGroupMember.Deleted = true
+
+			err = publishGroupMember(retreivedFeedMessageGroupMember,
+				retreivedFeedMessageGroupMember.Deleted,
+				retreivedFeedMessageGroupMember.Asset.Resource.GroupEmail,
+				retreivedFeedMessageGroupMember.Asset.Resource.MemberEmail,
+				retreivedFeedMessageGroupMember.Asset.Name,
+				global)
+			if err != nil {
+				return fmt.Errorf("publishGroup(retreivedFeedMessageGroupMember %v", err) // RETRY
+			}
+		} else {
+			return fmt.Errorf("document does not exist %s", documentSnap.Ref.Path) // RETRY
+		}
+	}
+	if !found {
+		log.Printf("ERROR - deleted groupMember not found in cache, cannot clean up RAM data member %s group %s", memberEmail, groupEmail)
+	}
+	return nil
+}
+
+func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail string, memberEmail string, assetName string, global *Global) (err error) {
+	feedMessageJSON, err := json.Marshal(feedMessage)
+	if err != nil {
+		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", assetName, err)
+		return nil // NO RETRY
+	}
+	var pubSubMessage pubsubpb.PubsubMessage
+	pubSubMessage.Data = feedMessageJSON
+
+	var pubsubMessages []*pubsubpb.PubsubMessage
+	pubsubMessages = append(pubsubMessages, &pubSubMessage)
+
+	var publishRequest pubsubpb.PublishRequest
+	publishRequest.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, global.GCIGroupMembersTopicName)
+	publishRequest.Messages = pubsubMessages
+
+	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
+	if err != nil {
+		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
+	}
+	log.Printf("GroupMember %s group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+		memberEmail,
+		groupEmail,
+		isDeleted,
+		assetName,
+		global.GCIGroupMembersTopicName,
+		pubsubResponse.MessageIds,
+		string(feedMessageJSON))
+
 	return nil
 }
 
@@ -457,195 +692,4 @@ func getGroupFromEmail(groupEmail string, global *Global) (group *admin.Group, e
 		return group, fmt.Errorf("dirAdminService.Groups.Get %v", err) //
 	}
 	return group, nil
-}
-
-func publishGroupDeletion(groupEmail string, global *Global) (err error) {
-	assets := global.firestoreClient.Collection(global.collectionID)
-	query := assets.Where(
-		"asset.assetType", "==", "www.googleapis.com/admin/directory/groups").Where(
-		"asset.resource.email", "==", strings.ToLower(groupEmail))
-	var documentSnap *firestore.DocumentSnapshot
-	iter := query.Documents(global.ctx)
-	defer iter.Stop()
-	// multiple documents may be found in case of orphans in cache
-	type cachedFeedMessageGroup struct {
-		Asset struct {
-			Name         string   `firestore:"name" json:"name"`
-			AssetType    string   `firestore:"assetType" json:"assetType"`
-			Ancestors    []string `firestore:"ancestors" json:"ancestors"`
-			AncestryPath string   `firestore:"ancestryPath" json:"ancestryPath"`
-			Resource     struct {
-				Email string `firestore:"email" json:"email"`
-				ID    string `firestore:"id" json:"id"`
-				Kind  string `firestore:"kind" json:"kind"`
-				Name  string `firestore:"name" json:"name"`
-			} `firestore:"resource" json:"resource"`
-		} `firestore:"asset" json:"asset"`
-		Deleted bool   `firestore:"deleted" json:"deleted"`
-		Origin  string `firestore:"origin" json:"origin"`
-		Window  struct {
-			StartTime time.Time `firestore:"startTime" json:"startTime"`
-		} `firestore:"window" json:"window"`
-	}
-	var retreivedFeedMessageGroup cachedFeedMessageGroup
-	found := false
-	var i int64
-	for {
-		if i > 0 {
-			log.Printf("Cleaning cache orphans iteration %d", i)
-		}
-		i++
-		documentSnap, err = iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("iter.Next() %v", err) // RETRY
-		}
-		if documentSnap.Exists() {
-			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
-			// Work arround re define the type with out using admin.group
-			found = true
-			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
-			if err != nil {
-				return fmt.Errorf("documentSnap.DataTo %v", err) // RETRY
-			}
-
-			// Updating fields
-			retreivedFeedMessageGroup.Window.StartTime = global.logEntry.Timestamp
-			retreivedFeedMessageGroup.Origin = "real-time-log-export"
-			retreivedFeedMessageGroup.Deleted = true
-
-			err = publishGroup(retreivedFeedMessageGroup,
-				retreivedFeedMessageGroup.Deleted,
-				retreivedFeedMessageGroup.Asset.Resource.Email,
-				retreivedFeedMessageGroup.Asset.Name,
-				global)
-			if err != nil {
-				return fmt.Errorf("publishGroup(retreivedFeedMessageGroup %v", err) // RETRY
-			}
-		} else {
-			return fmt.Errorf("document does not exist %s", documentSnap.Ref.Path) // RETRY
-		}
-	}
-	if !found {
-		log.Printf("ERROR - deleted group not found in cache, cannot clean up RAM data %s", groupEmail)
-	}
-	return nil
-}
-
-func publishGroupMember(groupEmail string, memberEmail string, isDeleted bool, global *Global) (err error) {
-	var feedMessageMember ram.FeedMessageMember
-	feedMessageMember.Window.StartTime = global.logEntry.Timestamp
-	feedMessageMember.Origin = "real-time-log-export"
-	feedMessageMember.Asset.AssetType = "www.googleapis.com/admin/directory/members"
-	feedMessageMember.Deleted = isDeleted
-
-	var groupMember *admin.Member
-	var groupID string
-	if !isDeleted {
-		// groupKey: The value can be the group's email address, group alias, or the unique group ID.
-		// memberKey: The value can be the member's (group or user) primary email address, alias, or unique ID
-		// https://developers.google.com/admin-sdk/directory/v1/reference/members/get
-		groupMember, err = global.dirAdminService.Members.Get(groupEmail, memberEmail).Context(global.ctx).Do()
-		if err != nil {
-			return fmt.Errorf("dirAdminService.Members.Get %v", err)
-		}
-		group, err := getGroupFromEmail(groupEmail, global)
-		if err != nil {
-			return err
-		}
-		groupID = group.Id
-	} else {
-		assets := global.firestoreClient.Collection(global.collectionID)
-		query := assets.Where(
-			"asset.assetType", "==", "www.googleapis.com/admin/directory/members").Where(
-			"asset.resource.groupEmail", "==", strings.ToLower(groupEmail)).Where(
-			"asset.resource.memberEmail", "==", strings.ToLower(memberEmail))
-		var i time.Duration
-		var documentSnap *firestore.DocumentSnapshot
-		for i = 0; i < global.retriesNumber; i++ {
-			iter := query.Documents(global.ctx)
-			defer iter.Stop()
-			// the query is expected to return only one document
-			for {
-				documentSnap, err = iter.Next()
-				if err == iterator.Done {
-					break
-				}
-			}
-			if err != nil && err != iterator.Done {
-				log.Printf("ERROR - iteration %d iter.Next() %v", i, err)
-				time.Sleep(i * 100 * time.Millisecond)
-			} else {
-				break
-			}
-
-		}
-		if documentSnap.Exists() {
-			assetMap := documentSnap.Data()
-			// assetMapJSON, err := json.Marshal(assetMap)
-			// if err != nil {
-			// 	log.Println("ERROR - json.Marshal(assetMap)")
-			// 	return nil // NO RETRY
-			// }
-			// log.Printf("%s", string(assetMapJSON))
-			// _ = assetMapJSON
-
-			var assetInterface interface{} = assetMap["asset"]
-			if asset, ok := assetInterface.(map[string]interface{}); ok {
-				var nameInterface interface{} = asset["name"]
-				if name, ok := nameInterface.(string); ok {
-					parts := strings.Split(name, "/")
-					for n, part := range parts {
-						log.Printf("part %d value %s", n, part)
-					}
-				}
-			}
-		} else {
-			log.Printf("ERROR - deleted groupMember %s in group %s not found in cache, cannot clean up RAM data", memberEmail, groupEmail)
-		}
-		return nil
-	}
-
-	feedMessageMember.Asset.Ancestors = []string{
-		fmt.Sprintf("groups/%s", groupID),
-		fmt.Sprintf("directories/%s", global.directoryCustomerID)}
-
-	feedMessageMember.Asset.AncestryPath = fmt.Sprintf("directories/%s/groups/%s", global.directoryCustomerID, groupID)
-	feedMessageMember.Asset.Name = "//" + feedMessageMember.Asset.AncestryPath + "/members/" + groupMember.Id
-	feedMessageMember.Asset.Resource.GroupEmail = groupEmail
-	feedMessageMember.Asset.Resource.MemberEmail = memberEmail
-	feedMessageMember.Asset.Resource.ID = groupMember.Id
-	feedMessageMember.Asset.Resource.Kind = groupMember.Kind
-	feedMessageMember.Asset.Resource.Role = groupMember.Role
-	feedMessageMember.Asset.Resource.Type = groupMember.Type
-	feedMessageMemberJSON, err := json.Marshal(feedMessageMember)
-	if err != nil {
-		log.Printf("ERROR - %s json.Marshal(feedMessageMember): %v", memberEmail, err)
-	}
-
-	var pubSubMessage pubsubpb.PubsubMessage
-	pubSubMessage.Data = feedMessageMemberJSON
-
-	var pubsubMessages []*pubsubpb.PubsubMessage
-	pubsubMessages = append(pubsubMessages, &pubSubMessage)
-
-	var publishRequest pubsubpb.PublishRequest
-	publishRequest.Topic = fmt.Sprintf("projects/%s/topics/%s", global.projectID, global.GCIGroupMembersTopicName)
-	publishRequest.Messages = pubsubMessages
-
-	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
-	if err != nil {
-		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
-	}
-	log.Printf("Member %s %s %s settings published to pubsub topic %s ids %v %s",
-		feedMessageMember.Asset.Name,
-		feedMessageMember.Asset.Resource.GroupEmail,
-		feedMessageMember.Asset.Resource.MemberEmail,
-		global.GCIGroupMembersTopicName,
-		pubsubResponse.MessageIds,
-		string(feedMessageMemberJSON))
-
-	return nil
 }
