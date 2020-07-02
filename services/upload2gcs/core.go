@@ -102,7 +102,6 @@ func Initialize(ctx context.Context, global *Global) {
 	}
 	// bucketHandle must be evaluated after storateClient init
 	global.bucketHandle = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.AssetsJSONFile.Name)
-	ram.JSONMarshalIndentPrint(global.bucketHandle.Attrs)
 
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
