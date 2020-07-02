@@ -20,20 +20,19 @@ import (
 	"os"
 	"strings"
 
-	"github.com/BrunoReboul/ram/services/setlogsinks"
+	"github.com/BrunoReboul/ram/services/convertlog2feed"
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
-// configureLogSinksOrganizations
-func (deployment *Deployment) configureLogSinksOrganizations() (err error) {
-	serviceName := "setlogsinks"
+// configureConvertlog2feedOrganizations
+func (deployment *Deployment) configureConvertlog2feedOrganizations() (err error) {
+	serviceName := "convertlog2feed"
 	// Case activity group
 	sinkNameSuffix := "activity-group"
-	filter := `resource.type="audited_resource" AND logName:"logs/cloudaudit.googleapis.com%2Factivity" AND protoPayload.serviceName="admin.googleapis.com" AND protoPayload.methodName:"group"`
 
 	log.Printf("configure %s %s", serviceName, sinkNameSuffix)
-	var setlogsinksInstanceDeployment setlogsinks.InstanceDeployment
-	setlogsinksInstance := setlogsinksInstanceDeployment.Settings.Instance
+	var convertlog2feedInstanceDeployment convertlog2feed.InstanceDeployment
+	convertlog2feedInstance := convertlog2feedInstanceDeployment.Settings.Instance
 	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(serviceFolderPath, 0755)
@@ -44,10 +43,16 @@ func (deployment *Deployment) configureLogSinksOrganizations() (err error) {
 	}
 
 	for _, organizationID := range deployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
-		setlogsinksInstance.LSK.Parent = fmt.Sprintf("organizations/%s", organizationID)
-		setlogsinksInstance.LSK.SinkNameSuffix = sinkNameSuffix
-		setlogsinksInstance.LSK.Filter = filter
-		setlogsinksInstance.LSK.TopicName = fmt.Sprintf("log-org%s-%s", organizationID, sinkNameSuffix)
+		convertlog2feedInstance.GCF.TriggerTopic = fmt.Sprintf("log-org%s-%s", organizationID, sinkNameSuffix)
+
+		var directoryCustomerID string
+		organization, err := deployment.Core.Services.CloudresourcemanagerService.Organizations.Get(fmt.Sprintf("organizations/%s", organizationID)).Context(deployment.Core.Ctx).Do()
+		if err != nil {
+			log.Printf("WARNING - cloudresourcemanagerService.Organizations.Get %v", err)
+		} else {
+			directoryCustomerID = organization.Owner.DirectoryCustomerId
+		}
+		convertlog2feedInstance.GCI.SuperAdminEmail = deployment.Core.SolutionSettings.Monitoring.DirectoryCustomerIDs[directoryCustomerID].SuperAdminEmail
 
 		instanceFolderPath := strings.Replace(
 			fmt.Sprintf("%s/%s_org%s_%s",
@@ -58,7 +63,7 @@ func (deployment *Deployment) configureLogSinksOrganizations() (err error) {
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
-		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), setlogsinksInstance); err != nil {
+		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), convertlog2feedInstance); err != nil {
 			return err
 		}
 		log.Printf("done %s", instanceFolderPath)
