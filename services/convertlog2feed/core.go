@@ -475,7 +475,7 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", topicShortName, err) // RETRY
 	}
 
-	log.Printf("Group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+	log.Printf("PubOps group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
 		groupEmail,
 		isDeleted,
 		assetName,
@@ -619,7 +619,7 @@ func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail stri
 	if err != nil {
 		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
 	}
-	log.Printf("GroupMember %s group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+	log.Printf("PubOps groupMember %s group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
 		memberEmail,
 		groupEmail,
 		isDeleted,
@@ -674,7 +674,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 	if err != nil {
 		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
 	}
-	log.Printf("Group settings %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+	log.Printf("PubOps groupSettings %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
 		feedMessageGroupSettings.Asset.Resource.Email,
 		feedMessageGroupSettings.Deleted,
 		feedMessageGroupSettings.Asset.Name,
