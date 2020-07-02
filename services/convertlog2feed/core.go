@@ -300,9 +300,11 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		return nil
 	}
 	switch event.EventName {
-	case "CREATE_GROUP":
+	case "CREATE_GROUP", "CHANGE_GROUP_NAME", "CHANGE_GROUP_DESCRIPTION":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CREATE_GROUP
-		return publishGroupCreation(groupEmail, global)
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
+		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_DESCRIPTION
+		return publishGroupCreationOrUpdate(groupEmail, global)
 	case "DELETE_GROUP":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#DELETE_GROUP
 		return publishGroupDeletion(groupEmail, global)
@@ -337,14 +339,12 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			return nil
 		}
 		return publishGroupMemberDeletion(groupEmail, memberEmail, global)
-	// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_NAME
 	case "CHANGE_GROUP_SETTING":
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_SETTING
 		return publishGroupSettings(groupEmail, global)
 	default:
 		log.Printf("Unmanaged event.EventName %s", event.EventName)
 		return nil
-		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_DESCRIPTION
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#GROUP_LIST_DOWNLOAD
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER_DELIVERY_SETTINGS
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER_DELIVERY_SETTINGS_CAN_EMAIL_OVERRIDE
@@ -354,7 +354,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 	}
 }
 
-func publishGroupCreation(groupEmail string, global *Global) (err error) {
+func publishGroupCreationOrUpdate(groupEmail string, global *Global) (err error) {
 	group, err := getGroupFromEmail(groupEmail, global)
 	if err != nil {
 		return err
