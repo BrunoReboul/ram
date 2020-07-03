@@ -77,5 +77,34 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 		return err
 	}
 	log.Printf("done %s", instanceFolderPath)
+
+	publish2fsInstance.GCF.TriggerTopic = "gci-groupMembers"
+	instanceFolderPath = strings.Replace(
+		fmt.Sprintf("%s/%s_gci_groupMembers",
+			instancesFolderPath,
+			serviceName), "-", "_", -1)
+	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
+		os.Mkdir(instanceFolderPath, 0755)
+	}
+	if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), publish2fsInstance); err != nil {
+		return err
+	}
+	log.Printf("done %s", instanceFolderPath)
+
+	for directoryCustomerID := range deployment.Core.SolutionSettings.Monitoring.DirectoryCustomerIDs {
+		publish2fsInstance.GCF.TriggerTopic = fmt.Sprintf("gci-groups-%s", directoryCustomerID)
+		instanceFolderPath = strings.Replace(
+			fmt.Sprintf("%s/%s_gci_groups_%s",
+				instancesFolderPath,
+				serviceName,
+				directoryCustomerID), "-", "_", -1)
+		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
+			os.Mkdir(instanceFolderPath, 0755)
+		}
+		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), publish2fsInstance); err != nil {
+			return err
+		}
+		log.Printf("done %s", instanceFolderPath)
+	}
 	return nil
 }
