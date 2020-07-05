@@ -107,7 +107,7 @@ func Initialize(ctx context.Context, global *Global) {
 	var ok bool
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	err = ram.ReadUnmarshalYAML(ram.PathToFunctionCode+ram.SettingsFileName, &instanceDeployment)
 	if err != nil {
 		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
 		global.initFailed = true

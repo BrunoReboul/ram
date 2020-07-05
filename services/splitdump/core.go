@@ -85,17 +85,10 @@ func Initialize(ctx context.Context, global *Global) {
 	var storageClient *storage.Client
 
 	log.Println("Function COLD START")
-
-	err = ram.ExploreFolder("./")
-	if err != nil {
-		log.Printf("ram.ExploreFolder %v", err)
-	}
-
-	err = ram.ExploreFolder(ram.PathToFunctionCode)
-	if err != nil {
-		log.Printf("ram.ExploreFolder %v", err)
-	}
-
+	// err = ram.ExploreFolder(ram.PathToFunctionCode)
+	// if err != nil {
+	// 	log.Printf("ram.ExploreFolder %v", err)
+	// }
 	err = ram.ReadUnmarshalYAML(ram.PathToFunctionCode+ram.SettingsFileName, &instanceDeployment)
 	if err != nil {
 		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
