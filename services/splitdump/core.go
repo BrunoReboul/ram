@@ -91,12 +91,12 @@ func Initialize(ctx context.Context, global *Global) {
 		log.Printf("ram.ExploreFolder %v", err)
 	}
 
-	err = ram.ExploreFolder("./serverless_function_source_code")
+	err = ram.ExploreFolder(ram.PathToFunctionCode)
 	if err != nil {
 		log.Printf("ram.ExploreFolder %v", err)
 	}
 
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	err = ram.ReadUnmarshalYAML(ram.PathToFunctionCode+ram.SettingsFileName, &instanceDeployment)
 	if err != nil {
 		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
 		global.initFailed = true
