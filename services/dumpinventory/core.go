@@ -57,7 +57,7 @@ func Initialize(ctx context.Context, global *Global) {
 	var gcsDestinationURI assetpb.GcsDestination_Uri
 	gcsDestinationURI.Uri = fmt.Sprintf("gs://%s/%s.dump",
 		instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name,
-		os.Getenv("FUNCTION_NAME"))
+		os.Getenv("K_SERVICE"))
 
 	var gcsDestination assetpb.GcsDestination
 	gcsDestination.ObjectUri = &gcsDestinationURI
