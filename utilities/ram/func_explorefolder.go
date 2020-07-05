@@ -22,11 +22,11 @@ import (
 
 // ExploreFolder list folder childs and their type
 func ExploreFolder(path string) (err error) {
-	filesInfo, err := ioutil.ReadDir("path")
+	log.Printf("List child in %s", path)
+	filesInfo, err := ioutil.ReadDir(path)
 	if err != nil {
 		return fmt.Errorf("ioutil.ReadDir %v", err)
 	}
-	log.Printf("List child in %s", path)
 	for _, fileInfo := range filesInfo {
 		log.Printf("Parent %s base name %v IsDir %v Size (bytes) %d modified %v",
 			path,
