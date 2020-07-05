@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -121,10 +120,18 @@ func Initialize(ctx context.Context, global *Global) {
 	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 	global.retriesNumber = instanceDeployment.Settings.Service.RetriesNumber
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
-	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
-	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
+	keyJSONFilePath := ram.PathToFunctionCode + instanceDeployment.Settings.Service.KeyJSONFileName
+	serviceAccountEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
+		instanceDeployment.Core.ServiceName,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
-	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, global.projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"}); !ok {
+	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx,
+		serviceAccountEmail,
+		keyJSONFilePath,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
+		gciAdminUserToImpersonate,
+		[]string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"}); !ok {
+		global.initFailed = true
 		return
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)

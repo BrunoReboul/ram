@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -88,11 +87,19 @@ func Initialize(ctx context.Context, global *Global) {
 	global.maxResultsPerPage = instanceDeployment.Settings.Service.MaxResultsPerPage
 	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
-	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
-	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
+	keyJSONFilePath := ram.PathToFunctionCode + instanceDeployment.Settings.Service.KeyJSONFileName
+	serviceAccountEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
+		instanceDeployment.Core.ServiceName,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
-	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
+	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx,
+		serviceAccountEmail,
+		keyJSONFilePath,
+		projectID,
+		gciAdminUserToImpersonate,
+		[]string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
+		global.initFailed = true
 		return
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
