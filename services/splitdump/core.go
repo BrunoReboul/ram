@@ -85,8 +85,14 @@ func Initialize(ctx context.Context, global *Global) {
 	var storageClient *storage.Client
 
 	log.Println("Function COLD START")
-	ram.ExploreFolder("./")
+	err = ram.ExploreFolder("./")
+	if err != nil {
+		log.Printf("ram.ExploreFolder %v", err)
+	}
 	ram.ExploreFolder("./serverless_function_source_code")
+	if err != nil {
+		log.Printf("ram.ExploreFolder %v", err)
+	}
 	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
 	if err != nil {
 		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
