@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -92,7 +91,9 @@ func Initialize(ctx context.Context, global *Global) {
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
-	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
+	serviceAccountEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
+		instanceDeployment.Core.ServiceName,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
 	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope}); !ok {
 		return
