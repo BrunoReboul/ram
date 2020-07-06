@@ -114,6 +114,7 @@ func (triggerDeployment *TriggerDeployment) getInstanceDeploymentBuild() *cloudb
 	var build cloudbuild.Build
 	build.Steps = steps
 	build.Timeout = triggerDeployment.Settings.Service.GCB.BuildTimeout
+	build.QueueTtl = triggerDeployment.Settings.Service.GCB.QueueTTL
 	build.Tags = []string{triggerDeployment.Core.ServiceName,
 		triggerDeployment.Core.InstanceName,
 		ram.SolutionName}
