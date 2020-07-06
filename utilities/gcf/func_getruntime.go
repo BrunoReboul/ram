@@ -26,6 +26,6 @@ func getRunTime(goVersion string) (runTime string, err error) {
 	case "1.13":
 		return "go113", nil
 	default:
-		return "", fmt.Errorf("Supported Go version are [1.11], provided version was: %s", goVersion)
+		return "", fmt.Errorf("Supported Go version are 1.11 or 1.13, provided version was: %s", goVersion)
 	}
 }
