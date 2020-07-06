@@ -17,6 +17,8 @@ package monitor
 import (
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/ram"
+
 	"github.com/BrunoReboul/ram/utilities/deploy"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/gcf"
@@ -97,7 +99,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 
 	instanceDeployment.Settings.Service.AssetsFolderName = "/assets"
 	instanceDeployment.Settings.Service.AssetsFileName = "data.json"
-	instanceDeployment.Settings.Service.OPAFolderPath = "./opa"
+	instanceDeployment.Settings.Service.OPAFolderPath = ram.PathToFunctionCode + "opa"
 	instanceDeployment.Settings.Service.RegoModulesFolderName = "modules"
 	instanceDeployment.Settings.Service.WritabelOPAFolderPath = "/tmp/opa"
 

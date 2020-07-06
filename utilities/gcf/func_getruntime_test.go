@@ -25,7 +25,7 @@ func TestGetRunTime(t *testing.T) {
 	}{
 		{"1.11", "go111"},
 		{"1.12", "Unsupported"},
-		{"1.13", "Unsupported"},
+		{"1.13", "go113"},
 		{"1.14", "Unsupported"},
 		{"blabla", "Unsupported"},
 	}
