@@ -11,7 +11,7 @@ require (
 	cloud.google.com/go/storage v1.10.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/google/uuid v1.1.1
-	github.com/open-policy-agent/opa v0.16.0
+	github.com/open-policy-agent/opa v0.21.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	google.golang.org/api v0.28.0
 	google.golang.org/genproto v0.0.0-20200626011028-ee7919e894b5
