@@ -183,8 +183,8 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 			log.Printf("ERROR - splitToChildDumps %v", err)
 			return nil // NO RETRY
 		}
-		numberOfDumps := childDumpNumber++
-		log.Printf("Processed %d lines, created %d childdumps files from %s generation %v duration %v\n", dumpLineNumber, numberOfDumps, gcsEvent.Name, gcsEvent.Generation, duration)
+		childDumpNumber++
+		log.Printf("Processed %d lines, created %d childdumps files from %s generation %v duration %v\n", childDumpNumber, numberOfDumps, gcsEvent.Name, gcsEvent.Generation, duration)
 	} else {
 		dumpLineNumber, duration = splitToLines(buffer, global, &pubSubMsgNumber, &topicList, startTime)
 		log.Printf("Processed %d lines %d pubsub msg from %s generation %v duration %v\n", dumpLineNumber, pubSubMsgNumber, gcsEvent.Name, gcsEvent.Generation, duration)
