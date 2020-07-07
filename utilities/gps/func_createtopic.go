@@ -43,7 +43,7 @@ func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClie
 	topicRequested.Name = fmt.Sprintf("projects/%s/topics/%s", projectID, topicName)
 	topicRequested.Labels = map[string]string{"name": strings.ToLower(topicName)}
 
-	log.Printf("topicRequested %v", topicRequested)
+	// log.Printf("topicRequested %v", topicRequested)
 
 	topic, err := pubSubPulisherClient.CreateTopic(ctx, &topicRequested)
 	if err != nil {

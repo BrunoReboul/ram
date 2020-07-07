@@ -22,6 +22,7 @@ import (
 
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/groupssettings/v1"
@@ -96,7 +97,7 @@ func Initialize(ctx context.Context, global *Global) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}

@@ -25,6 +25,7 @@ import (
 
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/iterator"
@@ -128,7 +129,7 @@ func Initialize(ctx context.Context, global *Global) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}
@@ -217,7 +218,7 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 						}
 						publishResult := topic.Publish(ctx, pubSubMessage)
 						waitgroup.Add(1)
-						go ram.GetPublishCallResult(ctx, publishResult, &waitgroup, feedMessageMember.Asset.Name, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+						go gps.GetPublishCallResult(ctx, publishResult, &waitgroup, feedMessageMember.Asset.Name, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
 					}
 				}
 			} else {
@@ -258,7 +259,7 @@ func browseMembers(members *admin.Members) error {
 			}
 			publishResult := topic.Publish(ctx, pubSubMessage)
 			waitgroup.Add(1)
-			go ram.GetPublishCallResult(ctx, publishResult, &waitgroup, groupAssetName+"/"+member.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+			go gps.GetPublishCallResult(ctx, publishResult, &waitgroup, groupAssetName+"/"+member.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
 		}
 	}
 	return nil

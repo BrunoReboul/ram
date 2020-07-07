@@ -12,45 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ram avoid code redundancy by grouping types and functions used by other ram packages
-package ram
+package gcf
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/functions/metadata"
-	"cloud.google.com/go/pubsub"
 )
-
-// GetByteSet return a set of lenght contiguous bytes starting at bytes
-func GetByteSet(start byte, length int) []byte {
-	byteSet := make([]byte, length)
-	for i := range byteSet {
-		byteSet[i] = start + byte(i)
-	}
-	return byteSet
-}
-
-// GetPublishCallResult func to be used in go routine to scale pubsub event publish
-func GetPublishCallResult(ctx context.Context, publishResult *pubsub.PublishResult, waitgroup *sync.WaitGroup, msgInfo string, pubSubErrNumber *uint64, pubSubMsgNumber *uint64, logEventEveryXPubSubMsg uint64) {
-	defer waitgroup.Done()
-	id, err := publishResult.Get(ctx)
-	if err != nil {
-		log.Printf("ERROR count %d on %s: %v", atomic.AddUint64(pubSubErrNumber, 1), msgInfo, err)
-		return
-	}
-	msgNumber := atomic.AddUint64(pubSubMsgNumber, 1)
-	if msgNumber%logEventEveryXPubSubMsg == 0 {
-		// No retry on pubsub publish as already implemented in the GO client
-		log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
-	}
-	// log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
-}
 
 // IntialRetryCheck performs intitial controls
 // 1) return true and metadata when controls are passed
@@ -75,13 +46,4 @@ func IntialRetryCheck(ctxEvent context.Context, initFailed bool, retryTimeOutSec
 		return false, metadata, nil // NO MORE RETRY
 	}
 	return true, metadata, nil
-}
-
-// PrintEnptyInterfaceType discover the type below an empty interface
-func PrintEnptyInterfaceType(value interface{}, valueName string) error {
-	switch t := value.(type) {
-	default:
-		log.Printf("type %T for value named: %s\n", t, valueName)
-	}
-	return nil
 }
