@@ -366,7 +366,7 @@ func publishGroupCreationOrUpdate(groupEmail string, global *Global) (err error)
 	if err != nil {
 		return err
 	}
-	var feedMessage ram.FeedMessageGroup
+	var feedMessage cai.FeedMessageGroup
 	feedMessage.Window.StartTime = global.logEntry.Timestamp
 	feedMessage.Origin = "real-time-log-export"
 	feedMessage.Deleted = false
@@ -423,8 +423,6 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			return fmt.Errorf("publishGroupDeletion iter.Next() %v", err) // RETRY
 		}
 		if documentSnap.Exists() {
-			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
-			// Work arround re define the type with out using admin.group
 			found = true
 			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
 			if err != nil {
@@ -508,7 +506,7 @@ func publishGroupMemberCreationOrUpdate(groupEmail string, memberEmail string, g
 	}
 	groupID = group.Id
 
-	var feedMessage ram.FeedMessageMember
+	var feedMessage cai.FeedMessageMember
 	feedMessage.Asset.Ancestors = []string{
 		fmt.Sprintf("groups/%s", groupID),
 		fmt.Sprintf("directories/%s", global.directoryCustomerID)}
@@ -639,7 +637,7 @@ func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail stri
 }
 
 func publishGroupSettings(groupEmail string, global *Global) (err error) {
-	var feedMessageGroupSettings ram.FeedMessageGroupSettings
+	var feedMessageGroupSettings cai.FeedMessageGroupSettings
 	feedMessageGroupSettings.Window.StartTime = global.logEntry.Timestamp
 	feedMessageGroupSettings.Origin = "real-time-log-export"
 	feedMessageGroupSettings.Asset.AssetType = "groupssettings.googleapis.com/groupSettings"

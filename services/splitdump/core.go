@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/gcs"
 
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/storage"
@@ -60,7 +61,7 @@ type asset struct {
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
 	Asset  asset      `json:"asset"`
-	Window ram.Window `json:"window"`
+	Window cai.Window `json:"window"`
 	Origin string     `json:"origin"`
 }
 
@@ -118,7 +119,7 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global) error {
+func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
 	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err

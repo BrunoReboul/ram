@@ -21,6 +21,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/BrunoReboul/ram/services/monitor"
+	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/gbq"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -127,14 +129,14 @@ type specBQ struct {
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
 	Asset  asset      `json:"asset"`
-	Window ram.Window `json:"window"`
+	Window cai.Window `json:"window"`
 	Origin string     `json:"origin"`
 }
 
 // feedMessageBQ format to persist in BQ
 type feedMessageBQ struct {
 	Asset  assetBQ    `json:"asset"`
-	Window ram.Window `json:"window"`
+	Window cai.Window `json:"window"`
 	Origin string     `json:"origin"`
 }
 
@@ -169,7 +171,7 @@ type assetBQ struct {
 // assetFeedMessageBQ Cloud Asset Inventory feed message for asset table
 type assetFeedMessageBQ struct {
 	Asset   assetAssetBQ `json:"asset"`
-	Window  ram.Window   `json:"window"`
+	Window  cai.Window   `json:"window"`
 	Deleted bool         `json:"deleted"`
 	Origin  string       `json:"origin"`
 }
@@ -282,7 +284,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 }
 
 func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
-	var complianceStatus ram.ComplianceStatus
+	var complianceStatus monitor.ComplianceStatus
 	err := json.Unmarshal(pubSubJSONDoc, &complianceStatus)
 	if err != nil {
 		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &complianceStatus): %v", err)

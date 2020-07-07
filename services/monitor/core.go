@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
+	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -62,7 +63,7 @@ type Global struct {
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
 	Asset   asset      `json:"asset"`
-	Window  ram.Window `json:"window"`
+	Window  cai.Window `json:"window"`
 	Deleted bool       `json:"deleted"`
 	Origin  string     `json:"origin"`
 }
@@ -137,8 +138,19 @@ type spec struct {
 
 // compliantLog log entry when compliant
 type compliantLog struct {
-	ComplianceStatus   ram.ComplianceStatus `json:"complianceStatus"`
-	AssetsJSONDocument json.RawMessage      `json:"assetsJSONDocument"`
+	ComplianceStatus   ComplianceStatus `json:"complianceStatus"`
+	AssetsJSONDocument json.RawMessage  `json:"assetsJSONDocument"`
+}
+
+// ComplianceStatus by asset, by rule, true/false compliance status
+type ComplianceStatus struct {
+	AssetName               string    `json:"assetName"`
+	AssetInventoryTimeStamp time.Time `json:"assetInventoryTimeStamp"`
+	AssetInventoryOrigin    string    `json:"assetInventoryOrigin"`
+	RuleName                string    `json:"ruleName"`
+	RuleDeploymentTimeStamp time.Time `json:"ruleDeploymentTimeStamp"`
+	Compliant               bool      `json:"compliant"`
+	Deleted                 bool      `json:"deleted"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -214,7 +226,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
-	var complianceStatus ram.ComplianceStatus
+	var complianceStatus ComplianceStatus
 	var compliantLog compliantLog
 
 	assetsJSONDocument, feedMessage, err := buildAssetsDocument(PubSubMessage, global)

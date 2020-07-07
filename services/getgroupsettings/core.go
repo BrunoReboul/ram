@@ -100,14 +100,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
 	// Pass data to global variables to deal with func browseGroup
-	var feedMessageGroup ram.FeedMessageGroup
+	var feedMessageGroup cai.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
 		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
 		return nil // NO RETRY
 	}
 
-	var feedMessageGroupSettings ram.FeedMessageGroupSettings
+	var feedMessageGroupSettings cai.FeedMessageGroupSettings
 	feedMessageGroupSettings.Window.StartTime = metadata.Timestamp
 	feedMessageGroupSettings.Origin = feedMessageGroup.Origin
 	feedMessageGroupSettings.Asset.Ancestors = feedMessageGroup.Asset.Ancestors

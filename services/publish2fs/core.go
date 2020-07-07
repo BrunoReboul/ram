@@ -37,7 +37,7 @@ type Global struct {
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
 	Asset   asset      `json:"asset" firestore:"asset"`
-	Window  ram.Window `json:"window" firestore:"window"`
+	Window  cai.Window `json:"window" firestore:"window"`
 	Deleted bool       `json:"deleted" firestore:"deleted"`
 	Origin  string     `json:"origin" firestore:"origin"`
 }

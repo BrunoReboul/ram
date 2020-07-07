@@ -21,6 +21,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
@@ -47,7 +48,7 @@ type Global struct {
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
 	Asset   asset      `json:"asset"`
-	Window  ram.Window `json:"window"`
+	Window  cai.Window `json:"window"`
 	Deleted bool       `json:"deleted"`
 	Origin  string     `json:"origin"`
 }

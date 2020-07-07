@@ -62,13 +62,13 @@ Implementation example
      "context"
 
      "github.com/BrunoReboul/ram/services/splitdump"
-     "github.com/BrunoReboul/ram/utilities/ram"
+     "github.com/BrunoReboul/ram/utilities/gcs"
  )
  var global splitdump.Global
  var ctx = context.Background()
 
  // EntryPoint is the function to be executed for each cloud function occurence
- func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent) error {
+ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event) error {
      return splitdump.EntryPoint(ctxEvent, PubSubMessage, &global)
  }
 

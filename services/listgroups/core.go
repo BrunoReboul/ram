@@ -227,7 +227,7 @@ func browseGroups(groups *admin.Groups) error {
 	var waitgroup sync.WaitGroup
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, group := range groups.Groups {
-		var feedMessage ram.FeedMessageGroup
+		var feedMessage cai.FeedMessageGroup
 		feedMessage.Window.StartTime = timestamp
 		feedMessage.Origin = "batch-listgroups"
 		feedMessage.Deleted = false

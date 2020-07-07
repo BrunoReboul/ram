@@ -33,112 +33,11 @@ import (
 
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
-	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
-	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 )
-
-// AssetGroup CAI like format
-type AssetGroup struct {
-	Name         string          `json:"name"`
-	AssetType    string          `json:"assetType"`
-	Ancestors    []string        `json:"ancestors"`
-	AncestryPath string          `json:"ancestryPath"`
-	IamPolicy    json.RawMessage `json:"iamPolicy"`
-	Resource     *admin.Group    `json:"resource"`
-}
-
-// AssetGroupSettings CAI like format
-type AssetGroupSettings struct {
-	Name      string                 `json:"name"`
-	AssetType string                 `json:"assetType"`
-	Ancestors []string               `json:"ancestors"`
-	IamPolicy json.RawMessage        `json:"iamPolicy"`
-	Resource  *groupssettings.Groups `json:"resource"`
-}
-
-// AssetMember CAI like format
-type AssetMember struct {
-	Name         string          `json:"name"`
-	AssetType    string          `json:"assetType"`
-	Ancestors    []string        `json:"ancestors"`
-	AncestryPath string          `json:"ancestryPath"`
-	IamPolicy    json.RawMessage `json:"iamPolicy"`
-	Resource     Member          `json:"resource"`
-}
-
-// ComplianceStatus by asset, by rule, true/false compliance status
-type ComplianceStatus struct {
-	AssetName               string    `json:"assetName"`
-	AssetInventoryTimeStamp time.Time `json:"assetInventoryTimeStamp"`
-	AssetInventoryOrigin    string    `json:"assetInventoryOrigin"`
-	RuleName                string    `json:"ruleName"`
-	RuleDeploymentTimeStamp time.Time `json:"ruleDeploymentTimeStamp"`
-	Compliant               bool      `json:"compliant"`
-	Deleted                 bool      `json:"deleted"`
-}
-
-// FeedMessageGroup CAI like format
-type FeedMessageGroup struct {
-	Asset   AssetGroup `json:"asset"`
-	Window  Window     `json:"window"`
-	Deleted bool       `json:"deleted"`
-	Origin  string     `json:"origin"`
-}
-
-// FeedMessageGroupSettings CAI like format
-type FeedMessageGroupSettings struct {
-	Asset   AssetGroupSettings `json:"asset"`
-	Window  Window             `json:"window"`
-	Deleted bool               `json:"deleted"`
-	Origin  string             `json:"origin"`
-}
-
-// FeedMessageMember CAI like format
-type FeedMessageMember struct {
-	Asset   AssetMember `json:"asset"`
-	Window  Window      `json:"window"`
-	Deleted bool        `json:"deleted"`
-	Origin  string      `json:"origin"`
-}
-
-// GCSEvent is the payload of a GCS event.
-type GCSEvent struct {
-	Kind                    string                 `json:"kind"`
-	ID                      string                 `json:"id"`
-	SelfLink                string                 `json:"selfLink"`
-	Name                    string                 `json:"name"`
-	Bucket                  string                 `json:"bucket"`
-	Generation              string                 `json:"generation"`
-	Metageneration          string                 `json:"metageneration"`
-	ContentType             string                 `json:"contentType"`
-	TimeCreated             time.Time              `json:"timeCreated"`
-	Updated                 time.Time              `json:"updated"`
-	TemporaryHold           bool                   `json:"temporaryHold"`
-	EventBasedHold          bool                   `json:"eventBasedHold"`
-	RetentionExpirationTime time.Time              `json:"retentionExpirationTime"`
-	StorageClass            string                 `json:"storageClass"`
-	TimeStorageClassUpdated time.Time              `json:"timeStorageClassUpdated"`
-	Size                    string                 `json:"size"`
-	MD5Hash                 string                 `json:"md5Hash"`
-	MediaLink               string                 `json:"mediaLink"`
-	ContentEncoding         string                 `json:"contentEncoding"`
-	ContentDisposition      string                 `json:"contentDisposition"`
-	CacheControl            string                 `json:"cacheControl"`
-	Metadata                map[string]interface{} `json:"metadata"`
-	CRC32C                  string                 `json:"crc32c"`
-	ComponentCount          int                    `json:"componentCount"`
-	Etag                    string                 `json:"etag"`
-	CustomerEncryption      struct {
-		EncryptionAlgorithm string `json:"encryptionAlgorithm"`
-		KeySha256           string `json:"keySha256"`
-	}
-	KMSKeyName    string `json:"kmsKeyName"`
-	ResourceState string `json:"resourceState"`
-}
 
 // keyConsoleFormat Service account json key using console or gcloud format
 type keyConsoleFormat struct {
@@ -164,16 +63,6 @@ type keyRestAPIFormat struct {
 	KeyAlgorithm    string `json:"keyAlgorithm"`
 }
 
-// Member is sligthly different from admim.Member to have both group email and member email
-type Member struct {
-	MemberEmail string `json:"memberEmail"`
-	GroupEmail  string `json:"groupEmail"`
-	ID          string `json:"id"`
-	Kind        string `json:"kind"`
-	Role        string `json:"role"`
-	Type        string `json:"type"`
-}
-
 // PublishRequest Pub/sub
 type PublishRequest struct {
 	Topic string `json:"topic"`
@@ -182,11 +71,6 @@ type PublishRequest struct {
 // PubSubMessage is the payload of a Pub/Sub event.
 type PubSubMessage struct {
 	Data []byte `json:"data"`
-}
-
-// Window Cloud Asset Inventory feed message time window
-type Window struct {
-	StartTime time.Time `json:"startTime" firestore:"startTime"`
 }
 
 // BuildAncestorsDisplayName build a slice of Ancestor friendly name from a slice of ancestors

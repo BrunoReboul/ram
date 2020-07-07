@@ -138,7 +138,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	outputTopicName = global.outputTopicName
 	timestamp = metadata.Timestamp
 
-	var feedMessageGroup ram.FeedMessageGroup
+	var feedMessageGroup cai.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
 		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
@@ -181,7 +181,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 	var waitgroup sync.WaitGroup
 	var documentSnap *firestore.DocumentSnapshot
-	var feedMessageMember ram.FeedMessageMember
+	var feedMessageMember cai.FeedMessageMember
 	topic := pubSubClient.Topic(outputTopicName)
 	assets := global.firestoreClient.Collection(global.collectionID)
 	query := assets.Where(
@@ -233,7 +233,7 @@ func browseMembers(members *admin.Members) error {
 	var waitgroup sync.WaitGroup
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, member := range members.Members {
-		var feedMessageMember ram.FeedMessageMember
+		var feedMessageMember cai.FeedMessageMember
 		feedMessageMember.Window.StartTime = timestamp
 		feedMessageMember.Origin = origin
 		feedMessageMember.Asset.Ancestors = ancestors
