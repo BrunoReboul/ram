@@ -28,11 +28,16 @@ import (
 // Deploy bucket
 func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 	log.Printf("%s gcs bucket %s", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+
 	var lifecycle storage.Lifecycle
 	var lifecycleRule storage.LifecycleRule
 	lifecycleRule.Action.Type = "Delete"
 	lifecycleRule.Condition.AgeInDays = bucketDeployment.Settings.DeleteAgeInDays
 	lifecycle.Rules = append(lifecycle.Rules, lifecycleRule)
+
+	var uniformBucketLevelAccess storage.UniformBucketLevelAccess
+	uniformBucketLevelAccess.Enabled = true
+
 	bucket := bucketDeployment.Core.Services.StorageClient.Bucket(bucketDeployment.Settings.BucketName)
 	retreivedAttrs, err := bucket.Attrs(bucketDeployment.Core.Ctx)
 	if err != nil {
@@ -45,7 +50,7 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		bucketAttrs.StorageClass = "STANDARD"
 		bucketAttrs.Labels = map[string]string{"name": strings.ToLower(bucketDeployment.Settings.BucketName)}
 		bucketAttrs.Lifecycle = lifecycle
-		bucketAttrs.UniformBucketLevelAccess.Enabled = true
+		bucketAttrs.UniformBucketLevelAccess = uniformBucketLevelAccess
 
 		err = bucket.Create(bucketDeployment.Core.Ctx, bucketDeployment.Core.SolutionSettings.Hosting.ProjectID, &bucketAttrs)
 		if err != nil {
@@ -83,9 +88,8 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		log.Printf("%s gcs bucket lifecycle to be updated", bucketDeployment.Core.InstanceName)
 	}
 	if !retreivedAttrs.UniformBucketLevelAccess.Enabled {
-		log.Printf("%s before enabled = true", bucketDeployment.Core.InstanceName)
 		toBeUpdated = true
-		bucketAttrsToUpdate.UniformBucketLevelAccess.Enabled = true
+		bucketAttrsToUpdate.UniformBucketLevelAccess = &uniformBucketLevelAccess
 		log.Printf("%s gcs bucket uniform level access to be updated", bucketDeployment.Core.InstanceName)
 	}
 	if toBeUpdated {
