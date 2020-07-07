@@ -20,8 +20,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
-
 	"cloud.google.com/go/storage"
 )
 
@@ -61,8 +59,6 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 	}
 	log.Printf("%s gcs bucket found %s", bucketDeployment.Core.InstanceName, retreivedAttrs.Name)
 
-	ram.JSONMarshalIndentPrint(retreivedAttrs)
-
 	var bucketAttrsToUpdate storage.BucketAttrsToUpdate
 	toBeUpdated := false
 	if retreivedAttrs.Labels != nil {
@@ -93,7 +89,6 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		log.Printf("%s gcs bucket uniform level access to be updated", bucketDeployment.Core.InstanceName)
 	}
 	if toBeUpdated {
-		log.Printf("%s gcs bucket attributes need to be updated", bucketDeployment.Core.InstanceName)
 		retreivedAttrs, err = bucket.Update(bucketDeployment.Core.Ctx, bucketAttrsToUpdate)
 		if err != nil {
 			return fmt.Errorf("bucket.Update %v", err)
