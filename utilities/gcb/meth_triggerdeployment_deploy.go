@@ -30,6 +30,9 @@ var globalTriggerDeployment *TriggerDeployment
 // Deploy delete is exist, then create a cloud build trigger to deploy a microservice instance
 func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
 	log.Printf("%s gcb cloud build trigger", triggerDeployment.Core.InstanceName)
+	if triggerDeployment.Settings.Service.GCB.QueueTTL == "" {
+		triggerDeployment.Settings.Service.GCB.QueueTTL = triggerDeployment.Core.SolutionSettings.Hosting.GCB.QueueTTL
+	}
 	triggerDeployment.Artifacts.ProjectsTriggersService = triggerDeployment.Core.Services.CloudbuildService.Projects.Triggers
 	triggerDeployment.situate()
 	// ram.JSONMarshalIndentPrint(&triggerDeployment.Artifacts.BuildTrigger)

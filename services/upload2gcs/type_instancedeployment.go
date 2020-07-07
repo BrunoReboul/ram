@@ -64,7 +64,6 @@ func NewInstanceDeployment() *InstanceDeployment {
 		iamgt.ProjectDeployExtendedRole()}
 
 	instanceDeployment.Settings.Service.GCB.BuildTimeout = "600s"
-	instanceDeployment.Settings.Service.GCB.QueueTTL = "7200s"
 	instanceDeployment.Settings.Service.GCB.DeployIAMServiceAccount = true
 	instanceDeployment.Settings.Service.GCB.DeployIAMBindings = true
 	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
