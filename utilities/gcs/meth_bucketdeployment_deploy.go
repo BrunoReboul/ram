@@ -19,6 +19,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/BrunoReboul/ram/utilities/ram"
+
 	"cloud.google.com/go/storage"
 )
 
@@ -75,11 +77,17 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		bucketAttrsToUpdate.SetLabel("name", strings.ToLower(bucketDeployment.Settings.BucketName))
 		log.Printf("%s gcs bucket %s label to be updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
 	}
+	if !toBeUpdated {
+		log.Printf("%s gcs bucket %s label already uptodate", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+	}
 	if retreivedAttrs.Lifecycle.Rules != nil {
 		rules := retreivedAttrs.Lifecycle.Rules
 		foundDeleteRule := false
 		ruleToBeUpdated := false
 		for _, rule := range rules {
+
+			ram.JSONMarshalIndentPrint(rule)
+
 			if rule.Action.Type == "Delete" {
 				foundDeleteRule = true
 				if rule.Condition.AgeInDays != bucketDeployment.Settings.DeleteAgeInDays {
