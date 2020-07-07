@@ -31,6 +31,6 @@ func (settings *Settings) Situate(environmentName string) {
 		settings.Hosting.GCS.Buckets.CAIExport.DeleteAgeInDays = 3
 	}
 	if settings.Hosting.GCS.Buckets.AssetsJSONFile.DeleteAgeInDays == 0 {
-		settings.Hosting.GCS.Buckets.CAIExport.DeleteAgeInDays = 365
+		settings.Hosting.GCS.Buckets.AssetsJSONFile.DeleteAgeInDays = 365
 	}
 }
