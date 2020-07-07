@@ -101,7 +101,6 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 				// Do not break, may be multiple delete rules
 			}
 		}
-		var lifecycle storage.Lifecycle
 		if foundDeleteRule {
 			if ruleToBeUpdated {
 				toBeUpdated = true
