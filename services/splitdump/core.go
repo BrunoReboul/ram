@@ -178,7 +178,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 
 	// log.Println("dumpLineNumber", dumpLineNumber, "splitThresholdLineNumber", splitThresholdLineNumber, "duration", duration)
 	if dumpLineNumber > global.splitThresholdLineNumber {
-		dumpLineNumber, duration, err = splitToChildDumps(buffer, gcsEvent.Name, childDumpNumber, global)
+		dumpLineNumber, childDumpNumber, duration, err = splitToChildDumps(buffer, gcsEvent.Name, childDumpNumber, global)
 		if err != nil {
 			log.Printf("ERROR - splitToChildDumps %v", err)
 			return nil // NO RETRY
@@ -193,7 +193,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 	return nil
 }
 
-func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumber int64, global *Global) (int64, time.Duration, error) {
+func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumber int64, global *Global) (int64, int64, time.Duration, error) {
 	var dumpLineNumber int64
 	var childDumpLineNumber int64
 	var err error
@@ -233,7 +233,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 				}
 			}
 			if !done {
-				return dumpLineNumber, duration, fmt.Errorf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
+				return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
 			}
 
 			done = false
@@ -248,7 +248,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 				}
 			}
 			if !done {
-				return dumpLineNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
+				return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
 			}
 
 			childDumpNumber++
@@ -273,7 +273,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 		}
 	}
 	if !done {
-		return dumpLineNumber, duration, fmt.Errorf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
+		return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
 	}
 
 	done = false
@@ -288,10 +288,10 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 		}
 	}
 	if !done {
-		return dumpLineNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
+		return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
 	}
 	duration = time.Since(start)
-	return dumpLineNumber, duration, nil
+	return dumpLineNumber, childDumpNumber, duration, nil
 }
 
 func splitToLines(buffer bytes.Buffer, global *Global, pointerTopubSubMsgNumber *int64, topicListPointer *[]string, startTime time.Time) (int64, time.Duration) {
