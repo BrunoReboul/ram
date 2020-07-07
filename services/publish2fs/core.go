@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ram"
 
 	"cloud.google.com/go/firestore"

@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
