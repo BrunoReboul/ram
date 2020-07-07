@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
+	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/str"
 
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -54,23 +55,6 @@ func BuildAncestryPath(ancestors []string) string {
 	var ancestryPath string
 	ancestryPath = makeCompatible(strings.Join(revAncestors, "/"))
 	return ancestryPath
-}
-
-// FireStoreGetDoc check if a document exist with retries
-func FireStoreGetDoc(ctx context.Context, firestoreClient *firestore.Client, documentPath string, retriesNumber time.Duration) (*firestore.DocumentSnapshot, bool) {
-	var documentSnap *firestore.DocumentSnapshot
-	var err error
-	var i time.Duration
-	for i = 0; i < retriesNumber; i++ {
-		documentSnap, err = firestoreClient.Doc(documentPath).Get(ctx)
-		if err != nil {
-			log.Printf("ERROR - iteration %d firestoreClient.Doc(documentPath).Get(ctx) %v", i, err)
-			time.Sleep(i * 100 * time.Millisecond)
-		} else {
-			return documentSnap, documentSnap.Exists()
-		}
-	}
-	return documentSnap, false
 }
 
 // GetAssetContact retrieve owner of resolver contact from asset labels and parent labels
@@ -115,7 +99,7 @@ func getDisplayName(ctx context.Context, name string, collectionID string, fires
 	documentPath := collectionID + "/" + documentID
 	// log.Printf("documentPath:%s", documentPath)
 	// documentSnap, err := firestoreClient.Doc(documentPath).Get(ctx)
-	documentSnap, found := FireStoreGetDoc(ctx, firestoreClient, documentPath, 10)
+	documentSnap, found := gfs.GetDoc(ctx, firestoreClient, documentPath, 10)
 	if found {
 		assetMap := documentSnap.Data()
 		// log.Println(assetMap)

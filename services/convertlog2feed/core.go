@@ -24,6 +24,7 @@ import (
 
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/ram"
 	"github.com/BrunoReboul/ram/utilities/str"
@@ -245,7 +246,7 @@ func getCustomerID(global *Global) (err error) {
 	documentID = str.RevertSlash(documentID)
 	documentPath := global.collectionID + "/" + documentID
 	// log.Printf("documentPath %s", documentPath)
-	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, global.retriesNumber)
+	documentSnap, found := gfs.GetDoc(global.ctx, global.firestoreClient, documentPath, global.retriesNumber)
 	if found {
 		// log.Printf("Found firestore document %s", documentPath)
 
