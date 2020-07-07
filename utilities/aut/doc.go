@@ -12,20 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
-
-import (
-	"fmt"
-	"log"
-
-	"gopkg.in/yaml.v2"
-)
-
-// YAMLMarshalPrint marshal from YAML and fmt print
-func YAMLMarshalPrint(v interface{}) {
-	bytes, err := yaml.Marshal(v)
-	if err != nil {
-		log.Printf("YAMLMarshalPrint %v", err)
-	}
-	fmt.Println(string(bytes))
-}
+// Package aut helps authentication and tokens
+package aut

@@ -20,7 +20,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gcf"
+	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/BrunoReboul/ram/utilities/str"
 
 	"cloud.google.com/go/firestore"
 )
@@ -37,7 +42,7 @@ type Global struct {
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
 	Asset   asset      `json:"asset" firestore:"asset"`
-	Window  ram.Window `json:"window" firestore:"window"`
+	Window  cai.Window `json:"window" firestore:"window"`
 	Deleted bool       `json:"deleted" firestore:"deleted"`
 	Origin  string     `json:"origin" firestore:"origin"`
 }
@@ -63,9 +68,9 @@ func Initialize(ctx context.Context, global *Global) {
 	var projectID string
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
@@ -82,9 +87,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
@@ -100,7 +105,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	}
 	// log.Printf("%v", feedMessage)
 
-	documentID := ram.RevertSlash(feedMessage.Asset.Name)
+	documentID := str.RevertSlash(feedMessage.Asset.Name)
 	documentPath := global.collectionID + "/" + documentID
 	if feedMessage.Deleted == true {
 		_, err = global.firestoreClient.Doc(documentPath).Delete(global.ctx)

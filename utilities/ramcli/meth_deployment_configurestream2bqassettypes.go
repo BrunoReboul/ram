@@ -22,7 +22,8 @@ import (
 
 	"github.com/BrunoReboul/ram/services/stream2bq"
 	"github.com/BrunoReboul/ram/utilities/cai"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // configureStream2bqAssetTypes for assets types defined in solution.yaml writes stream2bq instance.yaml files and subfolders
@@ -31,11 +32,11 @@ func (deployment *Deployment) configureStream2bqAssetTypes() (err error) {
 	log.Printf("configure %s asset types", serviceName)
 	var stream2bqInstanceDeployment stream2bq.InstanceDeployment
 	stream2bqInstance := stream2bqInstanceDeployment.Settings.Instance
-	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
+	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(serviceFolderPath, 0755)
 	}
-	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, ram.InstancesFolderName)
+	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, solution.InstancesFolderName)
 	if _, err := os.Stat(instancesFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instancesFolderPath, 0755)
 	}
@@ -51,7 +52,7 @@ func (deployment *Deployment) configureStream2bqAssetTypes() (err error) {
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
-		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), stream2bqInstance); err != nil {
+		if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), stream2bqInstance); err != nil {
 			return err
 		}
 		log.Printf("done %s", instanceFolderPath)
@@ -70,7 +71,7 @@ func (deployment *Deployment) configureStream2bqAssetTypes() (err error) {
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
-		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), stream2bqInstance); err != nil {
+		if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), stream2bqInstance); err != nil {
 			return err
 		}
 		log.Printf("done %s", instanceFolderPath)

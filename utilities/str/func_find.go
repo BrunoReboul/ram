@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package str
 
-import (
-	"encoding/json"
-	"fmt"
-	"log"
-)
-
-// JSONMarshalIndentPrint marshal with 4 spaces indent no prefix and fmt print
-func JSONMarshalIndentPrint(v interface{}) {
-	bytes, err := json.MarshalIndent(v, "", "    ")
-	if err != nil {
-		log.Printf("JSONMarshalIndentPrint %v", err)
+// Find a string in a slice of string. Return true when found else false
+func Find(slice []string, val string) bool {
+	for _, item := range slice {
+		if item == val {
+			return true
+		}
 	}
-	fmt.Println(string(bytes))
+	return false
 }

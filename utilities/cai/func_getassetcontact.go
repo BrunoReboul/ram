@@ -12,23 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package cai
 
-import (
-	"io/ioutil"
+import "encoding/json"
 
-	"gopkg.in/yaml.v2"
-)
-
-// ReadUnmarshalYAML Read bytes from a given path and unmarshal assuming YAML format
-func ReadUnmarshalYAML(path string, settings interface{}) (err error) {
-	bytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
+// GetAssetContact retrieve owner of resolver contact from asset labels and parent labels
+func GetAssetContact(contactRole string, resourceJSON json.RawMessage) (string, error) {
+	var contact string
+	var resource struct {
+		Data struct {
+			Labels map[string]string
+		}
 	}
-	err = yaml.Unmarshal(bytes, settings)
+	err := json.Unmarshal(resourceJSON, &resource)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	if resource.Data.Labels != nil {
+		if labelValue, ok := resource.Data.Labels[contactRole]; ok {
+			contact = labelValue
+		}
+	}
+	return contact, nil
 }

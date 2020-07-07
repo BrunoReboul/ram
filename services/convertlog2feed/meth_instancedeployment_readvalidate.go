@@ -18,21 +18,22 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // ReadValidate reads and validates service and instance settings
 func (instanceDeployment *InstanceDeployment) ReadValidate() (err error) {
-	serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, ram.ServiceSettingsFileName)
+	serviceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, solution.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, solution.ServiceSettingsFileName)
 	if _, err := os.Stat(serviceConfigFilePath); !os.IsNotExist(err) {
-		err = ram.ReadValidate(instanceDeployment.Core.ServiceName, "ServiceSettings", serviceConfigFilePath, &instanceDeployment.Settings.Service)
+		err = ffo.ReadValidate(instanceDeployment.Core.ServiceName, "ServiceSettings", serviceConfigFilePath, &instanceDeployment.Settings.Service)
 		if err != nil {
 			return err
 		}
 	}
-	instanceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, ram.InstancesFolderName, instanceDeployment.Core.InstanceName, ram.InstanceSettingsFileName)
+	instanceConfigFilePath := fmt.Sprintf("%s/%s/%s/%s/%s/%s", instanceDeployment.Core.RepositoryPath, solution.MicroserviceParentFolderName, instanceDeployment.Core.ServiceName, solution.InstancesFolderName, instanceDeployment.Core.InstanceName, solution.InstanceSettingsFileName)
 	if _, err := os.Stat(instanceConfigFilePath); !os.IsNotExist(err) {
-		err = ram.ReadValidate(instanceDeployment.Core.InstanceName, "InstanceSettings", instanceConfigFilePath, &instanceDeployment.Settings.Instance)
+		err = ffo.ReadValidate(instanceDeployment.Core.InstanceName, "InstanceSettings", instanceConfigFilePath, &instanceDeployment.Settings.Instance)
 		if err != nil {
 			return err
 		}

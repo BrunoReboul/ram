@@ -22,6 +22,7 @@ import (
 // Parameters structure
 type Parameters struct {
 	BuildTimeout            string `yaml:"buildTimeout"  valid:"isNotZeroValue"`
+	QueueTTL                string `yaml:"queueTtl"  valid:"isNotZeroValue"`
 	DeployIAMServiceAccount bool
 	DeployIAMBindings       bool
 	ServiceAccountBindings  struct {

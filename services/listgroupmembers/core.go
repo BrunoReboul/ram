@@ -19,12 +19,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/aut"
+	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gcf"
+	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
@@ -74,9 +78,9 @@ func Initialize(ctx context.Context, global *Global) {
 	var ok bool
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
@@ -88,11 +92,19 @@ func Initialize(ctx context.Context, global *Global) {
 	global.maxResultsPerPage = instanceDeployment.Settings.Service.MaxResultsPerPage
 	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
-	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
-	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
+	keyJSONFilePath := solution.PathToFunctionCode + instanceDeployment.Settings.Service.KeyJSONFileName
+	serviceAccountEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
+		instanceDeployment.Core.ServiceName,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
-	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
+	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
+		serviceAccountEmail,
+		keyJSONFilePath,
+		projectID,
+		gciAdminUserToImpersonate,
+		[]string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
+		global.initFailed = true
 		return
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
@@ -116,9 +128,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}
@@ -131,7 +143,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 	outputTopicName = global.outputTopicName
 	timestamp = metadata.Timestamp
 
-	var feedMessageGroup ram.FeedMessageGroup
+	var feedMessageGroup cai.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
 		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
@@ -174,7 +186,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 	var waitgroup sync.WaitGroup
 	var documentSnap *firestore.DocumentSnapshot
-	var feedMessageMember ram.FeedMessageMember
+	var feedMessageMember cai.FeedMessageMember
 	topic := pubSubClient.Topic(outputTopicName)
 	assets := global.firestoreClient.Collection(global.collectionID)
 	query := assets.Where(
@@ -207,7 +219,7 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 						}
 						publishResult := topic.Publish(ctx, pubSubMessage)
 						waitgroup.Add(1)
-						go ram.GetPublishCallResult(ctx, publishResult, &waitgroup, feedMessageMember.Asset.Name, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+						go gps.GetPublishCallResult(ctx, publishResult, &waitgroup, feedMessageMember.Asset.Name, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
 					}
 				}
 			} else {
@@ -226,7 +238,7 @@ func browseMembers(members *admin.Members) error {
 	var waitgroup sync.WaitGroup
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, member := range members.Members {
-		var feedMessageMember ram.FeedMessageMember
+		var feedMessageMember cai.FeedMessageMember
 		feedMessageMember.Window.StartTime = timestamp
 		feedMessageMember.Origin = origin
 		feedMessageMember.Asset.Ancestors = ancestors
@@ -248,7 +260,7 @@ func browseMembers(members *admin.Members) error {
 			}
 			publishResult := topic.Publish(ctx, pubSubMessage)
 			waitgroup.Add(1)
-			go ram.GetPublishCallResult(ctx, publishResult, &waitgroup, groupAssetName+"/"+member.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+			go gps.GetPublishCallResult(ctx, publishResult, &waitgroup, groupAssetName+"/"+member.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
 		}
 	}
 	return nil

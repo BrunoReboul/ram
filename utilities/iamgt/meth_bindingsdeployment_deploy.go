@@ -20,8 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
-
+	"github.com/BrunoReboul/ram/utilities/str"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -52,7 +51,7 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 			existingRoles := make([]string, 0)
 			for _, binding := range policy.Bindings {
 				existingRoles = append(existingRoles, binding.Role)
-				if ram.Find(bindingsDeployment.Settings.Service.IAM.RolesOnServiceAccounts, binding.Role) {
+				if str.Find(bindingsDeployment.Settings.Service.IAM.RolesOnServiceAccounts, binding.Role) {
 					isAlreadyMemberOf := false
 					for _, member := range binding.Members {
 						if member == bindingsDeployment.Artifacts.Member {
@@ -69,7 +68,7 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 				}
 			}
 			for _, role := range bindingsDeployment.Settings.Service.IAM.RolesOnServiceAccounts {
-				if !ram.Find(existingRoles, role) {
+				if !str.Find(existingRoles, role) {
 					var binding iam.Binding
 					binding.Role = role
 					binding.Members = []string{bindingsDeployment.Artifacts.Member}
@@ -96,7 +95,7 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 					log.Printf("%s iam there were concurrent policy changes, wait 5 sec and retry a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
 					time.Sleep(5 * time.Second)
 				} else {
-					// ram.JSONMarshalIndentPrint(updatedPolicy)
+					// ffo.JSONMarshalIndentPrint(updatedPolicy)
 					_ = updatedPolicy
 					log.Printf("%s iam policy updated for service account %s iteration %d", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.ServiceAccountName, i)
 					break

@@ -21,7 +21,8 @@ import (
 	"strings"
 
 	"github.com/BrunoReboul/ram/services/getgroupsettings"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // configureGetGroupSettingsDirectories
@@ -30,11 +31,11 @@ func (deployment *Deployment) configureGetGroupSettingsDirectories() (err error)
 	log.Printf("configure %s directories", serviceName)
 	var getgroupsettingsInstanceDeployment getgroupsettings.InstanceDeployment
 	getgroupsettingsInstance := getgroupsettingsInstanceDeployment.Settings.Instance
-	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
+	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(serviceFolderPath, 0755)
 	}
-	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, ram.InstancesFolderName)
+	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, solution.InstancesFolderName)
 	if _, err := os.Stat(instancesFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instancesFolderPath, 0755)
 	}
@@ -51,7 +52,7 @@ func (deployment *Deployment) configureGetGroupSettingsDirectories() (err error)
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
-		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), getgroupsettingsInstance); err != nil {
+		if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), getgroupsettingsInstance); err != nil {
 			return err
 		}
 		log.Printf("done %s", instanceFolderPath)

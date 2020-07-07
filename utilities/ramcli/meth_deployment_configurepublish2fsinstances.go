@@ -21,7 +21,8 @@ import (
 	"strings"
 
 	"github.com/BrunoReboul/ram/services/publish2fs"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // configurePublish2fsInstances
@@ -30,11 +31,11 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 	log.Printf("configure %s instances", serviceName)
 	var publish2fsInstanceDeployment publish2fs.InstanceDeployment
 	publish2fsInstance := publish2fsInstanceDeployment.Settings.Instance
-	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
+	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(serviceFolderPath, 0755)
 	}
-	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, ram.InstancesFolderName)
+	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, solution.InstancesFolderName)
 	if _, err := os.Stat(instancesFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instancesFolderPath, 0755)
 	}
@@ -47,7 +48,7 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
-	if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), publish2fsInstance); err != nil {
+	if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), publish2fsInstance); err != nil {
 		return err
 	}
 	log.Printf("done %s", instanceFolderPath)
@@ -60,7 +61,7 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
-	if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), publish2fsInstance); err != nil {
+	if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), publish2fsInstance); err != nil {
 		return err
 	}
 	log.Printf("done %s", instanceFolderPath)
@@ -73,7 +74,7 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
-	if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), publish2fsInstance); err != nil {
+	if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), publish2fsInstance); err != nil {
 		return err
 	}
 	log.Printf("done %s", instanceFolderPath)
@@ -86,7 +87,7 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
-	if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), publish2fsInstance); err != nil {
+	if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), publish2fsInstance); err != nil {
 		return err
 	}
 	log.Printf("done %s", instanceFolderPath)
@@ -101,7 +102,7 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
-		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), publish2fsInstance); err != nil {
+		if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), publish2fsInstance); err != nil {
 			return err
 		}
 		log.Printf("done %s", instanceFolderPath)

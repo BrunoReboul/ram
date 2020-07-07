@@ -19,8 +19,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
-
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/cloudbilling/v1"
 )
 
@@ -43,7 +42,7 @@ func (projectBillingAccount *ProjectBillingAccount) Enable() (err error) {
 	} else {
 		billingAccount := projectBillingAccount.Core.SolutionSettings.Hosting.BillingAccountID
 		if billingAccount == "" {
-			return fmt.Errorf("Project billing not enable and 'projectBillingAccount' settings is null string in %s", ram.SolutionSettingsFileName)
+			return fmt.Errorf("Project billing not enable and 'projectBillingAccount' settings is null string in %s", solution.SolutionSettingsFileName)
 		}
 		var projectBillingInfoToEnable cloudbilling.ProjectBillingInfo
 		projectBillingInfoToEnable.BillingAccountName = fmt.Sprintf("billingAccounts/%s", billingAccount)

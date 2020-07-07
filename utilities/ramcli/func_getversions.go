@@ -20,13 +20,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
 )
 
 // getVersions look for a go.mod in the curent path, returns Go and RAM versions, crashes execution on errors
 func getVersions() (goVersion, ramVersion string) {
 	goModFilePath := "./go.mod"
-	ram.CheckPath(goModFilePath)
+	ffo.CheckPath(goModFilePath)
 	file, err := os.Open(goModFilePath)
 	if err != nil {
 		log.Fatal(err)

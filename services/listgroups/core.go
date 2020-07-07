@@ -19,12 +19,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/aut"
+	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gcf"
+	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/option"
 
 	"cloud.google.com/go/pubsub"
@@ -76,9 +80,9 @@ func Initialize(ctx context.Context, global *Global) {
 	var ok bool
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
@@ -90,11 +94,19 @@ func Initialize(ctx context.Context, global *Global) {
 	global.maxResultsPerPage = instanceDeployment.Settings.Service.MaxResultsPerPage
 	global.outputTopicName = instanceDeployment.Artifacts.OutputTopicName
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
-	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
-	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
+	keyJSONFilePath := solution.PathToFunctionCode + instanceDeployment.Settings.Service.KeyJSONFileName
+	serviceAccountEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
+		instanceDeployment.Core.ServiceName,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
-	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, []string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope}); !ok {
+	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
+		serviceAccountEmail,
+		keyJSONFilePath,
+		projectID,
+		gciAdminUserToImpersonate,
+		[]string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope}); !ok {
+		global.initFailed = true
 		return
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
@@ -112,9 +124,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}
@@ -150,8 +162,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, globa
 }
 
 func initiateQueries(global *Global) error {
-	figures := ram.GetByteSet('0', 10)
-	alphabetLower := ram.GetByteSet('a', 26)
+	figures := getByteSet('0', 10)
+	alphabetLower := getByteSet('a', 26)
 	// Query on directory group email is NOT case sensitive
 	// alphabetUpper := getByteSet('A', 26)
 
@@ -220,7 +232,7 @@ func browseGroups(groups *admin.Groups) error {
 	var waitgroup sync.WaitGroup
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, group := range groups.Groups {
-		var feedMessage ram.FeedMessageGroup
+		var feedMessage cai.FeedMessageGroup
 		feedMessage.Window.StartTime = timestamp
 		feedMessage.Origin = "batch-listgroups"
 		feedMessage.Deleted = false
@@ -239,9 +251,18 @@ func browseGroups(groups *admin.Groups) error {
 			}
 			publishResult := topic.Publish(ctx, pubSubMessage)
 			waitgroup.Add(1)
-			go ram.GetPublishCallResult(ctx, publishResult, &waitgroup, directoryCustomerID+"/"+group.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+			go gps.GetPublishCallResult(ctx, publishResult, &waitgroup, directoryCustomerID+"/"+group.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
 		}
 	}
 	waitgroup.Wait()
 	return nil
+}
+
+// getByteSet return a set of lenght contiguous bytes starting at bytes
+func getByteSet(start byte, length int) []byte {
+	byteSet := make([]byte, length)
+	for i := range byteSet {
+		byteSet[i] = start + byte(i)
+	}
+	return byteSet
 }

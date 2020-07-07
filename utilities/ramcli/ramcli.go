@@ -25,7 +25,8 @@ import (
 	scheduler "cloud.google.com/go/scheduler/apiv1"
 
 	"github.com/BrunoReboul/ram/utilities/cai"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/storage"
@@ -107,8 +108,8 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 // RAMCli Real-time Asset Monitor cli
 func RAMCli(deployment *Deployment) (err error) {
 	deployment.CheckArguments()
-	solutionConfigFilePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, ram.SolutionSettingsFileName)
-	err = ram.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &deployment.Core.SolutionSettings)
+	solutionConfigFilePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, solution.SolutionSettingsFileName)
+	err = ffo.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &deployment.Core.SolutionSettings)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,51 +132,51 @@ func RAMCli(deployment *Deployment) (err error) {
 			serviceName := "setfeeds"
 			instanceRelativePath := strings.Replace(
 				fmt.Sprintf("%s/%s/%s/%s_org%s_%s",
-					ram.MicroserviceParentFolderName,
+					solution.MicroserviceParentFolderName,
 					serviceName,
-					ram.InstancesFolderName,
+					solution.InstancesFolderName,
 					serviceName,
 					organizationID,
 					cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 			instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-			ram.CheckPath(instancePath)
+			ffo.CheckPath(instancePath)
 			instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 			serviceName = "dumpinventory"
 			instanceRelativePath = strings.Replace(
 				fmt.Sprintf("%s/%s/%s/%s_org%s_%s",
-					ram.MicroserviceParentFolderName,
+					solution.MicroserviceParentFolderName,
 					serviceName,
-					ram.InstancesFolderName,
+					solution.InstancesFolderName,
 					serviceName,
 					organizationID,
 					cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 			instancePath = fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-			ram.CheckPath(instancePath)
+			ffo.CheckPath(instancePath)
 			instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 		}
 		serviceName := "stream2bq"
 		instanceRelativePath := strings.Replace(
 			fmt.Sprintf("%s/%s/%s/%s_rces_%s",
-				ram.MicroserviceParentFolderName,
+				solution.MicroserviceParentFolderName,
 				serviceName,
-				ram.InstancesFolderName,
+				solution.InstancesFolderName,
 				serviceName,
 				cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 		instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ram.CheckPath(instancePath)
+		ffo.CheckPath(instancePath)
 		instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 		serviceName = "upload2gcs"
 		instanceRelativePath = strings.Replace(
 			fmt.Sprintf("%s/%s/%s/%s_rces_%s",
-				ram.MicroserviceParentFolderName,
+				solution.MicroserviceParentFolderName,
 				serviceName,
-				ram.InstancesFolderName,
+				solution.InstancesFolderName,
 				serviceName,
 				cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 		instancePath = fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ram.CheckPath(instancePath)
+		ffo.CheckPath(instancePath)
 		instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 		deployment.Core.InstanceFolderRelativePaths = instanceFolderRelativePaths

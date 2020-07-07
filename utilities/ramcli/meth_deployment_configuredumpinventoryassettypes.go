@@ -22,7 +22,8 @@ import (
 
 	"github.com/BrunoReboul/ram/services/dumpinventory"
 	"github.com/BrunoReboul/ram/utilities/cai"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // configureDumpInventoryAssetTypes for assets types defined in solution.yaml writes dumpinventory instance.yaml files and subfolders
@@ -31,11 +32,11 @@ func (deployment *Deployment) configureDumpInventoryAssetTypes() (err error) {
 	log.Printf("configure %s asset types", serviceName)
 	var dumpinventoryInstanceDeployment dumpinventory.InstanceDeployment
 	dumpinventoryInstance := dumpinventoryInstanceDeployment.Settings.Instance
-	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
+	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(serviceFolderPath, 0755)
 	}
-	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, ram.InstancesFolderName)
+	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, solution.InstancesFolderName)
 	if _, err := os.Stat(instancesFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instancesFolderPath, 0755)
 	}
@@ -51,7 +52,7 @@ func (deployment *Deployment) configureDumpInventoryAssetTypes() (err error) {
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
-		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), dumpinventoryInstance); err != nil {
+		if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), dumpinventoryInstance); err != nil {
 			return err
 		}
 		log.Printf("done %s", instanceFolderPath)
@@ -69,7 +70,7 @@ func (deployment *Deployment) configureDumpInventoryAssetTypes() (err error) {
 			if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 				os.Mkdir(instanceFolderPath, 0755)
 			}
-			if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), dumpinventoryInstance); err != nil {
+			if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), dumpinventoryInstance); err != nil {
 				return err
 			}
 			log.Printf("done %s", instanceFolderPath)

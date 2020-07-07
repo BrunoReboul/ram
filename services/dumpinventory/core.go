@@ -23,7 +23,10 @@ import (
 	asset "cloud.google.com/go/asset/apiv1"
 	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gcf"
+	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // Global structure for global variables to optimize the cloud function performances
@@ -45,9 +48,9 @@ func Initialize(ctx context.Context, global *Global) {
 	var instanceDeployment InstanceDeployment
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
@@ -57,7 +60,7 @@ func Initialize(ctx context.Context, global *Global) {
 	var gcsDestinationURI assetpb.GcsDestination_Uri
 	gcsDestinationURI.Uri = fmt.Sprintf("gs://%s/%s.dump",
 		instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name,
-		os.Getenv("FUNCTION_NAME"))
+		os.Getenv("K_SERVICE"))
 
 	var gcsDestination assetpb.GcsDestination
 	gcsDestination.ObjectUri = &gcsDestinationURI
@@ -93,9 +96,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)

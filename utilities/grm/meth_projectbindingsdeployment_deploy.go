@@ -20,8 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
-
+	"github.com/BrunoReboul/ram/utilities/str"
 	"google.golang.org/api/cloudresourcemanager/v1"
 )
 
@@ -52,7 +51,7 @@ func (projectBindingsDeployment *ProjectBindingsDeployment) Deploy() (err error)
 			existingRoles := make([]string, 0)
 			for _, binding := range policy.Bindings {
 				existingRoles = append(existingRoles, binding.Role)
-				if ram.Find(projectBindingsDeployment.Settings.Roles, binding.Role) {
+				if str.Find(projectBindingsDeployment.Settings.Roles, binding.Role) {
 					isAlreadyMemberOf := false
 					for _, member := range binding.Members {
 						if member == projectBindingsDeployment.Artifacts.Member {
@@ -69,7 +68,7 @@ func (projectBindingsDeployment *ProjectBindingsDeployment) Deploy() (err error)
 				}
 				parts := strings.Split(binding.Role, "/")
 				customRole := parts[len(parts)-1]
-				if ram.Find(projectBindingsDeployment.Settings.CustomRoles, customRole) {
+				if str.Find(projectBindingsDeployment.Settings.CustomRoles, customRole) {
 					isAlreadyMemberOf := false
 					for _, member := range binding.Members {
 						if member == projectBindingsDeployment.Artifacts.Member {
@@ -86,7 +85,7 @@ func (projectBindingsDeployment *ProjectBindingsDeployment) Deploy() (err error)
 				}
 			}
 			for _, role := range projectBindingsDeployment.Settings.Roles {
-				if !ram.Find(existingRoles, role) {
+				if !str.Find(existingRoles, role) {
 					var binding cloudresourcemanager.Binding
 					binding.Role = role
 					binding.Members = []string{projectBindingsDeployment.Artifacts.Member}
@@ -97,7 +96,7 @@ func (projectBindingsDeployment *ProjectBindingsDeployment) Deploy() (err error)
 			}
 			for _, customRole := range projectBindingsDeployment.Settings.CustomRoles {
 				role := fmt.Sprintf("projects/%s/roles/%s", projectBindingsDeployment.Artifacts.ProjectID, customRole)
-				if !ram.Find(existingRoles, role) {
+				if !str.Find(existingRoles, role) {
 					var binding cloudresourcemanager.Binding
 					binding.Role = role
 					binding.Members = []string{projectBindingsDeployment.Artifacts.Member}
@@ -124,7 +123,7 @@ func (projectBindingsDeployment *ProjectBindingsDeployment) Deploy() (err error)
 					log.Printf("%s grm there were concurrent policy changes, wait 5 sec and retry a full read-modify-write cycle, iteration %d", projectBindingsDeployment.Core.InstanceName, i)
 					time.Sleep(5 * time.Second)
 				} else {
-					// ram.JSONMarshalIndentPrint(updatedPolicy)
+					// ffo.JSONMarshalIndentPrint(updatedPolicy)
 					_ = updatedPolicy
 					log.Printf("%s grm project policy updated for %s iteration %d", projectBindingsDeployment.Core.InstanceName, projectBindingsDeployment.Artifacts.ProjectID, i)
 					break

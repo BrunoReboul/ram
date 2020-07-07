@@ -25,7 +25,11 @@ import (
 
 	"cloud.google.com/go/firestore"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gcf"
+	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
@@ -62,7 +66,7 @@ type Global struct {
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
 	Asset   asset      `json:"asset"`
-	Window  ram.Window `json:"window"`
+	Window  cai.Window `json:"window"`
 	Deleted bool       `json:"deleted"`
 	Origin  string     `json:"origin"`
 }
@@ -137,8 +141,19 @@ type spec struct {
 
 // compliantLog log entry when compliant
 type compliantLog struct {
-	ComplianceStatus   ram.ComplianceStatus `json:"complianceStatus"`
-	AssetsJSONDocument json.RawMessage      `json:"assetsJSONDocument"`
+	ComplianceStatus   ComplianceStatus `json:"complianceStatus"`
+	AssetsJSONDocument json.RawMessage  `json:"assetsJSONDocument"`
+}
+
+// ComplianceStatus by asset, by rule, true/false compliance status
+type ComplianceStatus struct {
+	AssetName               string    `json:"assetName"`
+	AssetInventoryTimeStamp time.Time `json:"assetInventoryTimeStamp"`
+	AssetInventoryOrigin    string    `json:"assetInventoryOrigin"`
+	RuleName                string    `json:"ruleName"`
+	RuleDeploymentTimeStamp time.Time `json:"ruleDeploymentTimeStamp"`
+	Compliant               bool      `json:"compliant"`
+	Deleted                 bool      `json:"deleted"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -151,9 +166,9 @@ func Initialize(ctx context.Context, global *Global) {
 	var instanceDeployment InstanceDeployment
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
@@ -207,14 +222,14 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
-	var complianceStatus ram.ComplianceStatus
+	var complianceStatus ComplianceStatus
 	var compliantLog compliantLog
 
 	assetsJSONDocument, feedMessage, err := buildAssetsDocument(PubSubMessage, global)
@@ -452,7 +467,7 @@ func evalutateConstraints(assetsJSONDocument []byte, feedMessage feedMessage, gl
 }
 
 // buildAssetsDocument
-func buildAssetsDocument(pubSubMessage ram.PubSubMessage, global *Global) ([]byte, feedMessage, error) {
+func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byte, feedMessage, error) {
 	var feedMessage feedMessage
 	var assetsJSONDocument []byte
 	var assets assets
@@ -466,12 +481,12 @@ func buildAssetsDocument(pubSubMessage ram.PubSubMessage, global *Global) ([]byt
 		feedMessage.Origin = "real-time"
 	}
 
-	feedMessage.Asset.AncestryPath = ram.BuildAncestryPath(feedMessage.Asset.Ancestors)
-	feedMessage.Asset.AncestorsDisplayName = ram.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
-	feedMessage.Asset.AncestryPathDisplayName = ram.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
+	feedMessage.Asset.AncestryPath = cai.BuildAncestryPath(feedMessage.Asset.Ancestors)
+	feedMessage.Asset.AncestorsDisplayName = cai.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
+	feedMessage.Asset.AncestryPathDisplayName = cai.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
 
-	feedMessage.Asset.Owner, _ = ram.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
-	feedMessage.Asset.ViolationResolver, _ = ram.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.Owner, _ = cai.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.ViolationResolver, _ = cai.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 	// Duplicate fileds into fieldLegacy for compatibility with existing policy library templates
 	feedMessage.Asset.IamPolicyLegacy = feedMessage.Asset.IamPolicy
 	feedMessage.Asset.AssetTypeLegacy = feedMessage.Asset.AssetType

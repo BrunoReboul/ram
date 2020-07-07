@@ -24,4 +24,13 @@ func (settings *Settings) Situate(environmentName string) {
 	settings.Hosting.Stackdriver.ProjectID = settings.Hosting.Stackdriver.ProjectIDs[environmentName]
 	settings.Hosting.GCS.Buckets.CAIExport.Name = settings.Hosting.GCS.Buckets.CAIExport.Names[environmentName]
 	settings.Hosting.GCS.Buckets.AssetsJSONFile.Name = settings.Hosting.GCS.Buckets.AssetsJSONFile.Names[environmentName]
+	if settings.Hosting.GCB.QueueTTL == "" {
+		settings.Hosting.GCB.QueueTTL = "7200s"
+	}
+	if settings.Hosting.GCS.Buckets.CAIExport.DeleteAgeInDays == 0 {
+		settings.Hosting.GCS.Buckets.CAIExport.DeleteAgeInDays = 3
+	}
+	if settings.Hosting.GCS.Buckets.AssetsJSONFile.DeleteAgeInDays == 0 {
+		settings.Hosting.GCS.Buckets.AssetsJSONFile.DeleteAgeInDays = 365
+	}
 }

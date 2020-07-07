@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
 	"google.golang.org/api/cloudfunctions/v1"
 )
 
@@ -71,6 +71,6 @@ func (functionDeployment *FunctionDeployment) createPatchCloudFunction() (err er
 			break
 		}
 	}
-	ram.JSONMarshalIndentPrint(operation)
+	ffo.JSONMarshalIndentPrint(operation)
 	return nil
 }

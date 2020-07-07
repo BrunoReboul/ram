@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // audit.rego code
@@ -200,9 +200,9 @@ func (instanceDeployment *InstanceDeployment) makeZipSpecificContent() (specific
 
 	regoRuleFilePath := fmt.Sprintf("%s/%s/%s/%s/%s/%s.rego",
 		instanceDeployment.Core.RepositoryPath,
-		ram.MicroserviceParentFolderName,
+		solution.MicroserviceParentFolderName,
 		instanceDeployment.Core.ServiceName,
-		ram.InstancesFolderName,
+		solution.InstancesFolderName,
 		instanceDeployment.Core.InstanceName,
 		instanceDeployment.Core.InstanceName)
 	bytes, err := ioutil.ReadFile(regoRuleFilePath)
@@ -213,11 +213,11 @@ func (instanceDeployment *InstanceDeployment) makeZipSpecificContent() (specific
 
 	regoConstraintsFolderPath := fmt.Sprintf("%s/%s/%s/%s/%s/%s",
 		instanceDeployment.Core.RepositoryPath,
-		ram.MicroserviceParentFolderName,
+		solution.MicroserviceParentFolderName,
 		instanceDeployment.Core.ServiceName,
-		ram.InstancesFolderName,
+		solution.InstancesFolderName,
 		instanceDeployment.Core.InstanceName,
-		ram.RegoConstraintsFolderName)
+		solution.RegoConstraintsFolderName)
 	childs, err := ioutil.ReadDir(regoConstraintsFolderPath)
 	if err != nil {
 		return make(map[string]string), err

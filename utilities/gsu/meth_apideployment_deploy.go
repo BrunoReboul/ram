@@ -20,8 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
-
+	"github.com/BrunoReboul/ram/utilities/str"
 	"google.golang.org/api/serviceusage/v1"
 )
 
@@ -45,7 +44,7 @@ func (apiDeployment *APIDeployment) Deploy() (err error) {
 	}
 
 	for _, apiName := range apiDeployment.Settings.Service.GSU.APIList {
-		if ram.Find(activeAPIs, apiName) {
+		if str.Find(activeAPIs, apiName) {
 			log.Printf("%s gsu API already active %s", apiDeployment.Core.InstanceName, apiName)
 		} else {
 			err = apiDeployment.activateAPI(apiName)
@@ -88,7 +87,7 @@ func (apiDeployment *APIDeployment) activateAPI(apiName string) (err error) {
 	// 		break
 	// 	}
 	// }
-	// ram.JSONMarshalIndentPrint(operation)
+	// ffo.JSONMarshalIndentPrint(operation)
 
 	// Work arround: check result, API activated
 	var googleAPIServiceusageV1Service *serviceusage.GoogleApiServiceusageV1Service
@@ -102,7 +101,7 @@ func (apiDeployment *APIDeployment) activateAPI(apiName string) (err error) {
 			break
 		}
 	}
-	// ram.JSONMarshalIndentPrint(googleAPIServiceusageV1Service)
+	// ffo.JSONMarshalIndentPrint(googleAPIServiceusageV1Service)
 	log.Printf("%s gsu API %s is active", apiDeployment.Core.InstanceName, apiName)
 
 	return nil

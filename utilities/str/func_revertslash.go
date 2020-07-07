@@ -12,20 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package str
 
-import (
-	"log"
-	"os"
-)
+import "strings"
 
-// CheckPath crashes execution when the path is not found or when an other error occurs
-func CheckPath(path string) {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			log.Fatalf("Path does not exist: %s", path)
-		} else {
-			log.Fatalln(err)
-		}
-	}
+// RevertSlash replace slash / by back slash \
+func RevertSlash(txt string) string {
+	return strings.Replace(txt, "/", "\\", -1)
 }

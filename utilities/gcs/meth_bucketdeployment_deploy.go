@@ -25,6 +25,20 @@ import (
 // Deploy bucket
 func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 	log.Printf("%s gcs bucket %s", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+
+	var lifecycle storage.Lifecycle
+	var lifecycleRule storage.LifecycleRule
+	lifecycleRule.Action.Type = "Delete"
+	lifecycleRule.Condition.AgeInDays = bucketDeployment.Settings.DeleteAgeInDays
+	lifecycle.Rules = append(lifecycle.Rules, lifecycleRule)
+	log.Printf("%s gcs bucket %s desired lifecyle DeleteAgeInDays %d",
+		bucketDeployment.Core.InstanceName,
+		bucketDeployment.Settings.BucketName,
+		bucketDeployment.Settings.DeleteAgeInDays)
+
+	var uniformBucketLevelAccess storage.UniformBucketLevelAccess
+	uniformBucketLevelAccess.Enabled = true
+
 	bucket := bucketDeployment.Core.Services.StorageClient.Bucket(bucketDeployment.Settings.BucketName)
 	retreivedAttrs, err := bucket.Attrs(bucketDeployment.Core.Ctx)
 	if err != nil {
@@ -36,6 +50,8 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		bucketAttrs.Location = bucketDeployment.Core.SolutionSettings.Hosting.GCF.Region
 		bucketAttrs.StorageClass = "STANDARD"
 		bucketAttrs.Labels = map[string]string{"name": strings.ToLower(bucketDeployment.Settings.BucketName)}
+		bucketAttrs.Lifecycle = lifecycle
+		bucketAttrs.UniformBucketLevelAccess = uniformBucketLevelAccess
 
 		err = bucket.Create(bucketDeployment.Core.Ctx, bucketDeployment.Core.SolutionSettings.Hosting.ProjectID, &bucketAttrs)
 		if err != nil {
@@ -45,22 +61,78 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		return nil
 	}
 	log.Printf("%s gcs bucket found %s", bucketDeployment.Core.InstanceName, retreivedAttrs.Name)
-	nameLabelToBeUpdated := false
+
+	var bucketAttrsToUpdate storage.BucketAttrsToUpdate
+	toBeUpdated := false
 	if retreivedAttrs.Labels != nil {
 		if retreivedAttrs.Labels["name"] != strings.ToLower(bucketDeployment.Settings.BucketName) {
-			nameLabelToBeUpdated = true
+			toBeUpdated = true
+			bucketAttrsToUpdate.SetLabel("name", strings.ToLower(bucketDeployment.Settings.BucketName))
+			log.Printf("%s gcs bucket %s label to be updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
 		}
 	} else {
-		nameLabelToBeUpdated = true
-	}
-	if nameLabelToBeUpdated {
-		var bucketAttrsToUpdate storage.BucketAttrsToUpdate
+		toBeUpdated = true
 		bucketAttrsToUpdate.SetLabel("name", strings.ToLower(bucketDeployment.Settings.BucketName))
+		log.Printf("%s gcs bucket %s label to be updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+	}
+	if !toBeUpdated {
+		log.Printf("%s gcs bucket %s label already uptodate", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+	}
+	if retreivedAttrs.Lifecycle.Rules != nil {
+		rules := retreivedAttrs.Lifecycle.Rules
+		foundDeleteRule := false
+		ruleToBeUpdated := false
+		for i := range rules {
+			log.Printf("%s gcs bucket %s delete lifecycle analyzing rule index %d",
+				bucketDeployment.Core.InstanceName,
+				bucketDeployment.Settings.BucketName,
+				i)
+			if rules[i].Action.Type == "Delete" {
+				foundDeleteRule = true
+				if rules[i].Condition.AgeInDays != bucketDeployment.Settings.DeleteAgeInDays {
+					ruleToBeUpdated = true
+					log.Printf("%s gcs bucket %s delete lifecycle rule found age %d updated to %d",
+						bucketDeployment.Core.InstanceName,
+						bucketDeployment.Settings.BucketName,
+						rules[i].Condition.AgeInDays,
+						bucketDeployment.Settings.DeleteAgeInDays)
+					rules[i].Condition.AgeInDays = bucketDeployment.Settings.DeleteAgeInDays
+				}
+				// Do not break, may be multiple delete rules
+			}
+		}
+		if foundDeleteRule {
+			if ruleToBeUpdated {
+				toBeUpdated = true
+				lifecycle.Rules = rules
+				bucketAttrsToUpdate.Lifecycle = &lifecycle
+				log.Printf("%s gcs bucket %s delete lifecycle rule age to be updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+			} else {
+				log.Printf("%s gcs bucket %s lifecycle already has a delete rule with the desired age set", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+			}
+		} else {
+			toBeUpdated = true
+			rules = append(rules, lifecycleRule)
+			lifecycle.Rules = rules
+			bucketAttrsToUpdate.Lifecycle = &lifecycle
+			log.Printf("%s gcs bucket %s lifecycle delete on age rule to be added", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+		}
+	} else {
+		toBeUpdated = true
+		bucketAttrsToUpdate.Lifecycle.Rules = lifecycle.Rules
+		log.Printf("%s gcs bucket %s has no lifecycle. to be updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+	}
+	if !retreivedAttrs.UniformBucketLevelAccess.Enabled {
+		toBeUpdated = true
+		bucketAttrsToUpdate.UniformBucketLevelAccess = &uniformBucketLevelAccess
+		log.Printf("%s gcs bucket %s uniform level access to be updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+	}
+	if toBeUpdated {
 		retreivedAttrs, err = bucket.Update(bucketDeployment.Core.Ctx, bucketAttrsToUpdate)
 		if err != nil {
 			return fmt.Errorf("bucket.Update %v", err)
 		}
-		log.Printf("%s gcs bucket updated label 'name' '%s'", bucketDeployment.Core.InstanceName, retreivedAttrs.Labels["name"])
+		log.Printf("%s gcs bucket %s attributes have been updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
 	}
 	return nil
 }

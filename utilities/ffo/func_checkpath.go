@@ -12,25 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package ffo
 
 import (
-	"fmt"
-
-	"github.com/BrunoReboul/ram/utilities/validater"
+	"log"
+	"os"
 )
 
-// ReadValidate reads a YAML config file to a struct and validate the struct
-func ReadValidate(serviceName, settingsType, path string, settings interface{}) (err error) {
-	err = ReadUnmarshalYAML(path, settings)
-	if err != nil {
-		return err
+// CheckPath crashes execution when the path is not found or when an other error occurs
+func CheckPath(path string) {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			log.Fatalf("Path does not exist: %s", path)
+		} else {
+			log.Fatalln(err)
+		}
 	}
-	// JSONMarshalIndentPrint(settings)
-	err = validater.ValidateStruct(settings, fmt.Sprintf("%s%s", serviceName, settingsType))
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

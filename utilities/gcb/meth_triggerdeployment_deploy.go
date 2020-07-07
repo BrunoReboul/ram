@@ -19,7 +19,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/cloudbuild/v1"
 )
 
@@ -30,9 +30,12 @@ var globalTriggerDeployment *TriggerDeployment
 // Deploy delete is exist, then create a cloud build trigger to deploy a microservice instance
 func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
 	log.Printf("%s gcb cloud build trigger", triggerDeployment.Core.InstanceName)
+	if triggerDeployment.Settings.Service.GCB.QueueTTL == "" {
+		triggerDeployment.Settings.Service.GCB.QueueTTL = triggerDeployment.Core.SolutionSettings.Hosting.GCB.QueueTTL
+	}
 	triggerDeployment.Artifacts.ProjectsTriggersService = triggerDeployment.Core.Services.CloudbuildService.Projects.Triggers
 	triggerDeployment.situate()
-	// ram.JSONMarshalIndentPrint(&triggerDeployment.Artifacts.BuildTrigger)
+	// ffo.JSONMarshalIndentPrint(&triggerDeployment.Artifacts.BuildTrigger)
 	globalTriggerDeployment = triggerDeployment
 	triggerDeployment.deleteTriggers()
 	buildTrigger, err := triggerDeployment.Artifacts.ProjectsTriggersService.Create(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID,
@@ -40,7 +43,7 @@ func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
 	if err != nil {
 		return err
 	}
-	// ram.JSONMarshalIndentPrint(buildTrigger)
+	// ffo.JSONMarshalIndentPrint(buildTrigger)
 	log.Printf("%s gcb created trigger %s id %s with tag filter %s", globalTriggerDeployment.Core.InstanceName, buildTrigger.Name, buildTrigger.Id, buildTrigger.TriggerTemplate.TagName)
 	return nil
 }
@@ -114,16 +117,17 @@ func (triggerDeployment *TriggerDeployment) getInstanceDeploymentBuild() *cloudb
 	var build cloudbuild.Build
 	build.Steps = steps
 	build.Timeout = triggerDeployment.Settings.Service.GCB.BuildTimeout
+	build.QueueTtl = triggerDeployment.Settings.Service.GCB.QueueTTL
 	build.Tags = []string{triggerDeployment.Core.ServiceName,
 		triggerDeployment.Core.InstanceName,
-		ram.SolutionName}
+		solution.SolutionName}
 	return &build
 }
 
 func (triggerDeployment *TriggerDeployment) tagRegex() (tagRegex string) {
 	instanceTagRegex := fmt.Sprintf("(^%s-v\\d*.\\d*.\\d*-%s)", triggerDeployment.Core.InstanceName, triggerDeployment.Core.EnvironmentName)
 	serviceTagRegex := fmt.Sprintf("(^%s-v\\d*.\\d*.\\d*-%s)", triggerDeployment.Core.ServiceName, triggerDeployment.Core.EnvironmentName)
-	solutionTagRegex := fmt.Sprintf("(^%s-v\\d*.\\d*.\\d*-%s)", ram.SolutionName, triggerDeployment.Core.EnvironmentName)
+	solutionTagRegex := fmt.Sprintf("(^%s-v\\d*.\\d*.\\d*-%s)", solution.SolutionName, triggerDeployment.Core.EnvironmentName)
 	if triggerDeployment.Artifacts.AssetShortTypeName == "" {
 		return fmt.Sprintf("%s|%s|%s", instanceTagRegex, serviceTagRegex, solutionTagRegex)
 	}

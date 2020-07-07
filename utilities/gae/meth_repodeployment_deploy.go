@@ -57,7 +57,7 @@ func (appDeployment *AppDeployment) Deploy() (err error) {
 				}
 			}
 			log.Printf("%s gae application created %s", appDeployment.Core.InstanceName, appToCreate.Id)
-			// ram.JSONMarshalIndentPrint(operation)
+			// ffo.JSONMarshalIndentPrint(operation)
 		} else {
 			if strings.Contains(err.Error(), "403") {
 				log.Printf("%s gae WARNING impossible to GET application %v", appDeployment.Core.InstanceName, err)

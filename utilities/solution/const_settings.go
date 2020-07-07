@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package solution
 
 // Settings file names
 const (
 	DevelopmentEnvironmentName   = "dev"
+	PathToFunctionCode           = "./serverless_function_source_code/"
 	SettingsFileName             = "settings.yaml"
 	SolutionSettingsFileName     = "solution.yaml"
 	ServiceSettingsFileName      = "service.yaml"

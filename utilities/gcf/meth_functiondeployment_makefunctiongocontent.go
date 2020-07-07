@@ -45,14 +45,13 @@ import (
 	"context"
 
 	"github.com/BrunoReboul/ram/services/<serviceName>"
-	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
 var global <serviceName>.Global
 var ctx = context.Background()
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage) error {
 	return <serviceName>.EntryPoint(ctxEvent, PubSubMessage, &global)
 }
 
@@ -86,14 +85,14 @@ import (
 	"context"
 
 	"github.com/BrunoReboul/ram/services/<serviceName>"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/gcs"
 )
 
 var global <serviceName>.Global
 var ctx = context.Background()
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent) error {
+func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event) error {
 	return <serviceName>.EntryPoint(ctxEvent, gcsEvent, &global)
 }
 

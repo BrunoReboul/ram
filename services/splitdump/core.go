@@ -27,11 +27,14 @@ import (
 	"time"
 
 	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gcf"
+	"github.com/BrunoReboul/ram/utilities/gcs"
+	"github.com/BrunoReboul/ram/utilities/solution"
 
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/ram"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
@@ -60,7 +63,7 @@ type asset struct {
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
 	Asset  asset      `json:"asset"`
-	Window ram.Window `json:"window"`
+	Window cai.Window `json:"window"`
 	Origin string     `json:"origin"`
 }
 
@@ -85,9 +88,13 @@ func Initialize(ctx context.Context, global *Global) {
 	var storageClient *storage.Client
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	// err = ffo.ExploreFolder(solution.PathToFunctionCode)
+	// if err != nil {
+	// 	log.Printf("ffo.ExploreFolder %v", err)
+	// }
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
@@ -114,9 +121,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global) error {
+func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
@@ -174,12 +181,13 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 
 	// log.Println("dumpLineNumber", dumpLineNumber, "splitThresholdLineNumber", splitThresholdLineNumber, "duration", duration)
 	if dumpLineNumber > global.splitThresholdLineNumber {
-		dumpLineNumber, duration, err = splitToChildDumps(buffer, gcsEvent.Name, childDumpNumber, global)
+		dumpLineNumber, childDumpNumber, duration, err = splitToChildDumps(buffer, gcsEvent.Name, childDumpNumber, global)
 		if err != nil {
 			log.Printf("ERROR - splitToChildDumps %v", err)
 			return nil // NO RETRY
 		}
-		log.Printf("Processed %d lines, created %d childdumps files from %s generation %v duration %v\n", dumpLineNumber, childDumpNumber+1, gcsEvent.Name, gcsEvent.Generation, duration)
+		childDumpNumber++
+		log.Printf("Processed %d lines, created %d childdumps files from %s generation %v duration %v\n", dumpLineNumber, childDumpNumber, gcsEvent.Name, gcsEvent.Generation, duration)
 	} else {
 		dumpLineNumber, duration = splitToLines(buffer, global, &pubSubMsgNumber, &topicList, startTime)
 		log.Printf("Processed %d lines %d pubsub msg from %s generation %v duration %v\n", dumpLineNumber, pubSubMsgNumber, gcsEvent.Name, gcsEvent.Generation, duration)
@@ -188,7 +196,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent ram.GCSEvent, global *Global)
 	return nil
 }
 
-func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumber int64, global *Global) (int64, time.Duration, error) {
+func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumber int64, global *Global) (int64, int64, time.Duration, error) {
 	var dumpLineNumber int64
 	var childDumpLineNumber int64
 	var err error
@@ -228,7 +236,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 				}
 			}
 			if !done {
-				return dumpLineNumber, duration, fmt.Errorf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
+				return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
 			}
 
 			done = false
@@ -243,7 +251,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 				}
 			}
 			if !done {
-				return dumpLineNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
+				return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
 			}
 
 			childDumpNumber++
@@ -268,7 +276,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 		}
 	}
 	if !done {
-		return dumpLineNumber, duration, fmt.Errorf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
+		return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
 	}
 
 	done = false
@@ -283,10 +291,10 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 		}
 	}
 	if !done {
-		return dumpLineNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
+		return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
 	}
 	duration = time.Since(start)
-	return dumpLineNumber, duration, nil
+	return dumpLineNumber, childDumpNumber, duration, nil
 }
 
 func splitToLines(buffer bytes.Buffer, global *Global, pointerTopubSubMsgNumber *int64, topicListPointer *[]string, startTime time.Time) (int64, time.Duration) {

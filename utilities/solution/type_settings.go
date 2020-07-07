@@ -35,18 +35,23 @@ type Settings struct {
 		GAE struct {
 			Region string `valid:"isNotZeroValue"`
 		}
+		GCB struct {
+			QueueTTL string `yaml:"queueTtl"`
+		}
 		GCF struct {
 			Region string `valid:"isNotZeroValue"`
 		}
 		GCS struct {
 			Buckets struct {
 				CAIExport struct {
-					Name  string `yaml:",omitempty"`
-					Names map[string]string
+					Name            string `yaml:",omitempty"`
+					Names           map[string]string
+					DeleteAgeInDays int64 `yaml:"deleteAgeInDays,omitempty"`
 				} `yaml:"CAIExport"`
 				AssetsJSONFile struct {
-					Name  string `yaml:",omitempty"`
-					Names map[string]string
+					Name            string `yaml:",omitempty"`
+					Names           map[string]string
+					DeleteAgeInDays int64 `yaml:"deleteAgeInDays,omitempty"`
 				} `yaml:"assetsJSONFile"`
 			}
 		}
@@ -61,8 +66,8 @@ type Settings struct {
 				IAMPolicies         string `yaml:"IAMPolicies" valid:"isNotZeroValue"`
 				RAMViolation        string `yaml:"RAMViolation" valid:"isNotZeroValue"`
 				RAMComplianceStatus string `yaml:"RAMComplianceStatus" valid:"isNotZeroValue"`
-				GCIGroupMembers     string `yaml:"GCIGroupMembers" valid:"isNotZeroValue"`
-				GCIGroupSettings    string `yaml:"GCIGroupSettings" valid:"isNotZeroValue"`
+				GCIGroupMembers     string `yaml:"GCIGroupMembers"`
+				GCIGroupSettings    string `yaml:"GCIGroupSettings"`
 			} `yaml:"topicNames"`
 		}
 		FireStore struct {

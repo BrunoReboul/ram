@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
 	"google.golang.org/api/cloudresourcemanager/v1"
 )
 
@@ -72,7 +72,7 @@ func (projectDeployment *ProjectDeployment) Deploy() (err error) {
 					break
 				}
 			}
-			ram.JSONMarshalIndentPrint(operation)
+			ffo.JSONMarshalIndentPrint(operation)
 			log.Printf("%s grm project %s created", projectDeployment.Core.InstanceName, projectDeployment.Core.SolutionSettings.Hosting.ProjectID)
 		} else {
 			return err

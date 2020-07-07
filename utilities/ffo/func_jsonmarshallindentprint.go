@@ -12,23 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package ffo
 
 import (
-	"io/ioutil"
-
-	"gopkg.in/yaml.v2"
+	"encoding/json"
+	"fmt"
+	"log"
 )
 
-// MarshalYAMLWrite Marshal an interface to YAML format and write the bytes to a given path
-func MarshalYAMLWrite(path string, v interface{}) (err error) {
-	bytes, err := yaml.Marshal(v)
+// JSONMarshalIndentPrint marshal with 4 spaces indent no prefix and fmt print
+func JSONMarshalIndentPrint(v interface{}) {
+	bytes, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
-		return err
+		log.Printf("JSONMarshalIndentPrint %v", err)
 	}
-	err = ioutil.WriteFile(path, append([]byte(YAMLDisclaimer), bytes...), 0644)
-	if err != nil {
-		return err
-	}
-	return nil
+	fmt.Println(string(bytes))
 }

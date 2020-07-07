@@ -22,5 +22,8 @@ func (instanceDeployment *InstanceDeployment) deployGCSBucket() (err error) {
 	bucketDeployment := gcs.NewBucketDeployment()
 	bucketDeployment.Core = instanceDeployment.Core
 	bucketDeployment.Settings.BucketName = instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name
+	if bucketDeployment.Settings.DeleteAgeInDays == 0 {
+		bucketDeployment.Settings.DeleteAgeInDays = bucketDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.DeleteAgeInDays
+	}
 	return bucketDeployment.Deploy()
 }

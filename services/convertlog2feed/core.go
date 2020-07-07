@@ -19,12 +19,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/aut"
+	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gcf"
+	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/BrunoReboul/ram/utilities/str"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/iterator"
@@ -107,9 +112,9 @@ func Initialize(ctx context.Context, global *Global) {
 	var ok bool
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(fmt.Sprintf("./%s", ram.SettingsFileName), &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
@@ -121,10 +126,18 @@ func Initialize(ctx context.Context, global *Global) {
 	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 	global.retriesNumber = instanceDeployment.Settings.Service.RetriesNumber
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
-	keyJSONFilePath := "./" + instanceDeployment.Settings.Service.KeyJSONFileName
-	serviceAccountEmail := os.Getenv("FUNCTION_IDENTITY")
+	keyJSONFilePath := solution.PathToFunctionCode + instanceDeployment.Settings.Service.KeyJSONFileName
+	serviceAccountEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
+		instanceDeployment.Core.ServiceName,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
-	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, global.projectID, gciAdminUserToImpersonate, []string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"}); !ok {
+	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
+		serviceAccountEmail,
+		keyJSONFilePath,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
+		gciAdminUserToImpersonate,
+		[]string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"}); !ok {
+		global.initFailed = true
 		return
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
@@ -166,9 +179,9 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}
@@ -232,10 +245,10 @@ func convertAdminActivityEvent(global *Global) (err error) {
 }
 func getCustomerID(global *Global) (err error) {
 	documentID := fmt.Sprintf("//cloudresourcemanager.googleapis.com/organizations/%s", global.organizationID)
-	documentID = ram.RevertSlash(documentID)
+	documentID = str.RevertSlash(documentID)
 	documentPath := global.collectionID + "/" + documentID
 	// log.Printf("documentPath %s", documentPath)
-	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, global.retriesNumber)
+	documentSnap, found := gfs.GetDoc(global.ctx, global.firestoreClient, documentPath, global.retriesNumber)
 	if found {
 		// log.Printf("Found firestore document %s", documentPath)
 
@@ -359,7 +372,7 @@ func publishGroupCreationOrUpdate(groupEmail string, global *Global) (err error)
 	if err != nil {
 		return err
 	}
-	var feedMessage ram.FeedMessageGroup
+	var feedMessage cai.FeedMessageGroup
 	feedMessage.Window.StartTime = global.logEntry.Timestamp
 	feedMessage.Origin = "real-time-log-export"
 	feedMessage.Deleted = false
@@ -416,8 +429,6 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			return fmt.Errorf("publishGroupDeletion iter.Next() %v", err) // RETRY
 		}
 		if documentSnap.Exists() {
-			// issue: documentSnap.DataTo ram.FeedMessageGroup.Asset: ram.AssetGroup.Resource: admin.Group.DirectMembersCount: firestore: cannot set type int64 to string
-			// Work arround re define the type with out using admin.group
 			found = true
 			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
 			if err != nil {
@@ -501,7 +512,7 @@ func publishGroupMemberCreationOrUpdate(groupEmail string, memberEmail string, g
 	}
 	groupID = group.Id
 
-	var feedMessage ram.FeedMessageMember
+	var feedMessage cai.FeedMessageMember
 	feedMessage.Asset.Ancestors = []string{
 		fmt.Sprintf("groups/%s", groupID),
 		fmt.Sprintf("directories/%s", global.directoryCustomerID)}
@@ -632,7 +643,7 @@ func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail stri
 }
 
 func publishGroupSettings(groupEmail string, global *Global) (err error) {
-	var feedMessageGroupSettings ram.FeedMessageGroupSettings
+	var feedMessageGroupSettings cai.FeedMessageGroupSettings
 	feedMessageGroupSettings.Window.StartTime = global.logEntry.Timestamp
 	feedMessageGroupSettings.Origin = "real-time-log-export"
 	feedMessageGroupSettings.Asset.AssetType = "groupssettings.googleapis.com/groupSettings"

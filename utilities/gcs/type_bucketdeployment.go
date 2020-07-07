@@ -22,7 +22,8 @@ import (
 type BucketDeployment struct {
 	Core     *deploy.Core
 	Settings struct {
-		BucketName string `yaml:"bucketName"`
+		BucketName      string `yaml:"bucketName"`
+		DeleteAgeInDays int64  `yaml:"deleteAgeInDays"`
 	}
 }
 
