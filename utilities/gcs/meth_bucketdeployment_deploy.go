@@ -66,7 +66,13 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		bucketAttrsToUpdate.SetLabel("name", strings.ToLower(bucketDeployment.Settings.BucketName))
 		log.Printf("%s gcs bucket label to be updated", bucketDeployment.Core.InstanceName)
 	}
-	if reflect.DeepEqual(retreivedAttrs.Lifecycle.Rules, lifecycle.Rules) {
+	if retreivedAttrs.Lifecycle.Rules != nil {
+		if reflect.DeepEqual(retreivedAttrs.Lifecycle.Rules, lifecycle.Rules) {
+			toBeUpdated = true
+			bucketAttrsToUpdate.Lifecycle = &lifecycle
+			log.Printf("%s gcs bucket lifecycle to be updated", bucketDeployment.Core.InstanceName)
+		}
+	} else {
 		toBeUpdated = true
 		bucketAttrsToUpdate.Lifecycle = &lifecycle
 		log.Printf("%s gcs bucket lifecycle to be updated", bucketDeployment.Core.InstanceName)
