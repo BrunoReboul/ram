@@ -19,8 +19,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
-
 	"cloud.google.com/go/storage"
 )
 
@@ -84,23 +82,31 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		rules := retreivedAttrs.Lifecycle.Rules
 		foundDeleteRule := false
 		ruleToBeUpdated := false
-		for _, rule := range rules {
-
-			ram.JSONMarshalIndentPrint(rule)
-
+		for i, rule := range rules {
+			log.Printf("%s gcs bucket %s delete lifecycle analyzing rule index %d",
+				bucketDeployment.Core.InstanceName,
+				bucketDeployment.Settings.BucketName,
+				i)
 			if rule.Action.Type == "Delete" {
 				foundDeleteRule = true
 				if rule.Condition.AgeInDays != bucketDeployment.Settings.DeleteAgeInDays {
 					ruleToBeUpdated = true
+					log.Printf("%s gcs bucket %s delete lifecycle rule found age %d updated to %d",
+						bucketDeployment.Core.InstanceName,
+						bucketDeployment.Settings.BucketName,
+						rule.Condition.AgeInDays,
+						bucketDeployment.Settings.DeleteAgeInDays)
 					rule.Condition.AgeInDays = bucketDeployment.Settings.DeleteAgeInDays
 				}
 				// Do not break, may be multiple delete rules
 			}
 		}
+		var lifecycle storage.Lifecycle
 		if foundDeleteRule {
 			if ruleToBeUpdated {
 				toBeUpdated = true
-				bucketAttrsToUpdate.Lifecycle.Rules = rules
+				lifecycle.Rules = rules
+				bucketAttrsToUpdate.Lifecycle = &lifecycle
 				log.Printf("%s gcs bucket %s delete lifecycle rule age to be updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
 			} else {
 				log.Printf("%s gcs bucket %s lifecycle already has a delete rule with the desired age set", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
@@ -108,7 +114,8 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		} else {
 			toBeUpdated = true
 			rules = append(rules, lifecycleRule)
-			bucketAttrsToUpdate.Lifecycle.Rules = rules
+			lifecycle.Rules = rules
+			bucketAttrsToUpdate.Lifecycle = &lifecycle
 			log.Printf("%s gcs bucket %s lifecycle delete on age rule to be added", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
 		}
 	} else {
