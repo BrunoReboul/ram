@@ -84,7 +84,7 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		rules := retreivedAttrs.Lifecycle.Rules
 		foundDeleteRule := false
 		ruleToBeUpdated := false
-		for i, _ := range rules {
+		for i := range rules {
 			log.Printf("%s gcs bucket %s delete lifecycle analyzing rule index %d",
 				bucketDeployment.Core.InstanceName,
 				bucketDeployment.Settings.BucketName,
