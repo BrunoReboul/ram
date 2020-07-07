@@ -19,6 +19,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/BrunoReboul/ram/utilities/ram"
+
 	"cloud.google.com/go/storage"
 )
 
@@ -96,7 +98,12 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 						bucketDeployment.Settings.BucketName,
 						rule.Condition.AgeInDays,
 						bucketDeployment.Settings.DeleteAgeInDays)
+
+					ram.JSONMarshalIndentPrint(rule)
+
 					rule.Condition.AgeInDays = bucketDeployment.Settings.DeleteAgeInDays
+
+					ram.JSONMarshalIndentPrint(rule)
 				}
 				// Do not break, may be multiple delete rules
 			}
@@ -104,6 +111,9 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		if foundDeleteRule {
 			if ruleToBeUpdated {
 				toBeUpdated = true
+
+				ram.JSONMarshalIndentPrint(rules)
+
 				lifecycle.Rules = rules
 				bucketAttrsToUpdate.Lifecycle = &lifecycle
 				log.Printf("%s gcs bucket %s delete lifecycle rule age to be updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
