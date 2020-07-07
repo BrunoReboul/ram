@@ -17,65 +17,15 @@ package ram
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
-	"github.com/BrunoReboul/ram/utilities/gfs"
-	"github.com/BrunoReboul/ram/utilities/str"
-
-	"google.golang.org/api/cloudresourcemanager/v1"
-	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 )
-
-// BuildAncestorsDisplayName build a slice of Ancestor friendly name from a slice of ancestors
-func BuildAncestorsDisplayName(ctx context.Context, ancestors []string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) []string {
-	cnt := len(ancestors)
-	ancestorsDisplayName := make([]string, len(ancestors))
-	for idx := 0; idx < cnt; idx++ {
-		ancestorsDisplayName[idx] = getDisplayName(ctx, ancestors[idx], collectionID, firestoreClient, cloudresourcemanagerService, cloudresourcemanagerServiceV2)
-	}
-	return ancestorsDisplayName
-}
-
-// BuildAncestryPath build a path from a slice of ancestors
-func BuildAncestryPath(ancestors []string) string {
-	cnt := len(ancestors)
-	revAncestors := make([]string, len(ancestors))
-	for idx := 0; idx < cnt; idx++ {
-		revAncestors[cnt-idx-1] = ancestors[idx]
-	}
-	var ancestryPath string
-	ancestryPath = makeCompatible(strings.Join(revAncestors, "/"))
-	return ancestryPath
-}
-
-// GetAssetContact retrieve owner of resolver contact from asset labels and parent labels
-func GetAssetContact(contactRole string, resourceJSON json.RawMessage) (string, error) {
-	var contact string
-	var resource struct {
-		Data struct {
-			Labels map[string]string
-		}
-	}
-	err := json.Unmarshal(resourceJSON, &resource)
-	if err != nil {
-		return "", err
-	}
-	if resource.Data.Labels != nil {
-		if labelValue, ok := resource.Data.Labels[contactRole]; ok {
-			contact = labelValue
-		}
-	}
-	return contact, nil
-}
 
 // GetByteSet return a set of lenght contiguous bytes starting at bytes
 func GetByteSet(start byte, length int) []byte {
@@ -84,80 +34,6 @@ func GetByteSet(start byte, length int) []byte {
 		byteSet[i] = start + byte(i)
 	}
 	return byteSet
-}
-
-// getDisplayName retrieive the friendly name of an ancestor
-func getDisplayName(ctx context.Context, name string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) string {
-	var displayName = "unknown"
-	ancestorType := strings.Split(name, "/")[0]
-	knownAncestorTypes := []string{"organizations", "folders", "projects"}
-	if !str.Find(knownAncestorTypes, ancestorType) {
-		return displayName
-	}
-	documentID := "//cloudresourcemanager.googleapis.com/" + name
-	documentID = str.RevertSlash(documentID)
-	documentPath := collectionID + "/" + documentID
-	// log.Printf("documentPath:%s", documentPath)
-	// documentSnap, err := firestoreClient.Doc(documentPath).Get(ctx)
-	documentSnap, found := gfs.GetDoc(ctx, firestoreClient, documentPath, 10)
-	if found {
-		assetMap := documentSnap.Data()
-		// log.Println(assetMap)
-		var assetInterface interface{} = assetMap["asset"]
-		if asset, ok := assetInterface.(map[string]interface{}); ok {
-			var resourceInterface interface{} = asset["resource"]
-			if resource, ok := resourceInterface.(map[string]interface{}); ok {
-				var dataInterface interface{} = resource["data"]
-				if data, ok := dataInterface.(map[string]interface{}); ok {
-					switch ancestorType {
-					case "organizations":
-						var dNameInterface interface{} = data["displayName"]
-						if dName, ok := dNameInterface.(string); ok {
-							displayName = dName
-						}
-					case "folders":
-						var dNameInterface interface{} = data["displayName"]
-						if dName, ok := dNameInterface.(string); ok {
-							displayName = dName
-						}
-					case "projects":
-						var dNameInterface interface{} = data["name"]
-						if dName, ok := dNameInterface.(string); ok {
-							displayName = dName
-						}
-					}
-				}
-			}
-		}
-		// log.Printf("name %s displayName %s", name, displayName)
-	} else {
-		log.Printf("WARNING - Not found in firestore %s", documentPath)
-		//try resourcemamager API
-		switch strings.Split(name, "/")[0] {
-		case "organizations":
-			resp, err := cloudresourcemanagerService.Organizations.Get(name).Context(ctx).Do()
-			if err != nil {
-				log.Printf("WARNING - cloudresourcemanagerService.Organizations.Get %v", err)
-			} else {
-				displayName = resp.DisplayName
-			}
-		case "folders":
-			resp, err := cloudresourcemanagerServiceV2.Folders.Get(name).Context(ctx).Do()
-			if err != nil {
-				log.Printf("WARNING - cloudresourcemanagerServiceV2.Folders.Get %v", err)
-			} else {
-				displayName = resp.DisplayName
-			}
-		case "projects":
-			resp, err := cloudresourcemanagerService.Projects.Get(strings.Split(name, "/")[1]).Context(ctx).Do()
-			if err != nil {
-				log.Printf("WARNING - cloudresourcemanagerService.Projects.Get %v", err)
-			} else {
-				displayName = resp.Name
-			}
-		}
-	}
-	return displayName
 }
 
 // GetPublishCallResult func to be used in go routine to scale pubsub event publish
@@ -199,14 +75,6 @@ func IntialRetryCheck(ctxEvent context.Context, initFailed bool, retryTimeOutSec
 		return false, metadata, nil // NO MORE RETRY
 	}
 	return true, metadata, nil
-}
-
-// makeCompatible update a GCP asset ancestryPath to make it compatible with former Policy Library REGO rules
-func makeCompatible(path string) string {
-	path = strings.Replace(path, "organizations", "organization", -1)
-	path = strings.Replace(path, "folders", "folder", -1)
-	path = strings.Replace(path, "projects", "project", -1)
-	return path
 }
 
 // PrintEnptyInterfaceType discover the type below an empty interface
