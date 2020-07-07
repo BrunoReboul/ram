@@ -22,13 +22,13 @@ import (
 	"strings"
 
 	pubsub "cloud.google.com/go/pubsub/apiv1"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/str"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
 // CreateTopic check if a topic already exist, if not create it
 func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, topicListPointer *[]string, topicName string, projectID string) error {
-	if ram.Find(*topicListPointer, topicName) {
+	if str.Find(*topicListPointer, topicName) {
 		return nil
 	}
 	// refresh topic list
@@ -36,7 +36,7 @@ func CreateTopic(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClie
 	if err != nil {
 		return fmt.Errorf("getTopicList: %v", err)
 	}
-	if ram.Find(*topicListPointer, topicName) {
+	if str.Find(*topicListPointer, topicName) {
 		return nil
 	}
 	var topicRequested pubsubpb.Topic

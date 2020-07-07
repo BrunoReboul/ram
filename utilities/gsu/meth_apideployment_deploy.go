@@ -20,8 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
-
+	"github.com/BrunoReboul/ram/utilities/str"
 	"google.golang.org/api/serviceusage/v1"
 )
 
@@ -45,7 +44,7 @@ func (apiDeployment *APIDeployment) Deploy() (err error) {
 	}
 
 	for _, apiName := range apiDeployment.Settings.Service.GSU.APIList {
-		if ram.Find(activeAPIs, apiName) {
+		if str.Find(activeAPIs, apiName) {
 			log.Printf("%s gsu API already active %s", apiDeployment.Core.InstanceName, apiName)
 		} else {
 			err = apiDeployment.activateAPI(apiName)

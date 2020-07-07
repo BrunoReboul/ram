@@ -23,6 +23,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/str"
 
 	"cloud.google.com/go/firestore"
 )
@@ -102,7 +103,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	}
 	// log.Printf("%v", feedMessage)
 
-	documentID := ram.RevertSlash(feedMessage.Asset.Name)
+	documentID := str.RevertSlash(feedMessage.Asset.Name)
 	documentPath := global.collectionID + "/" + documentID
 	if feedMessage.Deleted == true {
 		_, err = global.firestoreClient.Doc(documentPath).Delete(global.ctx)

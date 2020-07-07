@@ -26,6 +26,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/str"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/iterator"
@@ -241,7 +242,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 }
 func getCustomerID(global *Global) (err error) {
 	documentID := fmt.Sprintf("//cloudresourcemanager.googleapis.com/organizations/%s", global.organizationID)
-	documentID = ram.RevertSlash(documentID)
+	documentID = str.RevertSlash(documentID)
 	documentPath := global.collectionID + "/" + documentID
 	// log.Printf("documentPath %s", documentPath)
 	documentSnap, found := ram.FireStoreGetDoc(global.ctx, global.firestoreClient, documentPath, global.retriesNumber)

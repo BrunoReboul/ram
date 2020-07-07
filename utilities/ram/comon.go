@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
+	"github.com/BrunoReboul/ram/utilities/str"
 
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
@@ -53,16 +54,6 @@ func BuildAncestryPath(ancestors []string) string {
 	var ancestryPath string
 	ancestryPath = makeCompatible(strings.Join(revAncestors, "/"))
 	return ancestryPath
-}
-
-// Find a string in a slice of string. Return true when found else false
-func Find(slice []string, val string) bool {
-	for _, item := range slice {
-		if item == val {
-			return true
-		}
-	}
-	return false
 }
 
 // FireStoreGetDoc check if a document exist with retries
@@ -116,11 +107,11 @@ func getDisplayName(ctx context.Context, name string, collectionID string, fires
 	var displayName = "unknown"
 	ancestorType := strings.Split(name, "/")[0]
 	knownAncestorTypes := []string{"organizations", "folders", "projects"}
-	if !Find(knownAncestorTypes, ancestorType) {
+	if !str.Find(knownAncestorTypes, ancestorType) {
 		return displayName
 	}
 	documentID := "//cloudresourcemanager.googleapis.com/" + name
-	documentID = RevertSlash(documentID)
+	documentID = str.RevertSlash(documentID)
 	documentPath := collectionID + "/" + documentID
 	// log.Printf("documentPath:%s", documentPath)
 	// documentSnap, err := firestoreClient.Doc(documentPath).Get(ctx)
@@ -241,9 +232,4 @@ func PrintEnptyInterfaceType(value interface{}, valueName string) error {
 		log.Printf("type %T for value named: %s\n", t, valueName)
 	}
 	return nil
-}
-
-// RevertSlash replace slash / by back slash \
-func RevertSlash(txt string) string {
-	return strings.Replace(txt, "/", "\\", -1)
 }

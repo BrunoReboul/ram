@@ -20,8 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
-
+	"github.com/BrunoReboul/ram/utilities/str"
 	"google.golang.org/api/cloudresourcemanager/v1"
 )
 
@@ -57,7 +56,7 @@ func (orgBindingsDeployment *OrgBindingsDeployment) Deploy() (err error) {
 			existingRoles := make([]string, 0)
 			for _, binding := range policy.Bindings {
 				existingRoles = append(existingRoles, binding.Role)
-				if ram.Find(orgBindingsDeployment.Settings.Roles, binding.Role) {
+				if str.Find(orgBindingsDeployment.Settings.Roles, binding.Role) {
 					isAlreadyMemberOf := false
 					for _, member := range binding.Members {
 						if member == orgBindingsDeployment.Artifacts.Member {
@@ -74,7 +73,7 @@ func (orgBindingsDeployment *OrgBindingsDeployment) Deploy() (err error) {
 				}
 				parts := strings.Split(binding.Role, "/")
 				customRole := parts[len(parts)-1]
-				if ram.Find(orgBindingsDeployment.Settings.CustomRoles, customRole) {
+				if str.Find(orgBindingsDeployment.Settings.CustomRoles, customRole) {
 					isAlreadyMemberOf := false
 					for _, member := range binding.Members {
 						if member == orgBindingsDeployment.Artifacts.Member {
@@ -91,7 +90,7 @@ func (orgBindingsDeployment *OrgBindingsDeployment) Deploy() (err error) {
 				}
 			}
 			for _, role := range orgBindingsDeployment.Settings.Roles {
-				if !ram.Find(existingRoles, role) {
+				if !str.Find(existingRoles, role) {
 					var binding cloudresourcemanager.Binding
 					binding.Role = role
 					binding.Members = []string{orgBindingsDeployment.Artifacts.Member}
@@ -102,7 +101,7 @@ func (orgBindingsDeployment *OrgBindingsDeployment) Deploy() (err error) {
 			}
 			for _, customRole := range orgBindingsDeployment.Settings.CustomRoles {
 				role := fmt.Sprintf("organizations/%s/roles/%s", orgBindingsDeployment.Artifacts.OrganizationID, customRole)
-				if !ram.Find(existingRoles, role) {
+				if !str.Find(existingRoles, role) {
 					var binding cloudresourcemanager.Binding
 					binding.Role = role
 					binding.Members = []string{orgBindingsDeployment.Artifacts.Member}
