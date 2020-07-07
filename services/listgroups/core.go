@@ -25,9 +25,10 @@ import (
 
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/option"
 
 	"cloud.google.com/go/pubsub"
@@ -79,9 +80,9 @@ func Initialize(ctx context.Context, global *Global) {
 	var ok bool
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(ram.PathToFunctionCode+ram.SettingsFileName, &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
@@ -94,7 +95,7 @@ func Initialize(ctx context.Context, global *Global) {
 	global.outputTopicName = instanceDeployment.Artifacts.OutputTopicName
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
 	projectID := instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
-	keyJSONFilePath := ram.PathToFunctionCode + instanceDeployment.Settings.Service.KeyJSONFileName
+	keyJSONFilePath := solution.PathToFunctionCode + instanceDeployment.Settings.Service.KeyJSONFileName
 	serviceAccountEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
 		instanceDeployment.Core.ServiceName,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
@@ -161,8 +162,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 }
 
 func initiateQueries(global *Global) error {
-	figures := ram.getByteSet('0', 10)
-	alphabetLower := ram.getByteSet('a', 26)
+	figures := getByteSet('0', 10)
+	alphabetLower := getByteSet('a', 26)
 	// Query on directory group email is NOT case sensitive
 	// alphabetUpper := getByteSet('A', 26)
 

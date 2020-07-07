@@ -78,7 +78,7 @@ func (feedDeployment *FeedDeployment) createFeed() (err error) {
 	// This is the client-assigned asset feed identifier and it needs to be unique under a specific parent project/folder/organization
 	createFeedRequest.FeedId = feedDeployment.Artifacts.FeedName
 	createFeedRequest.Feed = &feedToCreate
-	// ram.JSONMarshalIndentPrint(&createFeedRequest)
+	// ffo.JSONMarshalIndentPrint(&createFeedRequest)
 
 	feed, err := feedDeployment.Core.Services.AssetClient.CreateFeed(feedDeployment.Core.Ctx, &createFeedRequest)
 	if err != nil {

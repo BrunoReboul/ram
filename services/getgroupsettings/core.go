@@ -22,9 +22,10 @@ import (
 
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
 
@@ -55,9 +56,9 @@ func Initialize(ctx context.Context, global *Global) {
 	var ok bool
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(ram.PathToFunctionCode+ram.SettingsFileName, &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}
@@ -66,7 +67,7 @@ func Initialize(ctx context.Context, global *Global) {
 	global.outputTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupSettings
 	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
-	keyJSONFilePath := ram.PathToFunctionCode + instanceDeployment.Settings.Service.KeyJSONFileName
+	keyJSONFilePath := solution.PathToFunctionCode + instanceDeployment.Settings.Service.KeyJSONFileName
 	serviceAccountEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com",
 		instanceDeployment.Core.ServiceName,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)

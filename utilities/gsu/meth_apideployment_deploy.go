@@ -87,7 +87,7 @@ func (apiDeployment *APIDeployment) activateAPI(apiName string) (err error) {
 	// 		break
 	// 	}
 	// }
-	// ram.JSONMarshalIndentPrint(operation)
+	// ffo.JSONMarshalIndentPrint(operation)
 
 	// Work arround: check result, API activated
 	var googleAPIServiceusageV1Service *serviceusage.GoogleApiServiceusageV1Service
@@ -101,7 +101,7 @@ func (apiDeployment *APIDeployment) activateAPI(apiName string) (err error) {
 			break
 		}
 	}
-	// ram.JSONMarshalIndentPrint(googleAPIServiceusageV1Service)
+	// ffo.JSONMarshalIndentPrint(googleAPIServiceusageV1Service)
 	log.Printf("%s gsu API %s is active", apiDeployment.Core.InstanceName, apiName)
 
 	return nil

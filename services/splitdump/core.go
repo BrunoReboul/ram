@@ -27,13 +27,14 @@ import (
 	"time"
 
 	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gcs"
+	"github.com/BrunoReboul/ram/utilities/solution"
 
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/ram"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
@@ -87,13 +88,13 @@ func Initialize(ctx context.Context, global *Global) {
 	var storageClient *storage.Client
 
 	log.Println("Function COLD START")
-	// err = ram.ExploreFolder(ram.PathToFunctionCode)
+	// err = ffo.ExploreFolder(solution.PathToFunctionCode)
 	// if err != nil {
-	// 	log.Printf("ram.ExploreFolder %v", err)
+	// 	log.Printf("ffo.ExploreFolder %v", err)
 	// }
-	err = ram.ReadUnmarshalYAML(ram.PathToFunctionCode+ram.SettingsFileName, &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}

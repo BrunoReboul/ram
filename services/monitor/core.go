@@ -26,9 +26,10 @@ import (
 	"cloud.google.com/go/firestore"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"github.com/BrunoReboul/ram/utilities/cai"
+	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
@@ -165,9 +166,9 @@ func Initialize(ctx context.Context, global *Global) {
 	var instanceDeployment InstanceDeployment
 
 	log.Println("Function COLD START")
-	err = ram.ReadUnmarshalYAML(ram.PathToFunctionCode+ram.SettingsFileName, &instanceDeployment)
+	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", ram.SettingsFileName, err)
+		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 		global.initFailed = true
 		return
 	}

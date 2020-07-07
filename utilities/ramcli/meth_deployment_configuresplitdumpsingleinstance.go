@@ -21,7 +21,8 @@ import (
 	"strings"
 
 	"github.com/BrunoReboul/ram/services/splitdump"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // configureSplitDumpSingleInstance
@@ -30,11 +31,11 @@ func (deployment *Deployment) configureSplitDumpSingleInstance() (err error) {
 	log.Printf("configure %s single instance", serviceName)
 	var splitdumpInstanceDeployment splitdump.InstanceDeployment
 	splitdumpInstance := splitdumpInstanceDeployment.Settings.Instance
-	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
+	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(serviceFolderPath, 0755)
 	}
-	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, ram.InstancesFolderName)
+	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, solution.InstancesFolderName)
 	if _, err := os.Stat(instancesFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instancesFolderPath, 0755)
 	}
@@ -50,7 +51,7 @@ func (deployment *Deployment) configureSplitDumpSingleInstance() (err error) {
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
-	if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), splitdumpInstance); err != nil {
+	if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), splitdumpInstance); err != nil {
 		return err
 	}
 	log.Printf("done %s", instanceFolderPath)

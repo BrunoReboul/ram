@@ -18,7 +18,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
 )
 
 // Retries is the max number of tentative to get the operation status on the cloud function deployment, to deal with transient
@@ -33,7 +33,7 @@ func (functionDeployment *FunctionDeployment) Deploy() (err error) {
 		return err
 	}
 	log.Printf("%s gcf situate settings done", functionDeployment.Core.InstanceName)
-	err = ram.ZipSource(functionDeployment.Artifacts.CloudFunctionZipFullPath, functionDeployment.Artifacts.ZipFiles)
+	err = ffo.ZipSource(functionDeployment.Artifacts.CloudFunctionZipFullPath, functionDeployment.Artifacts.ZipFiles)
 	if err != nil {
 		return err
 	}

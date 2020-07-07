@@ -17,13 +17,12 @@ package monitor
 import (
 	"time"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
-
 	"github.com/BrunoReboul/ram/utilities/deploy"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gsu"
 	"github.com/BrunoReboul/ram/utilities/iamgt"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -99,7 +98,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 
 	instanceDeployment.Settings.Service.AssetsFolderName = "/assets"
 	instanceDeployment.Settings.Service.AssetsFileName = "data.json"
-	instanceDeployment.Settings.Service.OPAFolderPath = ram.PathToFunctionCode + "opa"
+	instanceDeployment.Settings.Service.OPAFolderPath = solution.PathToFunctionCode + "opa"
 	instanceDeployment.Settings.Service.RegoModulesFolderName = "modules"
 	instanceDeployment.Settings.Service.WritabelOPAFolderPath = "/tmp/opa"
 

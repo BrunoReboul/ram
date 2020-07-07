@@ -21,7 +21,8 @@ import (
 	"strings"
 
 	"github.com/BrunoReboul/ram/services/convertlog2feed"
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // configureConvertlog2feedOrganizations
@@ -33,11 +34,11 @@ func (deployment *Deployment) configureConvertlog2feedOrganizations() (err error
 	log.Printf("configure %s %s", serviceName, sinkNameSuffix)
 	var convertlog2feedInstanceDeployment convertlog2feed.InstanceDeployment
 	convertlog2feedInstance := convertlog2feedInstanceDeployment.Settings.Instance
-	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName, serviceName)
+	serviceFolderPath := fmt.Sprintf("%s/%s/%s", deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName, serviceName)
 	if _, err := os.Stat(serviceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(serviceFolderPath, 0755)
 	}
-	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, ram.InstancesFolderName)
+	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, solution.InstancesFolderName)
 	if _, err := os.Stat(instancesFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instancesFolderPath, 0755)
 	}
@@ -63,7 +64,7 @@ func (deployment *Deployment) configureConvertlog2feedOrganizations() (err error
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
-		if err = ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, ram.InstanceSettingsFileName), convertlog2feedInstance); err != nil {
+		if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), convertlog2feedInstance); err != nil {
 			return err
 		}
 		log.Printf("done %s", instanceFolderPath)

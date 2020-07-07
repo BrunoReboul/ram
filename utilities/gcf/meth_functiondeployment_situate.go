@@ -18,7 +18,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 )
 
@@ -57,10 +58,10 @@ func (functionDeployment *FunctionDeployment) situate() (err error) {
 	}
 	functionDeployment.Artifacts.ZipFiles["function.go"] = functionGoContent
 	functionDeployment.Artifacts.ZipFiles["go.mod"] = functionDeployment.makeGoModContent()
-	functionDeployment.Artifacts.ZipFiles[ram.SettingsFileName] = functionDeployment.Artifacts.InstanceDeploymentYAMLContent
+	functionDeployment.Artifacts.ZipFiles[solution.SettingsFileName] = functionDeployment.Artifacts.InstanceDeploymentYAMLContent
 
 	if functionDeployment.Core.Commands.Dumpsettings {
-		err := ram.MarshalYAMLWrite(fmt.Sprintf("%s/%s", functionDeployment.Core.RepositoryPath, "function_deployment.yaml"), functionDeployment)
+		err := ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", functionDeployment.Core.RepositoryPath, "function_deployment.yaml"), functionDeployment)
 		if err != nil {
 			return err
 		}

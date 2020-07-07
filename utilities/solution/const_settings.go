@@ -12,23 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package solution
 
-import (
-	"io/ioutil"
-
-	"gopkg.in/yaml.v2"
+// Settings file names
+const (
+	DevelopmentEnvironmentName   = "dev"
+	PathToFunctionCode           = "./serverless_function_source_code/"
+	SettingsFileName             = "settings.yaml"
+	SolutionSettingsFileName     = "solution.yaml"
+	ServiceSettingsFileName      = "service.yaml"
+	InstanceSettingsFileName     = "instance.yaml"
+	MicroserviceParentFolderName = "services"
+	InstancesFolderName          = "instances"
+	RegoConstraintsFolderName    = "constraints"
+	SolutionName                 = "ram"
 )
-
-// ReadUnmarshalYAML Read bytes from a given path and unmarshal assuming YAML format
-func ReadUnmarshalYAML(path string, settings interface{}) (err error) {
-	bytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	err = yaml.Unmarshal(bytes, settings)
-	if err != nil {
-		return err
-	}
-	return nil
-}

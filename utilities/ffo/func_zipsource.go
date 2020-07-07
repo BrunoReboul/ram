@@ -12,25 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package ffo
 
 import (
-	"fmt"
-
-	"github.com/BrunoReboul/ram/utilities/validater"
+	"archive/zip"
+	"os"
 )
 
-// ReadValidate reads a YAML config file to a struct and validate the struct
-func ReadValidate(serviceName, settingsType, path string, settings interface{}) (err error) {
-	err = ReadUnmarshalYAML(path, settings)
+// ZipSource make a zip file from a map where the key is the file name and the value the string file content
+func ZipSource(zipFullPath string, zipFiles map[string]string) (err error) {
+	zipSourceFile, err := os.Create(zipFullPath)
 	if err != nil {
 		return err
 	}
-	// JSONMarshalIndentPrint(settings)
-	err = validater.ValidateStruct(settings, fmt.Sprintf("%s%s", serviceName, settingsType))
-	if err != nil {
-		return err
+	defer zipSourceFile.Close()
+	zipWriter := zip.NewWriter(zipSourceFile)
+
+	for name, strContent := range zipFiles {
+		file, err := zipWriter.Create(name)
+		if err != nil {
+			return err
+		}
+		_, err = file.Write([]byte(strContent))
+		if err != nil {
+			return err
+		}
 	}
 
+	err = zipWriter.Close()
+	if err != nil {
+		return err
+	}
 	return nil
 }

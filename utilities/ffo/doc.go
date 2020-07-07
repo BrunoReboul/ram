@@ -12,19 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
-
-import (
-	"encoding/json"
-	"fmt"
-	"log"
-)
-
-// JSONMarshalIndentPrint marshal with 4 spaces indent no prefix and fmt print
-func JSONMarshalIndentPrint(v interface{}) {
-	bytes, err := json.MarshalIndent(v, "", "    ")
-	if err != nil {
-		log.Printf("JSONMarshalIndentPrint %v", err)
-	}
-	fmt.Println(string(bytes))
-}
+// Package ffo helps with file and folder operations
+package ffo

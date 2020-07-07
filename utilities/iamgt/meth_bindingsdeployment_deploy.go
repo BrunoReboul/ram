@@ -95,7 +95,7 @@ func (bindingsDeployment *BindingsDeployment) Deploy() (err error) {
 					log.Printf("%s iam there were concurrent policy changes, wait 5 sec and retry a full read-modify-write cycle, iteration %d", bindingsDeployment.Core.InstanceName, i)
 					time.Sleep(5 * time.Second)
 				} else {
-					// ram.JSONMarshalIndentPrint(updatedPolicy)
+					// ffo.JSONMarshalIndentPrint(updatedPolicy)
 					_ = updatedPolicy
 					log.Printf("%s iam policy updated for service account %s iteration %d", bindingsDeployment.Core.InstanceName, bindingsDeployment.Artifacts.ServiceAccountName, i)
 					break

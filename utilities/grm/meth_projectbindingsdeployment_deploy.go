@@ -123,7 +123,7 @@ func (projectBindingsDeployment *ProjectBindingsDeployment) Deploy() (err error)
 					log.Printf("%s grm there were concurrent policy changes, wait 5 sec and retry a full read-modify-write cycle, iteration %d", projectBindingsDeployment.Core.InstanceName, i)
 					time.Sleep(5 * time.Second)
 				} else {
-					// ram.JSONMarshalIndentPrint(updatedPolicy)
+					// ffo.JSONMarshalIndentPrint(updatedPolicy)
 					_ = updatedPolicy
 					log.Printf("%s grm project policy updated for %s iteration %d", projectBindingsDeployment.Core.InstanceName, projectBindingsDeployment.Artifacts.ProjectID, i)
 					break

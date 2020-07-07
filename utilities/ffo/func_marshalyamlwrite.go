@@ -12,34 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package ffo
 
 import (
-	"archive/zip"
-	"os"
+	"io/ioutil"
+
+	"github.com/BrunoReboul/ram/utilities/str"
+	"gopkg.in/yaml.v2"
 )
 
-// ZipSource make a zip file from a map where the key is the file name and the value the string file content
-func ZipSource(zipFullPath string, zipFiles map[string]string) (err error) {
-	zipSourceFile, err := os.Create(zipFullPath)
+// MarshalYAMLWrite Marshal an interface to YAML format and write the bytes to a given path
+func MarshalYAMLWrite(path string, v interface{}) (err error) {
+	bytes, err := yaml.Marshal(v)
 	if err != nil {
 		return err
 	}
-	defer zipSourceFile.Close()
-	zipWriter := zip.NewWriter(zipSourceFile)
-
-	for name, strContent := range zipFiles {
-		file, err := zipWriter.Create(name)
-		if err != nil {
-			return err
-		}
-		_, err = file.Write([]byte(strContent))
-		if err != nil {
-			return err
-		}
-	}
-
-	err = zipWriter.Close()
+	err = ioutil.WriteFile(path, append([]byte(str.YAMLDisclaimer), bytes...), 0644)
 	if err != nil {
 		return err
 	}

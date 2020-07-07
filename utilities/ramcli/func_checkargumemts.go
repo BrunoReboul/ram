@@ -19,7 +19,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/BrunoReboul/ram/utilities/ram"
+	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // CheckArguments check cli arguments and build the list of microservices instances
@@ -30,13 +31,13 @@ func (deployment *Deployment) CheckArguments() {
 	flag.BoolVar(&deployment.Core.Commands.ConfigureAssetTypes, "config", false, "For assets types defined in solution.yaml writes setfeeds, dumpinventory, stream2bq instance.yaml files and subfolders")
 	flag.BoolVar(&deployment.Core.Commands.MakeReleasePipeline, "pipe", false, "make release pipeline using cloud build to deploy one instance, one microservice, or all")
 	flag.BoolVar(&deployment.Core.Commands.Deploy, "deploy", false, "deploy one microservice instance")
-	flag.BoolVar(&deployment.Core.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", ram.SettingsFileName))
+	flag.BoolVar(&deployment.Core.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", solution.SettingsFileName))
 	flag.StringVar(&deployment.Core.RepositoryPath, "repo", ".", "Path to the root of the code repository")
 	flag.StringVar(&deployment.Core.RamcliServiceAccount, "ramclisa", "", "Email of Service Account used when running ramcli")
 	var assetType = flag.String("asset", "", "asset type e.g. k8s.io/Pod")
 	var microserviceFolderName = flag.String("service", "", "Microservice folder name")
 	var instanceFolderName = flag.String("instance", "", "Instance folder name")
-	flag.StringVar(&deployment.Core.EnvironmentName, "environment", ram.DevelopmentEnvironmentName, "Environment name")
+	flag.StringVar(&deployment.Core.EnvironmentName, "environment", solution.DevelopmentEnvironmentName, "Environment name")
 	flag.Parse()
 
 	// case one instance
@@ -44,16 +45,16 @@ func (deployment *Deployment) CheckArguments() {
 		if *microserviceFolderName == "" {
 			log.Fatalln("Missing service argument")
 		}
-		instanceRelativePath := fmt.Sprintf("%s/%s/%s/%s", ram.MicroserviceParentFolderName, *microserviceFolderName, ram.InstancesFolderName, *instanceFolderName)
+		instanceRelativePath := fmt.Sprintf("%s/%s/%s/%s", solution.MicroserviceParentFolderName, *microserviceFolderName, solution.InstancesFolderName, *instanceFolderName)
 		deployment.Core.InstanceFolderRelativePaths = []string{instanceRelativePath}
 		instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ram.CheckPath(instancePath)
+		ffo.CheckPath(instancePath)
 		return
 	}
 
 	if *microserviceFolderName != "" {
 		// case one microservice
-		deployment.Core.InstanceFolderRelativePaths = ram.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s/%s", ram.MicroserviceParentFolderName, *microserviceFolderName, ram.InstancesFolderName))
+		deployment.Core.InstanceFolderRelativePaths = ffo.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s/%s", solution.MicroserviceParentFolderName, *microserviceFolderName, solution.InstancesFolderName))
 	} else {
 		// case one assetType
 		if *assetType != "" {
@@ -61,8 +62,8 @@ func (deployment *Deployment) CheckArguments() {
 			return
 		}
 		// case all
-		for _, microserviceRelativeFolderPath := range ram.GetChild(deployment.Core.RepositoryPath, ram.MicroserviceParentFolderName) {
-			instanceFolderRelativePaths := ram.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s", microserviceRelativeFolderPath, ram.InstancesFolderName))
+		for _, microserviceRelativeFolderPath := range ffo.GetChild(deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName) {
+			instanceFolderRelativePaths := ffo.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s", microserviceRelativeFolderPath, solution.InstancesFolderName))
 			for _, instanceFolderRelativePath := range instanceFolderRelativePaths {
 				deployment.Core.InstanceFolderRelativePaths = append(deployment.Core.InstanceFolderRelativePaths, instanceFolderRelativePath)
 			}

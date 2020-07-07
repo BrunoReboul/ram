@@ -12,18 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package ffo
 
-// Settings file names
-const (
-	DevelopmentEnvironmentName   = "dev"
-	PathToFunctionCode           = "./serverless_function_source_code/"
-	SettingsFileName             = "settings.yaml"
-	SolutionSettingsFileName     = "solution.yaml"
-	ServiceSettingsFileName      = "service.yaml"
-	InstanceSettingsFileName     = "instance.yaml"
-	MicroserviceParentFolderName = "services"
-	InstancesFolderName          = "instances"
-	RegoConstraintsFolderName    = "constraints"
-	SolutionName                 = "ram"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
 )
+
+// ExploreFolder list folder childs and their type
+func ExploreFolder(path string) (err error) {
+	log.Printf("List child in %s", path)
+	filesInfo, err := ioutil.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("ioutil.ReadDir %v", err)
+	}
+	for _, fileInfo := range filesInfo {
+		log.Printf("Parent %s base name %v IsDir %v Size (bytes) %d modified %v",
+			path,
+			fileInfo.IsDir(),
+			fileInfo.Name(),
+			fileInfo.Size(), fileInfo.ModTime())
+	}
+	return nil
+}

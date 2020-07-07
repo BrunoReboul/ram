@@ -12,27 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package ffo
 
 import (
-	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
-// ExploreFolder list folder childs and their type
-func ExploreFolder(path string) (err error) {
-	log.Printf("List child in %s", path)
-	filesInfo, err := ioutil.ReadDir(path)
-	if err != nil {
-		return fmt.Errorf("ioutil.ReadDir %v", err)
+// CheckPath crashes execution when the path is not found or when an other error occurs
+func CheckPath(path string) {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			log.Fatalf("Path does not exist: %s", path)
+		} else {
+			log.Fatalln(err)
+		}
 	}
-	for _, fileInfo := range filesInfo {
-		log.Printf("Parent %s base name %v IsDir %v Size (bytes) %d modified %v",
-			path,
-			fileInfo.IsDir(),
-			fileInfo.Name(),
-			fileInfo.Size(), fileInfo.ModTime())
-	}
-	return nil
 }

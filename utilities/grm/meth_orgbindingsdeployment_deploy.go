@@ -124,7 +124,7 @@ func (orgBindingsDeployment *OrgBindingsDeployment) Deploy() (err error) {
 					log.Printf("%s grm there were concurrent policy changes, wait 5 sec and retry a full read-modify-write cycle, iteration %d", orgBindingsDeployment.Core.InstanceName, i)
 					time.Sleep(5 * time.Second)
 				} else {
-					// ram.JSONMarshalIndentPrint(updatedPolicy)
+					// ffo.JSONMarshalIndentPrint(updatedPolicy)
 					_ = updatedPolicy
 					log.Printf("%s grm organization policy updated for %s iteration %d", orgBindingsDeployment.Core.InstanceName, orgBindingsDeployment.Artifacts.OrganizationID, i)
 					break

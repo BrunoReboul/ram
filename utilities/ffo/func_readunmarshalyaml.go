@@ -12,20 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ram
+package ffo
 
 import (
-	"fmt"
-	"log"
+	"io/ioutil"
 
 	"gopkg.in/yaml.v2"
 )
 
-// YAMLMarshalPrint marshal from YAML and fmt print
-func YAMLMarshalPrint(v interface{}) {
-	bytes, err := yaml.Marshal(v)
+// ReadUnmarshalYAML Read bytes from a given path and unmarshal assuming YAML format
+func ReadUnmarshalYAML(path string, settings interface{}) (err error) {
+	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Printf("YAMLMarshalPrint %v", err)
+		return err
 	}
-	fmt.Println(string(bytes))
+	err = yaml.Unmarshal(bytes, settings)
+	if err != nil {
+		return err
+	}
+	return nil
 }
