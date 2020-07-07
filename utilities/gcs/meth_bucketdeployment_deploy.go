@@ -84,26 +84,26 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		rules := retreivedAttrs.Lifecycle.Rules
 		foundDeleteRule := false
 		ruleToBeUpdated := false
-		for i, rule := range rules {
+		for i, _ := range rules {
 			log.Printf("%s gcs bucket %s delete lifecycle analyzing rule index %d",
 				bucketDeployment.Core.InstanceName,
 				bucketDeployment.Settings.BucketName,
 				i)
-			if rule.Action.Type == "Delete" {
+			if rules[i].Action.Type == "Delete" {
 				foundDeleteRule = true
-				if rule.Condition.AgeInDays != bucketDeployment.Settings.DeleteAgeInDays {
+				if rules[i].Condition.AgeInDays != bucketDeployment.Settings.DeleteAgeInDays {
 					ruleToBeUpdated = true
 					log.Printf("%s gcs bucket %s delete lifecycle rule found age %d updated to %d",
 						bucketDeployment.Core.InstanceName,
 						bucketDeployment.Settings.BucketName,
-						rule.Condition.AgeInDays,
+						rules[i].Condition.AgeInDays,
 						bucketDeployment.Settings.DeleteAgeInDays)
 
-					ram.JSONMarshalIndentPrint(rule)
+					ram.JSONMarshalIndentPrint(rules[i])
 
-					rule.Condition.AgeInDays = bucketDeployment.Settings.DeleteAgeInDays
+					rules[i].Condition.AgeInDays = bucketDeployment.Settings.DeleteAgeInDays
 
-					ram.JSONMarshalIndentPrint(rule)
+					ram.JSONMarshalIndentPrint(rules[i])
 				}
 				// Do not break, may be multiple delete rules
 			}
