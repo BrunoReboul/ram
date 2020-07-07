@@ -23,6 +23,7 @@ import (
 	asset "cloud.google.com/go/asset/apiv1"
 	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 
+	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/ram"
 )
 
@@ -93,7 +94,7 @@ func Initialize(ctx context.Context, global *Global) {
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
-func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage, global *Global) error {
+func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
 	if ok, _, err := ram.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
 		return err

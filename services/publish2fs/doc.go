@@ -52,7 +52,7 @@ Implementation example
  var ctx = context.Background()
 
  // EntryPoint is the function to be executed for each cloud function occurence
- func EntryPoint(ctxEvent context.Context, PubSubMessage ram.PubSubMessage) error {
+ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage) error {
      return publish2fs.EntryPoint(ctxEvent, PubSubMessage, &global)
  }
 

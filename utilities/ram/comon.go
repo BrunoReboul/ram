@@ -68,11 +68,6 @@ type PublishRequest struct {
 	Topic string `json:"topic"`
 }
 
-// PubSubMessage is the payload of a Pub/Sub event.
-type PubSubMessage struct {
-	Data []byte `json:"data"`
-}
-
 // BuildAncestorsDisplayName build a slice of Ancestor friendly name from a slice of ancestors
 func BuildAncestorsDisplayName(ctx context.Context, ancestors []string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) []string {
 	cnt := len(ancestors)
