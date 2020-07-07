@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/BrunoReboul/ram/utilities/ram"
+
 	"cloud.google.com/go/storage"
 )
 
@@ -53,6 +55,9 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		return nil
 	}
 	log.Printf("%s gcs bucket found %s", bucketDeployment.Core.InstanceName, retreivedAttrs.Name)
+
+	ram.JSONMarshalIndentPrint(retreivedAttrs)
+
 	var bucketAttrsToUpdate storage.BucketAttrsToUpdate
 	toBeUpdated := false
 	if retreivedAttrs.Labels != nil {
@@ -77,17 +82,18 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		bucketAttrsToUpdate.Lifecycle = &lifecycle
 		log.Printf("%s gcs bucket lifecycle to be updated", bucketDeployment.Core.InstanceName)
 	}
-	if retreivedAttrs.UniformBucketLevelAccess.Enabled != true {
+	if !retreivedAttrs.UniformBucketLevelAccess.Enabled {
 		toBeUpdated = true
 		bucketAttrsToUpdate.UniformBucketLevelAccess.Enabled = true
 		log.Printf("%s gcs bucket uniform level access to be updated", bucketDeployment.Core.InstanceName)
 	}
 	if toBeUpdated {
+		log.Printf("%s gcs bucket attributes need to be updated", bucketDeployment.Core.InstanceName)
 		retreivedAttrs, err = bucket.Update(bucketDeployment.Core.Ctx, bucketAttrsToUpdate)
 		if err != nil {
 			return fmt.Errorf("bucket.Update %v", err)
 		}
-		log.Printf("%s gcs bucket attributes updated", bucketDeployment.Core.InstanceName)
+		log.Printf("%s gcs bucket attributes have been updated", bucketDeployment.Core.InstanceName)
 	}
 	return nil
 }
