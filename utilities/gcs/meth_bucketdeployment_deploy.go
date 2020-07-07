@@ -83,6 +83,7 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		log.Printf("%s gcs bucket lifecycle to be updated", bucketDeployment.Core.InstanceName)
 	}
 	if !retreivedAttrs.UniformBucketLevelAccess.Enabled {
+		log.Printf("%s before enabled = true", bucketDeployment.Core.InstanceName)
 		toBeUpdated = true
 		bucketAttrsToUpdate.UniformBucketLevelAccess.Enabled = true
 		log.Printf("%s gcs bucket uniform level access to be updated", bucketDeployment.Core.InstanceName)
