@@ -17,6 +17,7 @@ package gcs
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 
 	"cloud.google.com/go/storage"
@@ -25,6 +26,11 @@ import (
 // Deploy bucket
 func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 	log.Printf("%s gcs bucket %s", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
+	var lifecycle storage.Lifecycle
+	var lifecycleRule storage.LifecycleRule
+	lifecycleRule.Action.Type = "Delete"
+	lifecycleRule.Condition.AgeInDays = bucketDeployment.Settings.DeleteAgeInDays
+	lifecycle.Rules = append(lifecycle.Rules, lifecycleRule)
 	bucket := bucketDeployment.Core.Services.StorageClient.Bucket(bucketDeployment.Settings.BucketName)
 	retreivedAttrs, err := bucket.Attrs(bucketDeployment.Core.Ctx)
 	if err != nil {
@@ -36,6 +42,8 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		bucketAttrs.Location = bucketDeployment.Core.SolutionSettings.Hosting.GCF.Region
 		bucketAttrs.StorageClass = "STANDARD"
 		bucketAttrs.Labels = map[string]string{"name": strings.ToLower(bucketDeployment.Settings.BucketName)}
+		bucketAttrs.Lifecycle = lifecycle
+		bucketAttrs.UniformBucketLevelAccess.Enabled = true
 
 		err = bucket.Create(bucketDeployment.Core.Ctx, bucketDeployment.Core.SolutionSettings.Hosting.ProjectID, &bucketAttrs)
 		if err != nil {
@@ -45,22 +53,35 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		return nil
 	}
 	log.Printf("%s gcs bucket found %s", bucketDeployment.Core.InstanceName, retreivedAttrs.Name)
-	nameLabelToBeUpdated := false
+	var bucketAttrsToUpdate storage.BucketAttrsToUpdate
+	toBeUpdated := false
 	if retreivedAttrs.Labels != nil {
 		if retreivedAttrs.Labels["name"] != strings.ToLower(bucketDeployment.Settings.BucketName) {
-			nameLabelToBeUpdated = true
+			toBeUpdated = true
+			bucketAttrsToUpdate.SetLabel("name", strings.ToLower(bucketDeployment.Settings.BucketName))
+			log.Printf("%s gcs bucket label to be updated", bucketDeployment.Core.InstanceName)
 		}
 	} else {
-		nameLabelToBeUpdated = true
-	}
-	if nameLabelToBeUpdated {
-		var bucketAttrsToUpdate storage.BucketAttrsToUpdate
+		toBeUpdated = true
 		bucketAttrsToUpdate.SetLabel("name", strings.ToLower(bucketDeployment.Settings.BucketName))
+		log.Printf("%s gcs bucket label to be updated", bucketDeployment.Core.InstanceName)
+	}
+	if reflect.DeepEqual(retreivedAttrs.Lifecycle.Rules, lifecycle.Rules) {
+		toBeUpdated = true
+		bucketAttrsToUpdate.Lifecycle = &lifecycle
+		log.Printf("%s gcs bucket lifecycle to be updated", bucketDeployment.Core.InstanceName)
+	}
+	if retreivedAttrs.UniformBucketLevelAccess.Enabled != true {
+		toBeUpdated = true
+		bucketAttrsToUpdate.UniformBucketLevelAccess.Enabled = true
+		log.Printf("%s gcs bucket uniform level access to be updated", bucketDeployment.Core.InstanceName)
+	}
+	if toBeUpdated {
 		retreivedAttrs, err = bucket.Update(bucketDeployment.Core.Ctx, bucketAttrsToUpdate)
 		if err != nil {
 			return fmt.Errorf("bucket.Update %v", err)
 		}
-		log.Printf("%s gcs bucket updated label 'name' '%s'", bucketDeployment.Core.InstanceName, retreivedAttrs.Labels["name"])
+		log.Printf("%s gcs bucket attributes updated", bucketDeployment.Core.InstanceName)
 	}
 	return nil
 }
