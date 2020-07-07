@@ -17,10 +17,8 @@ package ram
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"strings"
 	"sync"
@@ -31,42 +29,9 @@ import (
 	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
 
-	"golang.org/x/oauth2/google"
-	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
-	"google.golang.org/api/iam/v1"
-	"google.golang.org/api/option"
 )
-
-// keyConsoleFormat Service account json key using console or gcloud format
-type keyConsoleFormat struct {
-	Type                    string `json:"type"`
-	ProjectID               string `json:"project_id"`
-	PrivateKeyID            string `json:"private_key_id"`
-	PrivateKey              string `json:"private_key"`
-	ClientEmail             string `json:"client_email"`
-	ClientID                string `json:"client_id"`
-	AuthURI                 string `json:"auth_uri"`
-	TokenURI                string `json:"token_uri"`
-	AuthProviderX509CertURL string `json:"auth_provider_x509_cert_url"`
-	ClientX509CertURL       string `json:"client_x509_cert_url"`
-}
-
-// keyRestAPIFormat Service account json key using REST API format
-type keyRestAPIFormat struct {
-	Name            string `json:"name"`
-	PrivateKeyType  string `json:"privateKeyType"`
-	PrivateKeyData  string `json:"privateKeyData"`
-	ValidAfterTime  string `json:"validAfterTime"`
-	ValidBeforeTime string `json:"validBeforeTime"`
-	KeyAlgorithm    string `json:"keyAlgorithm"`
-}
-
-// PublishRequest Pub/sub
-type PublishRequest struct {
-	Topic string `json:"topic"`
-}
 
 // BuildAncestorsDisplayName build a slice of Ancestor friendly name from a slice of ancestors
 func BuildAncestorsDisplayName(ctx context.Context, ancestors []string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) []string {
@@ -218,123 +183,6 @@ func getDisplayName(ctx context.Context, name string, collectionID string, fires
 		}
 	}
 	return displayName
-}
-
-// GetClientOptionAndCleanKeys build a clientOption object and manage the init state
-func GetClientOptionAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string, scopes []string) (option.ClientOption, bool) {
-	var clientOption option.ClientOption
-	var jwtConfig *jwt.Config
-
-	jwtConfig, err := GetJWTConfigAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, scopes)
-	if err != nil {
-		return clientOption, false
-	}
-
-	httpClient := jwtConfig.Client(ctx)
-	// Use client option as admin.New(httpClient) is deprecated https://godoc.org/google.golang.org/api/admin/directory/v1#New
-	clientOption = option.WithHTTPClient(httpClient)
-
-	return clientOption, true
-}
-
-// GetJWTConfigAndCleanKeys build a JWT config and manage the init state
-func GetJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string, scopes []string) (jwtConfig *jwt.Config, err error) {
-	keyRestAPIFormat, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID)
-	if err != nil {
-		return jwtConfig, err
-	}
-
-	// Convert format
-	// https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-go
-	keyJSONdata, err := base64.StdEncoding.DecodeString(keyRestAPIFormat.PrivateKeyData)
-	if err != nil {
-		return jwtConfig, err
-	}
-
-	//DEBUG
-	// var keyConsoleFormat keyConsoleFormat
-	// err = json.Unmarshal(keyJSONdata, &keyConsoleFormat)
-	// if err != nil {
-	// 	return jwtConfig, err
-	// }
-	// JSONMarshalIndentPrint(keyConsoleFormat)
-
-	// using Json Web joken a the method with cerdentials does not yet implement the subject impersonification
-	// https://github.com/googleapis/google-api-java-client/issues/1007
-	jwtConfig, err = getJWTConfigAndImpersonate(keyJSONdata, gciAdminUserToImpersonate, scopes)
-	if err != nil {
-		return jwtConfig, err
-	}
-	return jwtConfig, nil
-}
-
-// getKeyJSONdataAndCleanKeys get the service account key to build a JWT and clean older keys
-func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string) (keyRestAPIFormat keyRestAPIFormat, err error) {
-	var keyJSONdata []byte
-	var currentKeyName string
-	var iamService *iam.Service
-
-	iamService, err = iam.NewService(ctx)
-	if err != nil {
-		log.Printf("ERROR - iam.NewService: %v", err)
-		return keyRestAPIFormat, err
-	}
-	resource := "projects/-/serviceAccounts/" + serviceAccountEmail
-	listServiceAccountKeyResponse, err := iamService.Projects.ServiceAccounts.Keys.List(resource).Do()
-	if err != nil {
-		log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.List: %v", err)
-		return keyRestAPIFormat, err
-	}
-	keyJSONdata, err = ioutil.ReadFile(keyJSONFilePath)
-	if err != nil {
-		log.Printf("ERROR - ioutil.ReadFile(keyJSONFilePath): %v", err)
-		return keyRestAPIFormat, err
-	}
-	err = json.Unmarshal(keyJSONdata, &keyRestAPIFormat)
-	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(keyJSONdata, &keyRestAPIFormat): %v", err)
-		return keyRestAPIFormat, err
-	}
-	currentKeyName = keyRestAPIFormat.Name
-
-	// Clean keys
-	for _, serviceAccountKey := range listServiceAccountKeyResponse.Keys {
-		if serviceAccountKey.Name == currentKeyName {
-			log.Printf("Keep key ValidAfterTime %s named %s", serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
-		} else {
-			if serviceAccountKey.KeyType == "SYSTEM_MANAGED" {
-				log.Printf("Ignore SYSTEM_MANAGED key named %s", serviceAccountKey.Name)
-			} else {
-				log.Printf("Delete KeyType %s ValidAfterTime %s key name %s", serviceAccountKey.KeyType, serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
-				_, err = iamService.Projects.ServiceAccounts.Keys.Delete(serviceAccountKey.Name).Do()
-				if err != nil {
-					log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.Delete: %v", err)
-					return keyRestAPIFormat, err
-				}
-			}
-		}
-	}
-	return keyRestAPIFormat, nil
-}
-
-// getJWTConfigAndImpersonate build JWT with impersonification
-func getJWTConfigAndImpersonate(keyJSONdata []byte, gciAdminUserToImpersonate string, scopes []string) (jwtConfig *jwt.Config, err error) {
-	// using Json Web joken a the method with cerdentials does not yet implement the subject impersonification
-	// https://github.com/googleapis/google-api-java-client/issues/1007
-
-	// scope constants: https://godoc.org/google.golang.org/api/admin/directory/v1#pkg-constants
-	jwtConfig, err = google.JWTConfigFromJSON(keyJSONdata, scopes...)
-	if err != nil {
-		log.Printf("google.JWTConfigFromJSON: %v", err)
-		return jwtConfig, err
-	}
-	jwtConfig.Subject = gciAdminUserToImpersonate
-
-	// DEBUG
-	// jwtConfigJSON, err := json.Marshal(jwtConfig)
-	// log.Printf("jwt %s", string(jwtConfigJSON))
-
-	return jwtConfig, nil
 }
 
 // GetPublishCallResult func to be used in go routine to scale pubsub event publish

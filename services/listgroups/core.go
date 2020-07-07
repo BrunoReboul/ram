@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/ram"
@@ -97,7 +98,7 @@ func Initialize(ctx context.Context, global *Global) {
 		instanceDeployment.Core.ServiceName,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
-	if clientOption, ok = ram.GetClientOptionAndCleanKeys(ctx,
+	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
 		serviceAccountEmail,
 		keyJSONFilePath,
 		projectID,
