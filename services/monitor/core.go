@@ -472,6 +472,8 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 	var assetsJSONDocument []byte
 	var assets assets
 
+	log.Printf("pubSubMessage.Data %s", string(pubSubMessage.Data))
+
 	err := json.Unmarshal(pubSubMessage.Data, &feedMessage)
 	if err != nil {
 		return assetsJSONDocument, feedMessage, fmt.Errorf("json.Unmarshal(pubSubMessage.Data, &feedMessage) %v", err)
