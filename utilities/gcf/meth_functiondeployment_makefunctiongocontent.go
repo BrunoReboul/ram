@@ -45,6 +45,7 @@ import (
 	"context"
 
 	"github.com/BrunoReboul/ram/services/<serviceName>"
+	"github.com/BrunoReboul/ram/utilities/gps"
 )
 
 var global <serviceName>.Global

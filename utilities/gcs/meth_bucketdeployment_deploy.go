@@ -64,6 +64,7 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 
 	var bucketAttrsToUpdate storage.BucketAttrsToUpdate
 	toBeUpdated := false
+
 	if retreivedAttrs.Labels != nil {
 		if retreivedAttrs.Labels["name"] != strings.ToLower(bucketDeployment.Settings.BucketName) {
 			toBeUpdated = true
@@ -78,6 +79,7 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 	if !toBeUpdated {
 		log.Printf("%s gcs bucket %s label already uptodate", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
 	}
+
 	if retreivedAttrs.Lifecycle.Rules != nil {
 		rules := retreivedAttrs.Lifecycle.Rules
 		foundDeleteRule := false
@@ -119,7 +121,7 @@ func (bucketDeployment *BucketDeployment) Deploy() (err error) {
 		}
 	} else {
 		toBeUpdated = true
-		bucketAttrsToUpdate.Lifecycle.Rules = lifecycle.Rules
+		bucketAttrsToUpdate.Lifecycle = &lifecycle
 		log.Printf("%s gcs bucket %s has no lifecycle. to be updated", bucketDeployment.Core.InstanceName, bucketDeployment.Settings.BucketName)
 	}
 	if !retreivedAttrs.UniformBucketLevelAccess.Enabled {

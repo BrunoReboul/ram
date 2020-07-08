@@ -72,5 +72,8 @@ func (functionDeployment *FunctionDeployment) createPatchCloudFunction() (err er
 		}
 	}
 	ffo.JSONMarshalIndentPrint(operation)
+	if operation.Error != nil {
+		return fmt.Errorf("Function deployment error %v", operation.Error)
+	}
 	return nil
 }
