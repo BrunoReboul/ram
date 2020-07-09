@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/BrunoReboul/ram/services/monitor"
@@ -271,6 +272,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
+	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
+		log.Printf("Ignored pubsub message: %s", string(PubSubMessage.Data))
+		return nil // NO RETRY
+	}
+
 	var err error
 	switch global.tableName {
 	case "complianceStatus":
@@ -290,7 +296,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
 	var complianceStatus monitor.ComplianceStatus
 	err := json.Unmarshal(pubSubJSONDoc, &complianceStatus)
 	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &complianceStatus): %v", err)
+		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &complianceStatus) %s %v", string(pubSubJSONDoc), err)
 		return nil
 	}
 	insertID := fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
@@ -309,7 +315,7 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 	var violationBQ violationBQ
 	err := json.Unmarshal(pubSubJSONDoc, &violation)
 	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &violation): %v", err)
+		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &violation): %s %v", string(pubSubJSONDoc), err)
 		return nil
 	}
 	violationBQ.NonCompliance.Message = violation.NonCompliance.Message
@@ -356,7 +362,7 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	var feedMessage feedMessage
 	err := json.Unmarshal(pubSubJSONDoc, &feedMessage)
 	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &feedMessage): %v", err)
+		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &feedMessage) %s %v", string(pubSubJSONDoc), err)
 		return nil
 	}
 	var assetFeedMessageBQ assetFeedMessageBQ

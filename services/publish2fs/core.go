@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
@@ -94,10 +95,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
 
+	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
+		log.Printf("Ignored pubsub message: %s", string(PubSubMessage.Data))
+		return nil // NO RETRY
+	}
+
 	var feedMessage feedMessage
 	err := json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
-		log.Printf("ERROR - json.Unmarshal: %v", err)
+		log.Printf("ERROR - pubSubMessage.Data cannot be UnMarshalled as a feed %s %s", string(pubSubMessage.Data), err)
 		return nil // NO RETRY
 	}
 	if feedMessage.Origin == "" {

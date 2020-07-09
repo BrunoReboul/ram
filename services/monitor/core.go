@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -228,6 +229,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+
+	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
+		log.Printf("Ignored pubsub message: %s", string(PubSubMessage.Data))
+		return nil // NO RETRY
+	}
 
 	var complianceStatus ComplianceStatus
 	var compliantLog compliantLog
@@ -474,7 +480,7 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 
 	err := json.Unmarshal(pubSubMessage.Data, &feedMessage)
 	if err != nil {
-		log.Printf("ERROR - pubSubMessage.Data cannot be UnMarshal %s", string(pubSubMessage.Data))
+		log.Printf("ERROR - pubSubMessage.Data cannot be UnMarshalled as a feed %s", string(pubSubMessage.Data))
 		return assetsJSONDocument, feedMessage, fmt.Errorf("json.Unmarshal(pubSubMessage.Data, &feedMessage) %v", err)
 	}
 
