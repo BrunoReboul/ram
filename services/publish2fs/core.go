@@ -103,7 +103,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	var feedMessage feedMessage
 	err := json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
-		log.Printf("ERROR - pubSubMessage.Data cannot be UnMarshalled as a feed %s %s", string(pubSubMessage.Data), err)
+		log.Printf("ERROR - pubSubMessage.Data cannot be UnMarshalled as a feed %s %s", string(PubSubMessage.Data), err)
 		return nil // NO RETRY
 	}
 	if feedMessage.Origin == "" {
