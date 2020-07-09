@@ -37,8 +37,6 @@ import (
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
-const settingsFileName string = "./settings.json"
-
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	ctx                           context.Context
