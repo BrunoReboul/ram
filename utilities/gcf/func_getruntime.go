@@ -22,10 +22,10 @@ import (
 func getRunTime(goVersion string) (runTime string, err error) {
 	switch goVersion {
 	case "1.11":
-		return "Deprecated", nil
+		return "", fmt.Errorf("GO 1.11 has been deprecated on on 2020-08-05 fron the cloud function runtime, provided version was: %s", goVersion)
 	case "1.13":
 		return "go113", nil
 	default:
-		return "", fmt.Errorf("Supported go version is 1.13, provided version was: %s", goVersion)
+		return "", fmt.Errorf("Supported GO version is 1.13, provided version was: %s", goVersion)
 	}
 }
