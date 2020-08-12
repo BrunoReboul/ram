@@ -21,11 +21,9 @@ import (
 // getRunTime returns the GCF runtime string for a given Go version. Error is version not supported
 func getRunTime(goVersion string) (runTime string, err error) {
 	switch goVersion {
-	case "1.11":
-		return "go111", nil
 	case "1.13":
 		return "go113", nil
 	default:
-		return "", fmt.Errorf("Supported Go version are 1.11 or 1.13, provided version was: %s", goVersion)
+		return "", fmt.Errorf("Supported Go version is 1.13, provided version was: %s", goVersion)
 	}
 }
