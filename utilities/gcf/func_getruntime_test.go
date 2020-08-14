@@ -23,7 +23,7 @@ func TestGetRunTime(t *testing.T) {
 	var tests = []struct {
 		input, expectedOutput string
 	}{
-		{"1.11", "go111"},
+		{"1.11", "Deprecated"},
 		{"1.12", "Unsupported"},
 		{"1.13", "go113"},
 		{"1.14", "Unsupported"},
@@ -34,7 +34,7 @@ func TestGetRunTime(t *testing.T) {
 		testName := fmt.Sprintf(" %s => %s", test.input, test.expectedOutput)
 		t.Run(testName, func(t *testing.T) {
 			result, err := getRunTime(test.input)
-			if test.expectedOutput == "Unsupported" {
+			if test.expectedOutput == "Unsupported" || test.expectedOutput == "Deprecated" {
 				if err == nil {
 					t.Errorf("Should send back an error and is NOT")
 				}
