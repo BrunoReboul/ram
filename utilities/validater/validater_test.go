@@ -13,3 +13,211 @@
 // limitations under the License.
 
 package validater
+
+import (
+	"bytes"
+	"log"
+	"os"
+	"strings"
+	"testing"
+)
+
+func TestValidater(t *testing.T) {
+	type isNotZeroValueString struct {
+		S string `valid:"isNotZeroValue"`
+	}
+	type isNotZeroValueInt64 struct {
+		I int64 `valid:"isNotZeroValue"`
+	}
+	type isNotZeroValueSlice struct {
+		Sl []string `valid:"isNotZeroValue"`
+	}
+	type isAvailableMemoryint64 struct {
+		A int64 `valid:"isAvailableMemory"`
+	}
+	type levelC struct {
+		IsNotZeroValueString isNotZeroValueString
+		IsNotZeroValueInt64  isNotZeroValueInt64
+	}
+	type levelB struct {
+		IsAvailableMemoryint64 isAvailableMemoryint64
+		LevelC                 levelC
+	}
+	type levelA struct {
+		IsNotZeroValueSlice isNotZeroValueSlice
+		LevelB              levelB
+	}
+	var tests = []struct {
+		name                   string
+		structure              interface{}
+		pedigree               string
+		shouldPass             bool
+		errorMsgCount          int
+		errorMsgShouldCountain []string
+	}{
+		{
+			name:       "IsNotZeroValueStringProvided",
+			structure:  isNotZeroValueString{"BlaBla"},
+			pedigree:   "my/pe/di/gree",
+			shouldPass: true,
+		},
+		{
+			name:          "IsNotZeroValueStringEmpty",
+			structure:     isNotZeroValueString{""},
+			pedigree:      "my/pe/di/gree",
+			shouldPass:    false,
+			errorMsgCount: 1,
+			errorMsgShouldCountain: []string{
+				"my/pe/di/gree",
+			},
+		},
+		{
+			name:       "IsNotZeroValueInt64Provided",
+			structure:  isNotZeroValueInt64{123},
+			pedigree:   "my/pe/di/gree",
+			shouldPass: true,
+		},
+		{
+			name:          "IsNotZeroValueInt64Empty",
+			structure:     isNotZeroValueInt64{0},
+			pedigree:      "my/pe/di/gree",
+			shouldPass:    false,
+			errorMsgCount: 1,
+			errorMsgShouldCountain: []string{
+				"my/pe/di/gree",
+			},
+		},
+		{
+			name:       "IsNotZeroValueSliceProvided",
+			structure:  isNotZeroValueSlice{[]string{"a", "b"}},
+			pedigree:   "my/pe/di/gree",
+			shouldPass: true,
+		},
+		{
+			name:          "IsNotZeroValueSliceEmpty",
+			structure:     isNotZeroValueSlice{[]string{}},
+			pedigree:      "my/pe/di/gree",
+			shouldPass:    false,
+			errorMsgCount: 1,
+			errorMsgShouldCountain: []string{
+				"my/pe/di/gree",
+			},
+		},
+		{
+			name:       "IsAvailableMemoryint64Valid",
+			structure:  isAvailableMemoryint64{128},
+			pedigree:   "my/pe/di/gree",
+			shouldPass: true,
+		},
+		{
+			name:          "IsAvailableMemoryint64Invalid",
+			structure:     isAvailableMemoryint64{99},
+			pedigree:      "my/pe/di/gree",
+			shouldPass:    false,
+			errorMsgCount: 1,
+			errorMsgShouldCountain: []string{
+				"my/pe/di/gree",
+			},
+		},
+		{
+			name: "levelCOneInvalid",
+			structure: levelC{
+				IsNotZeroValueString: isNotZeroValueString{"BlaBla"},
+				IsNotZeroValueInt64:  isNotZeroValueInt64{0},
+			},
+			pedigree:      "my/pe/di/gree",
+			shouldPass:    false,
+			errorMsgCount: 1,
+			errorMsgShouldCountain: []string{
+				"my/pe/di/gree/IsNotZeroValueInt64",
+			},
+		},
+		{
+			name: "levelBThreeInvalidOnThree",
+			structure: levelB{
+				IsAvailableMemoryint64: isAvailableMemoryint64{12},
+				LevelC: levelC{
+					IsNotZeroValueString: isNotZeroValueString{""},
+					IsNotZeroValueInt64:  isNotZeroValueInt64{0},
+				},
+			},
+			pedigree:      "my/pe/di/gree",
+			shouldPass:    false,
+			errorMsgCount: 3,
+			errorMsgShouldCountain: []string{
+				"my/pe/di/gree/IsAvailableMemoryint64",
+				"my/pe/di/gree/LevelC/IsNotZeroValueString",
+				"my/pe/di/gree/LevelC/IsNotZeroValueInt64",
+			},
+		},
+		{
+			name: "levelATwoInvalidOnFour",
+			structure: levelA{
+				IsNotZeroValueSlice: isNotZeroValueSlice{[]string{}},
+				LevelB: levelB{
+					IsAvailableMemoryint64: isAvailableMemoryint64{128},
+					LevelC: levelC{
+						IsNotZeroValueString: isNotZeroValueString{"BlaBla"},
+						IsNotZeroValueInt64:  isNotZeroValueInt64{0},
+					},
+				},
+			},
+			pedigree:      "my/pe/di/gree",
+			shouldPass:    false,
+			errorMsgCount: 2,
+			errorMsgShouldCountain: []string{
+				"my/pe/di/gree/IsNotZeroValueSlice",
+				"my/pe/di/gree/LevelB/LevelC/IsNotZeroValueInt64",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var buffer bytes.Buffer
+			log.SetOutput(&buffer)
+			defer func() {
+				log.SetOutput(os.Stderr)
+			}()
+			err := ValidateStruct(test.structure, test.pedigree)
+			errorMsgString := buffer.String()
+			// t.Log(countRune(errorMsgString, '\n'))
+			// t.Log("Error message list:" + string('\n') + errorMsgString)
+
+			foundErrorMsgCount := countRune(errorMsgString, '\n')
+			if test.errorMsgCount != foundErrorMsgCount {
+				t.Errorf("Want %d error messages, got %d", test.errorMsgCount, foundErrorMsgCount)
+				t.Log("Error message list:" + string('\n') + errorMsgString)
+			}
+
+			if len(test.errorMsgShouldCountain) > 0 {
+				for _, expectedString := range test.errorMsgShouldCountain {
+					if !strings.Contains(errorMsgString, expectedString) {
+						t.Errorf("Error message should contains '%s' and is", expectedString)
+						t.Log(string('\n') + errorMsgString)
+					}
+				}
+			}
+
+			if test.shouldPass {
+				if err != nil {
+					t.Errorf("Want NO error, got %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Should send back an error and is NOT")
+				}
+			}
+		})
+	}
+}
+
+func countRune(s string, r rune) int {
+	count := 0
+	for _, c := range s {
+		if c == r {
+			count++
+		}
+	}
+	return count
+}
