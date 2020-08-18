@@ -48,74 +48,74 @@ func TestValidater(t *testing.T) {
 		LevelB              levelB
 	}
 	var tests = []struct {
-		name                   string
-		structure              interface{}
-		pedigree               string
-		shouldPass             bool
-		errorMsgCount          int
-		errorMsgShouldCountain []string
+		name                 string
+		structure            interface{}
+		pedigree             string
+		wantValidation       bool
+		wantErrorMsgCount    int
+		wantErrorMsgContains []string
 	}{
 		{
-			name:       "IsNotZeroValueStringProvided",
-			structure:  isNotZeroValueString{"BlaBla"},
-			pedigree:   "my/pe/di/gree",
-			shouldPass: true,
+			name:           "IsNotZeroValueStringProvided",
+			structure:      isNotZeroValueString{"BlaBla"},
+			pedigree:       "my/pe/di/gree",
+			wantValidation: true,
 		},
 		{
-			name:          "IsNotZeroValueStringEmpty",
-			structure:     isNotZeroValueString{""},
-			pedigree:      "my/pe/di/gree",
-			shouldPass:    false,
-			errorMsgCount: 1,
-			errorMsgShouldCountain: []string{
+			name:              "IsNotZeroValueStringEmpty",
+			structure:         isNotZeroValueString{""},
+			pedigree:          "my/pe/di/gree",
+			wantValidation:    false,
+			wantErrorMsgCount: 1,
+			wantErrorMsgContains: []string{
 				"my/pe/di/gree",
 			},
 		},
 		{
-			name:       "IsNotZeroValueInt64Provided",
-			structure:  isNotZeroValueInt64{123},
-			pedigree:   "my/pe/di/gree",
-			shouldPass: true,
+			name:           "IsNotZeroValueInt64Provided",
+			structure:      isNotZeroValueInt64{123},
+			pedigree:       "my/pe/di/gree",
+			wantValidation: true,
 		},
 		{
-			name:          "IsNotZeroValueInt64Empty",
-			structure:     isNotZeroValueInt64{0},
-			pedigree:      "my/pe/di/gree",
-			shouldPass:    false,
-			errorMsgCount: 1,
-			errorMsgShouldCountain: []string{
+			name:              "IsNotZeroValueInt64Empty",
+			structure:         isNotZeroValueInt64{0},
+			pedigree:          "my/pe/di/gree",
+			wantValidation:    false,
+			wantErrorMsgCount: 1,
+			wantErrorMsgContains: []string{
 				"my/pe/di/gree",
 			},
 		},
 		{
-			name:       "IsNotZeroValueSliceProvided",
-			structure:  isNotZeroValueSlice{[]string{"a", "b"}},
-			pedigree:   "my/pe/di/gree",
-			shouldPass: true,
+			name:           "IsNotZeroValueSliceProvided",
+			structure:      isNotZeroValueSlice{[]string{"a", "b"}},
+			pedigree:       "my/pe/di/gree",
+			wantValidation: true,
 		},
 		{
-			name:          "IsNotZeroValueSliceEmpty",
-			structure:     isNotZeroValueSlice{[]string{}},
-			pedigree:      "my/pe/di/gree",
-			shouldPass:    false,
-			errorMsgCount: 1,
-			errorMsgShouldCountain: []string{
+			name:              "IsNotZeroValueSliceEmpty",
+			structure:         isNotZeroValueSlice{[]string{}},
+			pedigree:          "my/pe/di/gree",
+			wantValidation:    false,
+			wantErrorMsgCount: 1,
+			wantErrorMsgContains: []string{
 				"my/pe/di/gree",
 			},
 		},
 		{
-			name:       "IsAvailableMemoryint64Valid",
-			structure:  isAvailableMemoryint64{128},
-			pedigree:   "my/pe/di/gree",
-			shouldPass: true,
+			name:           "IsAvailableMemoryint64Valid",
+			structure:      isAvailableMemoryint64{128},
+			pedigree:       "my/pe/di/gree",
+			wantValidation: true,
 		},
 		{
-			name:          "IsAvailableMemoryint64Invalid",
-			structure:     isAvailableMemoryint64{99},
-			pedigree:      "my/pe/di/gree",
-			shouldPass:    false,
-			errorMsgCount: 1,
-			errorMsgShouldCountain: []string{
+			name:              "IsAvailableMemoryint64Invalid",
+			structure:         isAvailableMemoryint64{99},
+			pedigree:          "my/pe/di/gree",
+			wantValidation:    false,
+			wantErrorMsgCount: 1,
+			wantErrorMsgContains: []string{
 				"my/pe/di/gree",
 			},
 		},
@@ -125,10 +125,10 @@ func TestValidater(t *testing.T) {
 				IsNotZeroValueString: isNotZeroValueString{"BlaBla"},
 				IsNotZeroValueInt64:  isNotZeroValueInt64{0},
 			},
-			pedigree:      "my/pe/di/gree",
-			shouldPass:    false,
-			errorMsgCount: 1,
-			errorMsgShouldCountain: []string{
+			pedigree:          "my/pe/di/gree",
+			wantValidation:    false,
+			wantErrorMsgCount: 1,
+			wantErrorMsgContains: []string{
 				"my/pe/di/gree/IsNotZeroValueInt64",
 			},
 		},
@@ -141,10 +141,10 @@ func TestValidater(t *testing.T) {
 					IsNotZeroValueInt64:  isNotZeroValueInt64{0},
 				},
 			},
-			pedigree:      "my/pe/di/gree",
-			shouldPass:    false,
-			errorMsgCount: 3,
-			errorMsgShouldCountain: []string{
+			pedigree:          "my/pe/di/gree",
+			wantValidation:    false,
+			wantErrorMsgCount: 3,
+			wantErrorMsgContains: []string{
 				"my/pe/di/gree/IsAvailableMemoryint64",
 				"my/pe/di/gree/LevelC/IsNotZeroValueString",
 				"my/pe/di/gree/LevelC/IsNotZeroValueInt64",
@@ -162,10 +162,10 @@ func TestValidater(t *testing.T) {
 					},
 				},
 			},
-			pedigree:      "my/pe/di/gree",
-			shouldPass:    false,
-			errorMsgCount: 2,
-			errorMsgShouldCountain: []string{
+			pedigree:          "my/pe/di/gree",
+			wantValidation:    false,
+			wantErrorMsgCount: 2,
+			wantErrorMsgContains: []string{
 				"my/pe/di/gree/IsNotZeroValueSlice",
 				"my/pe/di/gree/LevelB/LevelC/IsNotZeroValueInt64",
 			},
@@ -185,13 +185,13 @@ func TestValidater(t *testing.T) {
 			// t.Log("Error message list:" + string('\n') + errorMsgString)
 
 			foundErrorMsgCount := countRune(errorMsgString, '\n')
-			if test.errorMsgCount != foundErrorMsgCount {
-				t.Errorf("Want %d error messages, got %d", test.errorMsgCount, foundErrorMsgCount)
+			if test.wantErrorMsgCount != foundErrorMsgCount {
+				t.Errorf("Want %d error messages, got %d", test.wantErrorMsgCount, foundErrorMsgCount)
 				t.Log("Error message list:" + string('\n') + errorMsgString)
 			}
 
-			if len(test.errorMsgShouldCountain) > 0 {
-				for _, expectedString := range test.errorMsgShouldCountain {
+			if len(test.wantErrorMsgContains) > 0 {
+				for _, expectedString := range test.wantErrorMsgContains {
 					if !strings.Contains(errorMsgString, expectedString) {
 						t.Errorf("Error message should contains '%s' and is", expectedString)
 						t.Log(string('\n') + errorMsgString)
@@ -199,7 +199,7 @@ func TestValidater(t *testing.T) {
 				}
 			}
 
-			if test.shouldPass {
+			if test.wantValidation {
 				if err != nil {
 					t.Errorf("Want NO error, got %v", err)
 				}

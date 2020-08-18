@@ -27,7 +27,8 @@ func BuildAncestorsDisplayName(ctx context.Context, ancestors []string, collecti
 	cnt := len(ancestors)
 	ancestorsDisplayName := make([]string, len(ancestors))
 	for idx := 0; idx < cnt; idx++ {
-		ancestorsDisplayName[idx] = getDisplayName(ctx, ancestors[idx], collectionID, firestoreClient, cloudresourcemanagerService, cloudresourcemanagerServiceV2)
+		ancestorsDisplayName[idx] = getDisplayName(ctx,
+			ancestors[idx], collectionID, firestoreClient, cloudresourcemanagerService, cloudresourcemanagerServiceV2)
 	}
 	return ancestorsDisplayName
 }
