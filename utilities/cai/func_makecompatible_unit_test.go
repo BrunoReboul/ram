@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestMakeCompatible(t *testing.T) {
+func TestUnitMakeCompatible(t *testing.T) {
 	var tests = []struct {
 		name string
 		path string

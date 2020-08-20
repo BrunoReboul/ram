@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func TestGetAssetLabelValue(t *testing.T) {
+func TestUnitGetAssetLabelValue(t *testing.T) {
 	var tests = []struct {
 		name           string
 		resourceJSON   string

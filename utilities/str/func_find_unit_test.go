@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func TestFind(t *testing.T) {
+func TestUnitFind(t *testing.T) {
 	var tests = []struct {
 		name       string
 		slice      []string

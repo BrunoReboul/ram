@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func TestGetCommonAPIlist(t *testing.T) {
+func TestUnitGetCommonAPIlist(t *testing.T) {
 	var tests = []struct {
 		name                string
 		wantNumberCommonAPI int

@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func TestGetAssetShortTypeName(t *testing.T) {
+func TestUnitGetAssetShortTypeName(t *testing.T) {
 	var tests = []struct {
 		name      string
 		assetType string

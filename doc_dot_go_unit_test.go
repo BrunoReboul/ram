@@ -25,7 +25,7 @@ const docDotGoName = "doc.go"
 
 var levelOneFolders = []string{"services", "utilities"}
 
-func TestDocDotGo(t *testing.T) {
+func TestUnitDocDotGo(t *testing.T) {
 	for _, levelOneFolder := range levelOneFolders {
 		err := filepath.Walk("./"+levelOneFolder, func(path string, info os.FileInfo, err error) error {
 			if err != nil {

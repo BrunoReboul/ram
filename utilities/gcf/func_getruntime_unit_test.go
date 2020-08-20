@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestGetRunTime(t *testing.T) {
+func TestUnitGetRunTime(t *testing.T) {
 	var tests = []struct {
 		input, expectedOutput string
 	}{

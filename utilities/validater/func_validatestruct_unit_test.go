@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-func TestValidater(t *testing.T) {
+func TestUnitValidater(t *testing.T) {
 	type isNotZeroValueString struct {
 		S string `valid:"isNotZeroValue"`
 	}

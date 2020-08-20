@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func TestBuildAncestryPath(t *testing.T) {
+func TestUnitBuildAncestryPath(t *testing.T) {
 	var tests = []struct {
 		name      string
 		ancestors []string

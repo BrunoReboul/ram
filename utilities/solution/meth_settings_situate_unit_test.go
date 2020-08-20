@@ -22,7 +22,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func TestSituate(t *testing.T) {
+func TestUnitSituate(t *testing.T) {
 	type testlist []struct {
 		Name        string
 		Settings    Settings
