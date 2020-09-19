@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestRevertSlash(t *testing.T) {
+func TestUnitRevertSlash(t *testing.T) {
 	var tests = []struct {
 		input, output string
 	}{

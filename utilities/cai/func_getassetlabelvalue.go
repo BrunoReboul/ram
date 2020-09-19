@@ -12,4 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validater
+package cai
+
+import "encoding/json"
+
+// GetAssetLabelValue retrieve a label value from a label key, e.g. owner of resolver contact from asset labels
+func GetAssetLabelValue(labelKey string, resourceJSON json.RawMessage) (string, error) {
+	var resource struct {
+		Data struct {
+			Labels map[string]string
+		}
+	}
+	err := json.Unmarshal(resourceJSON, &resource)
+	if err != nil {
+		return "", err
+	}
+	if resource.Data.Labels != nil {
+		if labelValue, ok := resource.Data.Labels[labelKey]; ok {
+			return labelValue, nil
+		}
+	}
+	return "", nil
+}

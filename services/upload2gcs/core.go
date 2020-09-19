@@ -155,8 +155,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	feedMessage.Asset.AncestryPath = cai.BuildAncestryPath(feedMessage.Asset.Ancestors)
 	feedMessage.Asset.AncestorsDisplayName = cai.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
 	feedMessage.Asset.AncestryPathDisplayName = cai.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
-	feedMessage.Asset.Owner, _ = cai.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
-	feedMessage.Asset.ViolationResolver, _ = cai.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.ViolationResolver, _ = cai.GetAssetLabelValue(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 
 	// Legacy
 	feedMessage.Asset.IamPolicyLegacy = feedMessage.Asset.IamPolicy

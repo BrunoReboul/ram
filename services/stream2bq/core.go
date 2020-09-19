@@ -380,8 +380,8 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	assetFeedMessageBQ.Asset.AncestryPath = cai.BuildAncestryPath(assetFeedMessageBQ.Asset.Ancestors)
 	assetFeedMessageBQ.Asset.AncestorsDisplayName = cai.BuildAncestorsDisplayName(global.ctx, assetFeedMessageBQ.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
 	assetFeedMessageBQ.Asset.AncestryPathDisplayName = cai.BuildAncestryPath(assetFeedMessageBQ.Asset.AncestorsDisplayName)
-	assetFeedMessageBQ.Asset.Owner, _ = cai.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
-	assetFeedMessageBQ.Asset.ViolationResolver, _ = cai.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+	assetFeedMessageBQ.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)
+	assetFeedMessageBQ.Asset.ViolationResolver, _ = cai.GetAssetLabelValue(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 
 	insertID := fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
 	savers := []*bigquery.StructSaver{

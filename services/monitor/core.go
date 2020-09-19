@@ -490,8 +490,8 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 	feedMessage.Asset.AncestorsDisplayName = cai.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
 	feedMessage.Asset.AncestryPathDisplayName = cai.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
 
-	feedMessage.Asset.Owner, _ = cai.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
-	feedMessage.Asset.ViolationResolver, _ = cai.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.ViolationResolver, _ = cai.GetAssetLabelValue(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 	// Duplicate fileds into fieldLegacy for compatibility with existing policy library templates
 	feedMessage.Asset.IamPolicyLegacy = feedMessage.Asset.IamPolicy
 	feedMessage.Asset.AssetTypeLegacy = feedMessage.Asset.AssetType

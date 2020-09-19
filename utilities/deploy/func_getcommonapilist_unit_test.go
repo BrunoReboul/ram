@@ -12,36 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcf
+package deploy
 
 import (
-	"fmt"
 	"testing"
 )
 
-func TestGetRunTime(t *testing.T) {
+func TestUnitGetCommonAPIlist(t *testing.T) {
 	var tests = []struct {
-		input, expectedOutput string
+		name                string
+		wantNumberCommonAPI int
 	}{
-		{"1.11", "Deprecated"},
-		{"1.12", "Unsupported"},
-		{"1.13", "go113"},
-		{"1.14", "Unsupported"},
-		{"blabla", "Unsupported"},
+		{"ExactNumberOfCommonAPIs", 10},
 	}
 
 	for _, test := range tests {
-		testName := fmt.Sprintf(" %s => %s", test.input, test.expectedOutput)
-		t.Run(testName, func(t *testing.T) {
-			result, err := getRunTime(test.input)
-			if test.expectedOutput == "Unsupported" || test.expectedOutput == "Deprecated" {
-				if err == nil {
-					t.Errorf("Should send back an error and is NOT")
-				}
-			} else {
-				if result != test.expectedOutput {
-					t.Errorf("got %s, want %s", result, test.expectedOutput)
-				}
+		t.Run(test.name, func(t *testing.T) {
+			countCommonAPIs := len(GetCommonAPIlist())
+			if test.wantNumberCommonAPI != countCommonAPIs {
+				t.Errorf("Want %d common APIs got %d", test.wantNumberCommonAPI, countCommonAPIs)
 			}
 		})
 	}

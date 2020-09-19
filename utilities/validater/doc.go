@@ -12,26 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cai
-
-import "encoding/json"
-
-// GetAssetContact retrieve owner of resolver contact from asset labels and parent labels
-func GetAssetContact(contactRole string, resourceJSON json.RawMessage) (string, error) {
-	var contact string
-	var resource struct {
-		Data struct {
-			Labels map[string]string
-		}
-	}
-	err := json.Unmarshal(resourceJSON, &resource)
-	if err != nil {
-		return "", err
-	}
-	if resource.Data.Labels != nil {
-		if labelValue, ok := resource.Data.Labels[contactRole]; ok {
-			contact = labelValue
-		}
-	}
-	return contact, nil
-}
+// Package validater helps to validate struct fields
+package validater

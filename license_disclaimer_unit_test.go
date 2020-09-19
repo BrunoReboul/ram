@@ -38,7 +38,7 @@ const GODisclaimer = `// Copyright 2020 Google LLC
 // limitations under the License.
 `
 
-func TestDisclaimer(t *testing.T) {
+func TestUnitDisclaimer(t *testing.T) {
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
