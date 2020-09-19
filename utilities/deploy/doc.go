@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package deploy defines the core structure for deployents and common APIs
+// Package deploy defines the core structure for deployments and common APIs
 package deploy
