@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gcs helps with Google Cloud Storage
-package gcs
+// Package validater helps to validate struct fields
+package validater

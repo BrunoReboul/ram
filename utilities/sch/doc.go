@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package sch helps with Google Cloud Storage
+// Package sch helps with Google Cloud Scheduler
 package sch
