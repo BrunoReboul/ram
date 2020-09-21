@@ -26,8 +26,11 @@
   - Unit tests code file `meth_folderdeployment_deploy_integ_test.go`
 - Integration tests MUST be small enough so a GO package integration tests are run on each push on the package code and each PR to master update: [testing_integ.yaml](testing_integ.yaml)
 - The following IAM bindings MUST be set with the service account used to run integration tests:
-  - ram folder
+  - sandboxes folder
     - folder admin
+      - required by: grm
+- The project hosting the service account used to run the integration test MUST have the following API enabled:
+  - Cloud Resource Manager API
 
 ## What's next
 
