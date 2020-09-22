@@ -16,20 +16,20 @@ package ramcli
 
 import (
 	"bufio"
-	"log"
+	"fmt"
 	"os"
 	"strings"
-
-	"github.com/BrunoReboul/ram/utilities/ffo"
 )
 
 // getVersions look for a go.mod in the curent path, returns Go and RAM versions, crashes execution on errors
-func getVersions() (goVersion, ramVersion string) {
-	goModFilePath := "./go.mod"
-	ffo.CheckPath(goModFilePath)
+func getVersions(repositoryPath string) (goVersion, ramVersion string, err error) {
+	goModFilePath := repositoryPath + "/go.mod"
+	if _, err := os.Stat(goModFilePath); err != nil {
+		return "", "", err
+	}
 	file, err := os.Open(goModFilePath)
 	if err != nil {
-		log.Fatal(err)
+		return "", "", err
 	}
 	defer file.Close()
 
@@ -48,14 +48,13 @@ func getVersions() (goVersion, ramVersion string) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		return "", "", err
 	}
 	if goVersion == "" {
-		log.Fatalf("goVersion NOT found, missing go x.y line in go.mod")
+		return "", "", fmt.Errorf("goVersion NOT found, missing go x.y line in go.mod")
 	}
 	if ramVersion == "" {
-		log.Fatalf("ramVersion NOT found, missing reauire line to ram module in go.mod")
+		return "", "", fmt.Errorf("ramVersion NOT found, missing required line to ram module in go.mod")
 	}
-	log.Printf("goVersion %s, ramVersion %s", goVersion, ramVersion)
-	return goVersion, ramVersion
+	return goVersion, ramVersion, nil
 }

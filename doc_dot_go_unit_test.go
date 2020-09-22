@@ -37,6 +37,9 @@ func TestUnitDocDotGo(t *testing.T) {
 			if strings.HasSuffix(path, levelOneFolder) {
 				return nil
 			}
+			if strings.Contains(path, "testdata") {
+				return nil
+			}
 			_, err = os.Stat(path + "/" + docDotGoName)
 			if os.IsNotExist(err) {
 				t.Errorf("%v: missing %s file in this subfolder", path, docDotGoName)

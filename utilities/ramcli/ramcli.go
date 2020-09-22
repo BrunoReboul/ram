@@ -107,11 +107,16 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 
 // RAMCli Real-time Asset Monitor cli
 func RAMCli(deployment *Deployment) (err error) {
-	deployment.CheckArguments()
+	err = deployment.CheckArguments()
+	if err != nil {
+		return err
+	}
+	log.Printf("goVersion %s, ramVersion %s", deployment.Core.GoVersion, deployment.Core.RAMVersion)
+
 	solutionConfigFilePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, solution.SolutionSettingsFileName)
 	err = ffo.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &deployment.Core.SolutionSettings)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	deployment.Core.SolutionSettings.Situate(deployment.Core.EnvironmentName)
 	deployment.Core.ProjectNumber, err = getProjectNumber(deployment.Core.Ctx, deployment.Core.Services.CloudresourcemanagerService, deployment.Core.SolutionSettings.Hosting.ProjectID)
@@ -185,41 +190,41 @@ func RAMCli(deployment *Deployment) (err error) {
 	switch true {
 	case deployment.Core.Commands.Initialize:
 		if err = deployment.initialize(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	case deployment.Core.Commands.ConfigureAssetTypes:
 		if err = deployment.configureSetFeedsAssetTypes(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureDumpInventoryAssetTypes(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureSplitDumpSingleInstance(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configurePublish2fsInstances(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureStream2bqAssetTypes(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureUpload2gcsMetadataTypes(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureListGroupsDirectories(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureListGroupMembersDirectories(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureGetGroupSettingsDirectories(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureLogSinksOrganizations(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureConvertlog2feedOrganizations(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
