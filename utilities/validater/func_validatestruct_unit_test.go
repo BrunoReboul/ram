@@ -47,7 +47,7 @@ func TestUnitValidater(t *testing.T) {
 		IsNotZeroValueSlice isNotZeroValueSlice
 		LevelB              levelB
 	}
-	var tests = []struct {
+	var testCases = []struct {
 		name                 string
 		structure            interface{}
 		pedigree             string
@@ -172,26 +172,27 @@ func TestUnitValidater(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// DO NOT RUN CONCURENTLY (aka no t.Parallel() ), as validater is recursive
 			var buffer bytes.Buffer
 			log.SetOutput(&buffer)
 			defer func() {
 				log.SetOutput(os.Stderr)
 			}()
-			err := ValidateStruct(test.structure, test.pedigree)
+			err := ValidateStruct(tc.structure, tc.pedigree)
 			errorMsgString := buffer.String()
 			// t.Log(countRune(errorMsgString, '\n'))
 			// t.Log("Error message list:" + string('\n') + errorMsgString)
 
 			foundErrorMsgCount := countRune(errorMsgString, '\n')
-			if test.wantErrorMsgCount != foundErrorMsgCount {
-				t.Errorf("Want %d error messages, got %d", test.wantErrorMsgCount, foundErrorMsgCount)
+			if tc.wantErrorMsgCount != foundErrorMsgCount {
+				t.Errorf("Want %d error messages, got %d", tc.wantErrorMsgCount, foundErrorMsgCount)
 				t.Log("Error message list:" + string('\n') + errorMsgString)
 			}
 
-			if len(test.wantErrorMsgContains) > 0 {
-				for _, expectedString := range test.wantErrorMsgContains {
+			if len(tc.wantErrorMsgContains) > 0 {
+				for _, expectedString := range tc.wantErrorMsgContains {
 					if !strings.Contains(errorMsgString, expectedString) {
 						t.Errorf("Error message should contains '%s' and is", expectedString)
 						t.Log(string('\n') + errorMsgString)
@@ -199,7 +200,7 @@ func TestUnitValidater(t *testing.T) {
 				}
 			}
 
-			if test.wantValidation {
+			if tc.wantValidation {
 				if err != nil {
 					t.Errorf("Want NO error, got %v", err)
 				}

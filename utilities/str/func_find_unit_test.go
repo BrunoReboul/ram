@@ -19,7 +19,7 @@ import (
 )
 
 func TestUnitFind(t *testing.T) {
-	var tests = []struct {
+	var testCases = []struct {
 		name       string
 		slice      []string
 		val        string
@@ -49,16 +49,18 @@ func TestUnitFind(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result := Find(test.slice, test.val)
-			if test.shouldPass {
-				if test.shouldPass != result {
-					t.Errorf("Should find string '%s' ins slice %v", test.val, test.slice)
+	for _, tc := range testCases {
+		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := Find(tc.slice, tc.val)
+			if tc.shouldPass {
+				if tc.shouldPass != result {
+					t.Errorf("Should find string '%s' ins slice %v", tc.val, tc.slice)
 				}
 			} else {
-				if test.shouldPass != result {
-					t.Errorf("Should NOT find string '%s' ins slice %v", test.val, test.slice)
+				if tc.shouldPass != result {
+					t.Errorf("Should NOT find string '%s' ins slice %v", tc.val, tc.slice)
 				}
 			}
 		})

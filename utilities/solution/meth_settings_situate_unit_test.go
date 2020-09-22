@@ -23,13 +23,13 @@ import (
 )
 
 func TestUnitSituate(t *testing.T) {
-	type testlist []struct {
+	type testcases []struct {
 		Name        string
 		Settings    Settings
 		Environment string
 		Want        map[string]string
 	}
-	var testList testlist
+	var testCases testcases
 
 	yamlBytes := []byte(`---
 - name: set1
@@ -86,61 +86,65 @@ func TestUnitSituate(t *testing.T) {
     assetsJSONBuccketDeleteAgeInDays: 9
     GCBQueueTTL: 123s`)
 
-	err := yaml.Unmarshal(yamlBytes, &testList)
+	err := yaml.Unmarshal(yamlBytes, &testCases)
 	if err != nil {
 		log.Fatalf("Unable to unmarshal yaml test data %v", err)
 	}
 
-	for _, test := range testList {
-		test.Settings.Situate(test.Environment)
-		for key, wantedValue := range test.Want {
-			testName := test.Name + "-" + key
+	for _, tc := range testCases {
+		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		tc.Settings.Situate(tc.Environment)
+		for key, wantedValue := range tc.Want {
+			key := key
+			wantedValue := wantedValue
+			testName := tc.Name + "-" + key
 			t.Run(testName, func(t *testing.T) {
+				t.Parallel()
 				// t.Logf("%s", testName)
 				switch key {
 				case "organizationID":
-					if wantedValue != test.Settings.Hosting.OrganizationID {
-						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, test.Settings.Hosting.OrganizationID)
+					if wantedValue != tc.Settings.Hosting.OrganizationID {
+						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, tc.Settings.Hosting.OrganizationID)
 					}
 				case "folderID":
-					if wantedValue != test.Settings.Hosting.FolderID {
-						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, test.Settings.Hosting.FolderID)
+					if wantedValue != tc.Settings.Hosting.FolderID {
+						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, tc.Settings.Hosting.FolderID)
 					}
 				case "projectID":
-					if wantedValue != test.Settings.Hosting.ProjectID {
-						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, test.Settings.Hosting.ProjectID)
+					if wantedValue != tc.Settings.Hosting.ProjectID {
+						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, tc.Settings.Hosting.ProjectID)
 					}
 				case "stackdriverPjID":
-					if wantedValue != test.Settings.Hosting.Stackdriver.ProjectID {
-						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, test.Settings.Hosting.Stackdriver.ProjectID)
+					if wantedValue != tc.Settings.Hosting.Stackdriver.ProjectID {
+						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, tc.Settings.Hosting.Stackdriver.ProjectID)
 					}
 				case "CAIExportBuccketName":
-					if wantedValue != test.Settings.Hosting.GCS.Buckets.CAIExport.Name {
-						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, test.Settings.Hosting.GCS.Buckets.CAIExport.Name)
+					if wantedValue != tc.Settings.Hosting.GCS.Buckets.CAIExport.Name {
+						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, tc.Settings.Hosting.GCS.Buckets.CAIExport.Name)
 					}
 				case "CAIExportBuccketDeleteAgeInDays":
 					wantedValueInt64, err := strconv.ParseInt(wantedValue, 10, 64)
 					if err != nil {
 						t.Errorf("Wanted value cannot be convected to int64 '%s'", wantedValue)
 					}
-					if wantedValueInt64 != test.Settings.Hosting.GCS.Buckets.CAIExport.DeleteAgeInDays {
-						t.Errorf("Want %s '%d' got '%d'", key, wantedValueInt64, test.Settings.Hosting.GCS.Buckets.CAIExport.DeleteAgeInDays)
+					if wantedValueInt64 != tc.Settings.Hosting.GCS.Buckets.CAIExport.DeleteAgeInDays {
+						t.Errorf("Want %s '%d' got '%d'", key, wantedValueInt64, tc.Settings.Hosting.GCS.Buckets.CAIExport.DeleteAgeInDays)
 					}
 				case "assetsJSONBuccketName":
-					if wantedValue != test.Settings.Hosting.GCS.Buckets.AssetsJSONFile.Name {
-						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, test.Settings.Hosting.GCS.Buckets.AssetsJSONFile.Name)
+					if wantedValue != tc.Settings.Hosting.GCS.Buckets.AssetsJSONFile.Name {
+						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, tc.Settings.Hosting.GCS.Buckets.AssetsJSONFile.Name)
 					}
 				case "assetsJSONBuccketDeleteAgeInDays":
 					wantedValueInt64, err := strconv.ParseInt(wantedValue, 10, 64)
 					if err != nil {
 						t.Errorf("Wanted value cannot be convected to int64 '%s'", wantedValue)
 					}
-					if wantedValueInt64 != test.Settings.Hosting.GCS.Buckets.AssetsJSONFile.DeleteAgeInDays {
-						t.Errorf("Want %s '%d' got '%d'", key, wantedValueInt64, test.Settings.Hosting.GCS.Buckets.AssetsJSONFile.DeleteAgeInDays)
+					if wantedValueInt64 != tc.Settings.Hosting.GCS.Buckets.AssetsJSONFile.DeleteAgeInDays {
+						t.Errorf("Want %s '%d' got '%d'", key, wantedValueInt64, tc.Settings.Hosting.GCS.Buckets.AssetsJSONFile.DeleteAgeInDays)
 					}
 				case "GCBQueueTTL":
-					if wantedValue != test.Settings.Hosting.GCB.QueueTTL {
-						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, test.Settings.Hosting.GCB.QueueTTL)
+					if wantedValue != tc.Settings.Hosting.GCB.QueueTTL {
+						t.Errorf("Want %s '%s' got '%s'", key, wantedValue, tc.Settings.Hosting.GCB.QueueTTL)
 					}
 				default:
 					t.Errorf("Unmanaged key '%s'", key)

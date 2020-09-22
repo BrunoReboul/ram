@@ -20,7 +20,7 @@ import (
 )
 
 func TestUnitMakeCompatible(t *testing.T) {
-	var tests = []struct {
+	var testCases = []struct {
 		name string
 		path string
 		want string
@@ -37,11 +37,13 @@ func TestUnitMakeCompatible(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got := makeCompatible(test.path)
-			if test.want != got {
-				t.Errorf("Want %s got %s", test.want, got)
+	for _, tc := range testCases {
+		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := makeCompatible(tc.path)
+			if tc.want != got {
+				t.Errorf("Want %s got %s", tc.want, got)
 			}
 
 			for _, unwanted := range []string{"organizations", "folders", "projects"} {

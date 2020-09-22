@@ -20,7 +20,7 @@ import (
 )
 
 func TestUnitRevertSlash(t *testing.T) {
-	var tests = []struct {
+	var testCases = []struct {
 		input, output string
 	}{
 		{"//cloudresourcemanager.googleapis.com/projects/0123456789", "\\\\cloudresourcemanager.googleapis.com\\projects\\0123456789"},
@@ -28,12 +28,14 @@ func TestUnitRevertSlash(t *testing.T) {
 		{"//cloudresourcemanager.googleapis.com/organizations/0123456789", "\\\\cloudresourcemanager.googleapis.com\\organizations\\0123456789"},
 	}
 
-	for _, test := range tests {
-		testName := fmt.Sprintf(" %s => %s", test.input, test.output)
+	for _, tc := range testCases {
+		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		testName := fmt.Sprintf(" %s => %s", tc.input, tc.output)
 		t.Run(testName, func(t *testing.T) {
-			result := RevertSlash(test.input)
-			if result != test.output {
-				t.Errorf("got %s, want %s", result, test.output)
+			t.Parallel()
+			result := RevertSlash(tc.input)
+			if result != tc.output {
+				t.Errorf("got %s, want %s", result, tc.output)
 			}
 		})
 	}

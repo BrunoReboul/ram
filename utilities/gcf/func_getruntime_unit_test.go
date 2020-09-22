@@ -20,7 +20,7 @@ import (
 )
 
 func TestUnitGetRunTime(t *testing.T) {
-	var tests = []struct {
+	var testCases = []struct {
 		input, expectedOutput string
 	}{
 		{"1.11", "Deprecated"},
@@ -30,17 +30,19 @@ func TestUnitGetRunTime(t *testing.T) {
 		{"blabla", "Unsupported"},
 	}
 
-	for _, test := range tests {
-		testName := fmt.Sprintf(" %s => %s", test.input, test.expectedOutput)
+	for _, tc := range testCases {
+		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		testName := fmt.Sprintf(" %s => %s", tc.input, tc.expectedOutput)
 		t.Run(testName, func(t *testing.T) {
-			result, err := getRunTime(test.input)
-			if test.expectedOutput == "Unsupported" || test.expectedOutput == "Deprecated" {
+			t.Parallel()
+			result, err := getRunTime(tc.input)
+			if tc.expectedOutput == "Unsupported" || tc.expectedOutput == "Deprecated" {
 				if err == nil {
 					t.Errorf("Should send back an error and is NOT")
 				}
 			} else {
-				if result != test.expectedOutput {
-					t.Errorf("got %s, want %s", result, test.expectedOutput)
+				if result != tc.expectedOutput {
+					t.Errorf("got %s, want %s", result, tc.expectedOutput)
 				}
 			}
 		})
