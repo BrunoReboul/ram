@@ -36,14 +36,14 @@ const sanboxesFolderID = "376289220104"
 const notActiveFolderName = "ram-grm-integ-test"
 
 func TestIntegFolderDeploy(t *testing.T) {
-	type testlist []struct {
+	type testcases []struct {
 		Name            string
 		Core            deploy.Core
 		WantMsgContains string
 		WantError       bool
 		WantErrContains string
 	}
-	var testList testlist
+	var testCases testcases
 	yamlBytes := []byte(`---
 - name: existingFolder
   core:
@@ -71,7 +71,7 @@ func TestIntegFolderDeploy(t *testing.T) {
   wanterror: true
   wanterrcontains: is in state DELETE_REQUESTED while it should be ACTIVE`)
 
-	err := yaml.Unmarshal(yamlBytes, &testList)
+	err := yaml.Unmarshal(yamlBytes, &testCases)
 	if err != nil {
 		log.Fatalf("Unable to unmarshal yaml test data %v", err)
 	}
@@ -82,19 +82,19 @@ func TestIntegFolderDeploy(t *testing.T) {
 		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
 	}
 
-	for _, test := range testList {
-		test.Core.Services.CloudresourcemanagerServicev2, err = cloudresourcemanagerv2.NewService(ctx, option.WithCredentials(creds))
+	for _, tc := range testCases {
+		tc.Core.Services.CloudresourcemanagerServicev2, err = cloudresourcemanagerv2.NewService(ctx, option.WithCredentials(creds))
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if test.Name == "pendingDeletionFolder" {
-			test.Core.SolutionSettings.Hosting.FolderID = getPendingDeletionFolder(ctx,
-				test.Core.Services.CloudresourcemanagerServicev2,
+		if tc.Name == "pendingDeletionFolder" {
+			tc.Core.SolutionSettings.Hosting.FolderID = getPendingDeletionFolder(ctx,
+				tc.Core.Services.CloudresourcemanagerServicev2,
 				sanboxesFolderID)
 		}
-		t.Run(test.Name, func(t *testing.T) {
+		t.Run(tc.Name, func(t *testing.T) {
 			folderDeployment := NewFolderDeployment()
-			folderDeployment.Core = &test.Core
+			folderDeployment.Core = &tc.Core
 
 			var buffer bytes.Buffer
 			log.SetOutput(&buffer)
@@ -106,24 +106,24 @@ func TestIntegFolderDeploy(t *testing.T) {
 			msgString := buffer.String()
 
 			if err != nil {
-				if test.WantError {
-					if test.WantErrContains != "" {
-						if !strings.Contains(err.Error(), test.WantErrContains) {
-							t.Logf("want error msg to contains '%s' and got \n'%s'", test.WantMsgContains, msgString)
+				if tc.WantError {
+					if tc.WantErrContains != "" {
+						if !strings.Contains(err.Error(), tc.WantErrContains) {
+							t.Logf("want error msg to contains '%s' and got \n'%s'", tc.WantMsgContains, msgString)
 						}
 					}
 				} else {
 					t.Errorf("Want NO error and got one %v", err)
 				}
 			} else {
-				if test.WantError {
+				if tc.WantError {
 					t.Errorf("Want an error and got none")
 				}
 			}
 
-			if test.WantMsgContains != "" {
-				if !strings.Contains(msgString, test.WantMsgContains) {
-					t.Errorf("want msg to contains '%s' and got \n'%s'", test.WantMsgContains, msgString)
+			if tc.WantMsgContains != "" {
+				if !strings.Contains(msgString, tc.WantMsgContains) {
+					t.Errorf("want msg to contains '%s' and got \n'%s'", tc.WantMsgContains, msgString)
 				}
 			}
 		})
