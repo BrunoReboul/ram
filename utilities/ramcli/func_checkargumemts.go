@@ -17,15 +17,13 @@ package ramcli
 import (
 	"flag"
 	"fmt"
-	"log"
 
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
 // CheckArguments check cli arguments and build the list of microservices instances
-func (deployment *Deployment) CheckArguments() {
-	deployment.Core.GoVersion, deployment.Core.RAMVersion = getVersions()
+func (deployment *Deployment) CheckArguments() (err error) {
 	// flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
 	flag.BoolVar(&deployment.Core.Commands.Initialize, "init", false, "initial setup to be launched first, before manual, aka not automatable setup tasks")
 	flag.BoolVar(&deployment.Core.Commands.ConfigureAssetTypes, "config", false, "For assets types defined in solution.yaml writes setfeeds, dumpinventory, stream2bq instance.yaml files and subfolders")
@@ -39,17 +37,20 @@ func (deployment *Deployment) CheckArguments() {
 	var instanceFolderName = flag.String("instance", "", "Instance folder name")
 	flag.StringVar(&deployment.Core.EnvironmentName, "environment", solution.DevelopmentEnvironmentName, "Environment name")
 	flag.Parse()
-
+	deployment.Core.GoVersion, deployment.Core.RAMVersion, err = getVersions(deployment.Core.RepositoryPath)
+	if err != nil {
+		return err
+	}
 	// case one instance
 	if *instanceFolderName != "" {
 		if *microserviceFolderName == "" {
-			log.Fatalln("Missing service argument")
+			return fmt.Errorf("Missing service argument")
 		}
 		instanceRelativePath := fmt.Sprintf("%s/%s/%s/%s", solution.MicroserviceParentFolderName, *microserviceFolderName, solution.InstancesFolderName, *instanceFolderName)
 		deployment.Core.InstanceFolderRelativePaths = []string{instanceRelativePath}
 		instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
 		ffo.CheckPath(instancePath)
-		return
+		return nil
 	}
 
 	if *microserviceFolderName != "" {
@@ -59,7 +60,7 @@ func (deployment *Deployment) CheckArguments() {
 		// case one assetType
 		if *assetType != "" {
 			deployment.Core.AssetType = *assetType
-			return
+			return nil
 		}
 		// case all
 		for _, microserviceRelativeFolderPath := range ffo.GetChild(deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName) {
@@ -70,7 +71,7 @@ func (deployment *Deployment) CheckArguments() {
 		}
 	}
 	if len(deployment.Core.InstanceFolderRelativePaths) == 0 {
-		log.Fatalln("No instance found")
+		return fmt.Errorf("No instance found")
 	}
-	return
+	return nil
 }
