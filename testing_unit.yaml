@@ -21,5 +21,5 @@ steps:
       - ./...
       - -run
       - TestUnit*
-      - -v
+      # - -v
     id: unit test all go packages verbose
