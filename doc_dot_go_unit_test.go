@@ -28,6 +28,7 @@ var levelOneFolders = []string{"services", "utilities"}
 func TestUnitDocDotGo(t *testing.T) {
 	for _, levelOneFolder := range levelOneFolders {
 		err := filepath.Walk("./"+levelOneFolder, func(path string, info os.FileInfo, err error) error {
+			levelOneFolder := levelOneFolder // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 			t.Run(path, func(t *testing.T) {
 				t.Parallel()
 				if err != nil {
