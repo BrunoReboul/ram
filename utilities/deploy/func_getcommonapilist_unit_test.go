@@ -19,18 +19,20 @@ import (
 )
 
 func TestUnitGetCommonAPIlist(t *testing.T) {
-	var tests = []struct {
+	var testCases = []struct {
 		name                string
 		wantNumberCommonAPI int
 	}{
 		{"ExactNumberOfCommonAPIs", 10},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			countCommonAPIs := len(GetCommonAPIlist())
-			if test.wantNumberCommonAPI != countCommonAPIs {
-				t.Errorf("Want %d common APIs got %d", test.wantNumberCommonAPI, countCommonAPIs)
+			if tc.wantNumberCommonAPI != countCommonAPIs {
+				t.Errorf("Want %d common APIs got %d", tc.wantNumberCommonAPI, countCommonAPIs)
 			}
 		})
 	}

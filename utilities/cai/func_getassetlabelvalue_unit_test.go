@@ -19,7 +19,7 @@ import (
 )
 
 func TestUnitGetAssetLabelValue(t *testing.T) {
-	var tests = []struct {
+	var testCases = []struct {
 		name           string
 		resourceJSON   string
 		labelKey       string
@@ -60,18 +60,20 @@ func TestUnitGetAssetLabelValue(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got, err := GetAssetLabelValue(test.labelKey, []byte(test.resourceJSON))
-			if test.wantlabelValue != got {
-				t.Errorf("Want %s got %s", test.wantlabelValue, got)
+	for _, tc := range testCases {
+		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := GetAssetLabelValue(tc.labelKey, []byte(tc.resourceJSON))
+			if tc.wantlabelValue != got {
+				t.Errorf("Want %s got %s", tc.wantlabelValue, got)
 			}
 			if err != nil {
-				if !test.wantError {
+				if !tc.wantError {
 					t.Errorf("Want no error and got %v", err)
 				}
 			} else {
-				if test.wantError {
+				if tc.wantError {
 					t.Errorf("Want an error and got no error")
 				}
 			}

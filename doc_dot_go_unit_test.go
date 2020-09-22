@@ -28,22 +28,19 @@ var levelOneFolders = []string{"services", "utilities"}
 func TestUnitDocDotGo(t *testing.T) {
 	for _, levelOneFolder := range levelOneFolders {
 		err := filepath.Walk("./"+levelOneFolder, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if !info.IsDir() {
-				return nil
-			}
-			if strings.HasSuffix(path, levelOneFolder) {
-				return nil
-			}
-			if strings.Contains(path, "testdata") {
-				return nil
-			}
-			_, err = os.Stat(path + "/" + docDotGoName)
-			if os.IsNotExist(err) {
-				t.Errorf("%v: missing %s file in this subfolder", path, docDotGoName)
-			}
+			levelOneFolder := levelOneFolder // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+			t.Run(path, func(t *testing.T) {
+				t.Parallel()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if info.IsDir() && !strings.HasSuffix(path, levelOneFolder) && !strings.Contains(path, "testdata") {
+					_, err = os.Stat(path + "/" + docDotGoName)
+					if os.IsNotExist(err) {
+						t.Errorf("%v: missing %s file in this subfolder", path, docDotGoName)
+					}
+				}
+			})
 			return nil
 		})
 		if err != nil {

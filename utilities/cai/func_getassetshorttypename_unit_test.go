@@ -19,7 +19,7 @@ import (
 )
 
 func TestUnitGetAssetShortTypeName(t *testing.T) {
-	var tests = []struct {
+	var testCases = []struct {
 		name      string
 		assetType string
 		want      string
@@ -31,11 +31,13 @@ func TestUnitGetAssetShortTypeName(t *testing.T) {
 		{"gaeApp", "appengine.googleapis.com/Application", "appengine-Application"},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got := GetAssetShortTypeName(test.assetType)
-			if test.want != got {
-				t.Errorf("Want %s got %s", test.want, got)
+	for _, tc := range testCases {
+		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := GetAssetShortTypeName(tc.assetType)
+			if tc.want != got {
+				t.Errorf("Want %s got %s", tc.want, got)
 			}
 		})
 	}
