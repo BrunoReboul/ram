@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	asset "cloud.google.com/go/asset/apiv1"
@@ -123,11 +124,11 @@ func RAMCli(deployment *Deployment) (err error) {
 
 	creds, err := google.FindDefaultCredentials(deployment.Core.Ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
-		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
+		return fmt.Errorf("ERROR - google.FindDefaultCredentials %v", err)
 	}
 	deployment.Core.Services.BigqueryClient, err = bigquery.NewClient(deployment.Core.Ctx, deployment.Core.SolutionSettings.Hosting.ProjectID, option.WithCredentials(creds))
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	if deployment.Core.AssetType != "" {
@@ -144,7 +145,9 @@ func RAMCli(deployment *Deployment) (err error) {
 					organizationID,
 					cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 			instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-			ffo.CheckPath(instancePath)
+			if _, err := os.Stat(instancePath); err != nil {
+				return err
+			}
 			instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 			serviceName = "dumpinventory"
@@ -157,7 +160,9 @@ func RAMCli(deployment *Deployment) (err error) {
 					organizationID,
 					cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 			instancePath = fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-			ffo.CheckPath(instancePath)
+			if _, err := os.Stat(instancePath); err != nil {
+				return err
+			}
 			instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 		}
 		serviceName := "stream2bq"
@@ -169,7 +174,9 @@ func RAMCli(deployment *Deployment) (err error) {
 				serviceName,
 				cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 		instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ffo.CheckPath(instancePath)
+		if _, err := os.Stat(instancePath); err != nil {
+			return err
+		}
 		instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 		serviceName = "upload2gcs"
@@ -181,7 +188,9 @@ func RAMCli(deployment *Deployment) (err error) {
 				serviceName,
 				cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 		instancePath = fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ffo.CheckPath(instancePath)
+		if _, err := os.Stat(instancePath); err != nil {
+			return err
+		}
 		instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 		deployment.Core.InstanceFolderRelativePaths = instanceFolderRelativePaths
@@ -232,29 +241,53 @@ func RAMCli(deployment *Deployment) (err error) {
 			deployment.Core.ServiceName, deployment.Core.InstanceName = getServiceAndInstanceNames(instanceFolderRelativePath)
 			switch deployment.Core.ServiceName {
 			case "setfeeds":
-				deployment.deploySetFeeds()
+				if err = deployment.deploySetFeeds(); err != nil {
+					return err
+				}
 			case "dumpinventory":
-				deployment.deployDumpInventory()
+				if err = deployment.deployDumpInventory(); err != nil {
+					return err
+				}
 			case "splitdump":
-				deployment.deploySplitDump()
+				if err = deployment.deploySplitDump(); err != nil {
+					return err
+				}
 			case "publish2fs":
-				deployment.deployPublish2fs()
+				if err = deployment.deployPublish2fs(); err != nil {
+					return err
+				}
 			case "monitor":
-				deployment.deployMonitor()
+				if err = deployment.deployMonitor(); err != nil {
+					return err
+				}
 			case "stream2bq":
-				deployment.deployStream2bq()
+				if err = deployment.deployStream2bq(); err != nil {
+					return err
+				}
 			case "upload2gcs":
-				deployment.deployUpload2gcs()
+				if err = deployment.deployUpload2gcs(); err != nil {
+					return err
+				}
 			case "listgroups":
-				deployment.deployListGroups()
+				if err = deployment.deployListGroups(); err != nil {
+					return err
+				}
 			case "listgroupmembers":
-				deployment.deployListGroupMembers()
+				if err = deployment.deployListGroupMembers(); err != nil {
+					return err
+				}
 			case "getgroupsettings":
-				deployment.deployGetGroupSettings()
+				if err = deployment.deployGetGroupSettings(); err != nil {
+					return err
+				}
 			case "setlogsinks":
-				deployment.deploySetLogSinks()
+				if err = deployment.deploySetLogSinks(); err != nil {
+					return err
+				}
 			case "convertlog2feed":
-				deployment.deployConvertLog2Feed()
+				if err = deployment.deployConvertLog2Feed(); err != nil {
+					return err
+				}
 			}
 		}
 	}

@@ -15,22 +15,21 @@
 package ramcli
 
 import (
-	"log"
 	"strings"
 
 	"github.com/BrunoReboul/ram/services/stream2bq"
 )
 
-func (deployment *Deployment) deployStream2bq() {
+func (deployment *Deployment) deployStream2bq() (err error) {
 	instanceDeployment := stream2bq.NewInstanceDeployment()
 	instanceDeployment.Core = &deployment.Core
-	err := instanceDeployment.ReadValidate()
+	err = instanceDeployment.ReadValidate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	err = instanceDeployment.Situate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if deployment.Core.Commands.MakeReleasePipeline {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
@@ -46,6 +45,7 @@ func (deployment *Deployment) deployStream2bq() {
 		}
 	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }

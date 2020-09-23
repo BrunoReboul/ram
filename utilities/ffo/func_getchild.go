@@ -16,23 +16,23 @@ package ffo
 
 import (
 	"fmt"
-	"log"
 	"os"
 )
 
 // GetChild returns the list to relative subfolders path for a folder + a relative path, crashes execution on errors
-func GetChild(basePath string, relativeFolderPath string) []string {
-	var childRelativePaths []string
+func GetChild(basePath string, relativeFolderPath string) (childRelativePaths []string, err error) {
 	folderPath := fmt.Sprintf("%s/%s", basePath, relativeFolderPath)
-	CheckPath(folderPath)
+	if _, err := os.Stat(folderPath); err != nil {
+		return childRelativePaths, err
+	}
 	folder, err := os.Open(folderPath)
 	if err != nil {
-		log.Fatalln(err)
+		return childRelativePaths, err
 	}
 	folderInfo, err := folder.Readdir(-1)
 	folder.Close()
 	if err != nil {
-		log.Fatalln(err)
+		return childRelativePaths, err
 	}
 	for _, child := range folderInfo {
 		if child.IsDir() {
@@ -40,5 +40,5 @@ func GetChild(basePath string, relativeFolderPath string) []string {
 			childRelativePaths = append(childRelativePaths, childRelativePath)
 		}
 	}
-	return childRelativePaths
+	return childRelativePaths, nil
 }
