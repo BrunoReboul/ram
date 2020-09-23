@@ -25,7 +25,6 @@ import (
 
 // CheckArguments check cli arguments and build the list of microservices instances
 func (deployment *Deployment) CheckArguments() (err error) {
-	// flag.BoolVar(&settings.Commands.Makeyaml, "migrate-to-yaml", false, "make yaml settings files for setting.sh file")
 	flag.BoolVar(&deployment.Core.Commands.Initialize, "init", false, "initial setup to be launched first, before manual, aka not automatable setup tasks")
 	flag.BoolVar(&deployment.Core.Commands.ConfigureAssetTypes, "config", false, "For assets types defined in solution.yaml writes setfeeds, dumpinventory, stream2bq instance.yaml files and subfolders")
 	flag.BoolVar(&deployment.Core.Commands.MakeReleasePipeline, "pipe", false, "make release pipeline using cloud build to deploy one instance, one microservice, or all")
@@ -48,11 +47,11 @@ func (deployment *Deployment) CheckArguments() (err error) {
 			return fmt.Errorf("Missing service argument")
 		}
 		instanceRelativePath := fmt.Sprintf("%s/%s/%s/%s", solution.MicroserviceParentFolderName, *microserviceFolderName, solution.InstancesFolderName, *instanceFolderName)
-		deployment.Core.InstanceFolderRelativePaths = []string{instanceRelativePath}
 		instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
 		if _, err := os.Stat(instancePath); err != nil {
 			return err
 		}
+		deployment.Core.InstanceFolderRelativePaths = []string{instanceRelativePath}
 		return nil
 	}
 
