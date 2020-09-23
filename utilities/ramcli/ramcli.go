@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	asset "cloud.google.com/go/asset/apiv1"
@@ -123,11 +124,11 @@ func RAMCli(deployment *Deployment) (err error) {
 
 	creds, err := google.FindDefaultCredentials(deployment.Core.Ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
-		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
+		return fmt.Errorf("ERROR - google.FindDefaultCredentials %v", err)
 	}
 	deployment.Core.Services.BigqueryClient, err = bigquery.NewClient(deployment.Core.Ctx, deployment.Core.SolutionSettings.Hosting.ProjectID, option.WithCredentials(creds))
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	if deployment.Core.AssetType != "" {
@@ -144,7 +145,9 @@ func RAMCli(deployment *Deployment) (err error) {
 					organizationID,
 					cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 			instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-			ffo.CheckPath(instancePath)
+			if _, err := os.Stat(instancePath); err != nil {
+				return err
+			}
 			instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 			serviceName = "dumpinventory"
@@ -157,7 +160,9 @@ func RAMCli(deployment *Deployment) (err error) {
 					organizationID,
 					cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 			instancePath = fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-			ffo.CheckPath(instancePath)
+			if _, err := os.Stat(instancePath); err != nil {
+				return err
+			}
 			instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 		}
 		serviceName := "stream2bq"
@@ -169,7 +174,9 @@ func RAMCli(deployment *Deployment) (err error) {
 				serviceName,
 				cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 		instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ffo.CheckPath(instancePath)
+		if _, err := os.Stat(instancePath); err != nil {
+			return err
+		}
 		instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 		serviceName = "upload2gcs"
@@ -181,7 +188,9 @@ func RAMCli(deployment *Deployment) (err error) {
 				serviceName,
 				cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 		instancePath = fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ffo.CheckPath(instancePath)
+		if _, err := os.Stat(instancePath); err != nil {
+			return err
+		}
 		instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 		deployment.Core.InstanceFolderRelativePaths = instanceFolderRelativePaths

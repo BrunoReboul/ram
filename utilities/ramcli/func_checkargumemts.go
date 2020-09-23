@@ -17,6 +17,7 @@ package ramcli
 import (
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/solution"
@@ -49,13 +50,18 @@ func (deployment *Deployment) CheckArguments() (err error) {
 		instanceRelativePath := fmt.Sprintf("%s/%s/%s/%s", solution.MicroserviceParentFolderName, *microserviceFolderName, solution.InstancesFolderName, *instanceFolderName)
 		deployment.Core.InstanceFolderRelativePaths = []string{instanceRelativePath}
 		instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ffo.CheckPath(instancePath)
+		if _, err := os.Stat(instancePath); err != nil {
+			return err
+		}
 		return nil
 	}
 
 	if *microserviceFolderName != "" {
 		// case one microservice
-		deployment.Core.InstanceFolderRelativePaths = ffo.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s/%s", solution.MicroserviceParentFolderName, *microserviceFolderName, solution.InstancesFolderName))
+		deployment.Core.InstanceFolderRelativePaths, err = ffo.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s/%s", solution.MicroserviceParentFolderName, *microserviceFolderName, solution.InstancesFolderName))
+		if err != nil {
+			return err
+		}
 	} else {
 		// case one assetType
 		if *assetType != "" {
@@ -63,8 +69,15 @@ func (deployment *Deployment) CheckArguments() (err error) {
 			return nil
 		}
 		// case all
-		for _, microserviceRelativeFolderPath := range ffo.GetChild(deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName) {
-			instanceFolderRelativePaths := ffo.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s", microserviceRelativeFolderPath, solution.InstancesFolderName))
+		microserviceRelativeFolderPaths, err := ffo.GetChild(deployment.Core.RepositoryPath, solution.MicroserviceParentFolderName)
+		if err != nil {
+			return err
+		}
+		for _, microserviceRelativeFolderPath := range microserviceRelativeFolderPaths {
+			instanceFolderRelativePaths, err := ffo.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s", microserviceRelativeFolderPath, solution.InstancesFolderName))
+			if err != nil {
+				return err
+			}
 			for _, instanceFolderRelativePath := range instanceFolderRelativePaths {
 				deployment.Core.InstanceFolderRelativePaths = append(deployment.Core.InstanceFolderRelativePaths, instanceFolderRelativePath)
 			}
