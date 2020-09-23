@@ -15,21 +15,19 @@
 package ramcli
 
 import (
-	"log"
-
 	"github.com/BrunoReboul/ram/services/setfeeds"
 )
 
-func (deployment *Deployment) deploySetFeeds() {
+func (deployment *Deployment) deploySetFeeds() (err error) {
 	instanceDeployment := setfeeds.NewInstanceDeployment()
 	instanceDeployment.Core = &deployment.Core
-	err := instanceDeployment.ReadValidate()
+	err = instanceDeployment.ReadValidate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	err = instanceDeployment.Situate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if deployment.Core.Commands.MakeReleasePipeline {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
@@ -45,6 +43,7 @@ func (deployment *Deployment) deploySetFeeds() {
 		}
 	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }

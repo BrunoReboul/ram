@@ -15,21 +15,19 @@
 package ramcli
 
 import (
-	"log"
-
 	"github.com/BrunoReboul/ram/services/publish2fs"
 )
 
-func (deployment *Deployment) deployPublish2fs() {
+func (deployment *Deployment) deployPublish2fs() (err error) {
 	instanceDeployment := publish2fs.NewInstanceDeployment()
 	instanceDeployment.Core = &deployment.Core
-	err := instanceDeployment.ReadValidate()
+	err = instanceDeployment.ReadValidate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	err = instanceDeployment.Situate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if deployment.Core.Commands.MakeReleasePipeline {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
@@ -42,6 +40,7 @@ func (deployment *Deployment) deployPublish2fs() {
 		}
 	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }

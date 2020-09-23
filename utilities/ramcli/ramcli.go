@@ -232,29 +232,53 @@ func RAMCli(deployment *Deployment) (err error) {
 			deployment.Core.ServiceName, deployment.Core.InstanceName = getServiceAndInstanceNames(instanceFolderRelativePath)
 			switch deployment.Core.ServiceName {
 			case "setfeeds":
-				deployment.deploySetFeeds()
+				if err = deployment.deploySetFeeds(); err != nil {
+					return err
+				}
 			case "dumpinventory":
-				deployment.deployDumpInventory()
+				if err = deployment.deployDumpInventory(); err != nil {
+					return err
+				}
 			case "splitdump":
-				deployment.deploySplitDump()
+				if err = deployment.deploySplitDump(); err != nil {
+					return err
+				}
 			case "publish2fs":
-				deployment.deployPublish2fs()
+				if err = deployment.deployPublish2fs(); err != nil {
+					return err
+				}
 			case "monitor":
-				deployment.deployMonitor()
+				if err = deployment.deployMonitor(); err != nil {
+					return err
+				}
 			case "stream2bq":
-				deployment.deployStream2bq()
+				if err = deployment.deployStream2bq(); err != nil {
+					return err
+				}
 			case "upload2gcs":
-				deployment.deployUpload2gcs()
+				if err = deployment.deployUpload2gcs(); err != nil {
+					return err
+				}
 			case "listgroups":
-				deployment.deployListGroups()
+				if err = deployment.deployListGroups(); err != nil {
+					return err
+				}
 			case "listgroupmembers":
-				deployment.deployListGroupMembers()
+				if err = deployment.deployListGroupMembers(); err != nil {
+					return err
+				}
 			case "getgroupsettings":
-				deployment.deployGetGroupSettings()
+				if err = deployment.deployGetGroupSettings(); err != nil {
+					return err
+				}
 			case "setlogsinks":
-				deployment.deploySetLogSinks()
+				if err = deployment.deploySetLogSinks(); err != nil {
+					return err
+				}
 			case "convertlog2feed":
-				deployment.deployConvertLog2Feed()
+				if err = deployment.deployConvertLog2Feed(); err != nil {
+					return err
+				}
 			}
 		}
 	}

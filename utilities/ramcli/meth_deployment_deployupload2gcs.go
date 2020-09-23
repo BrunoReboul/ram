@@ -15,22 +15,21 @@
 package ramcli
 
 import (
-	"log"
 	"strings"
 
 	"github.com/BrunoReboul/ram/services/upload2gcs"
 )
 
-func (deployment *Deployment) deployUpload2gcs() {
+func (deployment *Deployment) deployUpload2gcs() (err error) {
 	instanceDeployment := upload2gcs.NewInstanceDeployment()
 	instanceDeployment.Core = &deployment.Core
-	err := instanceDeployment.ReadValidate()
+	err = instanceDeployment.ReadValidate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	err = instanceDeployment.Situate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if deployment.Core.Commands.MakeReleasePipeline {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
@@ -46,6 +45,7 @@ func (deployment *Deployment) deployUpload2gcs() {
 		}
 	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }

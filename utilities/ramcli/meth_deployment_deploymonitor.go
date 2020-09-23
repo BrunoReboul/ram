@@ -15,21 +15,19 @@
 package ramcli
 
 import (
-	"log"
-
 	"github.com/BrunoReboul/ram/services/monitor"
 )
 
-func (deployment *Deployment) deployMonitor() {
+func (deployment *Deployment) deployMonitor() (err error) {
 	instanceDeployment := monitor.NewInstanceDeployment()
 	instanceDeployment.Core = &deployment.Core
-	err := instanceDeployment.ReadValidate()
+	err = instanceDeployment.ReadValidate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	err = instanceDeployment.Situate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if deployment.Core.Commands.MakeReleasePipeline {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
@@ -42,6 +40,7 @@ func (deployment *Deployment) deployMonitor() {
 		}
 	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }
