@@ -57,7 +57,8 @@ func (deployment *Deployment) CheckArguments() (err error) {
 
 	if *microserviceFolderName != "" {
 		// case one microservice
-		deployment.Core.InstanceFolderRelativePaths, err = ffo.GetChild(deployment.Core.RepositoryPath, fmt.Sprintf("%s/%s/%s", solution.MicroserviceParentFolderName, *microserviceFolderName, solution.InstancesFolderName))
+		deployment.Core.InstanceFolderRelativePaths, err = ffo.GetChild(deployment.Core.RepositoryPath,
+			fmt.Sprintf("%s/%s/%s", solution.MicroserviceParentFolderName, *microserviceFolderName, solution.InstancesFolderName))
 		if err != nil {
 			return err
 		}

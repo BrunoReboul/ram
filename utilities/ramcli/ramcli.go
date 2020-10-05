@@ -126,6 +126,7 @@ func RAMCli(deployment *Deployment) (err error) {
 	if err != nil {
 		return fmt.Errorf("ERROR - google.FindDefaultCredentials %v", err)
 	}
+	// BQ client cannot be initiated in the Intialize func as other clients as it requires the projdctID that is know only at this stage
 	deployment.Core.Services.BigqueryClient, err = bigquery.NewClient(deployment.Core.Ctx, deployment.Core.SolutionSettings.Hosting.ProjectID, option.WithCredentials(creds))
 	if err != nil {
 		return err
@@ -133,6 +134,7 @@ func RAMCli(deployment *Deployment) (err error) {
 
 	if deployment.Core.AssetType != "" {
 		// For one (new) assetType build the list of related instances to deploy accross services. aka transversal point of view
+		// Cannot be done in checkarguments like for other deployments as requires orgIDs list that is available only after ReadValidate
 		var instanceFolderRelativePaths []string
 		for _, organizationID := range deployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
 			serviceName := "setfeeds"
