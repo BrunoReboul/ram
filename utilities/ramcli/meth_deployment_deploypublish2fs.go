@@ -15,6 +15,8 @@
 package ramcli
 
 import (
+	"strings"
+
 	"github.com/BrunoReboul/ram/services/publish2fs"
 )
 
@@ -34,6 +36,11 @@ func (deployment *Deployment) deployPublish2fs() (err error) {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+		if strings.Contains(instanceDeployment.Settings.Instance.GCF.TriggerTopic, "cai-rces-") {
+			deployment.Core.AssetType = strings.Replace(strings.Replace(instanceDeployment.Settings.Instance.GCF.TriggerTopic, "cai-rces-", "", -1), "-", ".placeholder/", -1)
+		} else {
+			deployment.Core.AssetType = ""
+		}
 		err = deployment.deployInstanceReleasePipeline()
 	case deployment.Core.Commands.Deploy:
 		if deployment.Core.Commands.Deploy {

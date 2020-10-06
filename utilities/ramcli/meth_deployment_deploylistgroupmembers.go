@@ -34,6 +34,7 @@ func (deployment *Deployment) deployListGroupMembers() (err error) {
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+		deployment.Core.AssetType = ""
 		err = deployment.deployInstanceReleasePipeline()
 	case deployment.Core.Commands.Deploy:
 		if deployment.Core.Commands.Deploy {

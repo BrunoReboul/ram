@@ -38,6 +38,8 @@ func (deployment *Deployment) deployUpload2gcs() (err error) {
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
 		if strings.Contains(instanceDeployment.Settings.Instance.GCF.TriggerTopic, "cai-rces-") {
 			deployment.Core.AssetType = strings.Replace(strings.Replace(instanceDeployment.Settings.Instance.GCF.TriggerTopic, "cai-rces-", "", -1), "-", ".placeholder/", -1)
+		} else {
+			deployment.Core.AssetType = ""
 		}
 		err = deployment.deployInstanceReleasePipeline()
 	case deployment.Core.Commands.Deploy:
