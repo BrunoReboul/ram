@@ -29,6 +29,7 @@ func (deployment *Deployment) CheckArguments() (err error) {
 	flag.BoolVar(&deployment.Core.Commands.ConfigureAssetTypes, "config", false, "For assets types defined in solution.yaml writes setfeeds, dumpinventory, stream2bq instance.yaml files and subfolders")
 	flag.BoolVar(&deployment.Core.Commands.MakeReleasePipeline, "pipe", false, "make release pipeline using cloud build to deploy one instance, one microservice, or all")
 	flag.BoolVar(&deployment.Core.Commands.Deploy, "deploy", false, "deploy one microservice instance")
+	flag.BoolVar(&deployment.Core.Commands.Check, "check", false, "with -pipe it checks if configured instances have a cloud build trigger, with -deploy a running cloud function")
 	flag.BoolVar(&deployment.Core.Commands.Dumpsettings, "dump", false, fmt.Sprintf("dump all settings in %s", solution.SettingsFileName))
 	flag.StringVar(&deployment.Core.RepositoryPath, "repo", ".", "Path to the root of the code repository")
 	flag.StringVar(&deployment.Core.RamcliServiceAccount, "ramclisa", "", "Email of Service Account used when running ramcli")
@@ -40,6 +41,14 @@ func (deployment *Deployment) CheckArguments() (err error) {
 	deployment.Core.GoVersion, deployment.Core.RAMVersion, err = getVersions(deployment.Core.RepositoryPath)
 	if err != nil {
 		return err
+	}
+	if deployment.Core.Commands.Check {
+		if !deployment.Core.Commands.MakeReleasePipeline && !deployment.Core.Commands.Deploy {
+			return fmt.Errorf("-check can be used only in conjuction with -pipe or -deploy")
+		}
+	}
+	if deployment.Core.Commands.Deploy && deployment.Core.Commands.MakeReleasePipeline {
+		return fmt.Errorf("-pipe and -deploy are mutually exclusive, starts with -pipe then do -deploy")
 	}
 	// case one instance
 	if *instanceFolderName != "" {

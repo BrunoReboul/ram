@@ -72,6 +72,7 @@ type Core struct {
 		ConfigureAssetTypes bool
 		MakeReleasePipeline bool
 		Deploy              bool
+		Check               bool
 		Dumpsettings        bool
 	} `yaml:"-"`
 }
