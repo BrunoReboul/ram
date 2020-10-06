@@ -31,7 +31,8 @@ func (deployment *Deployment) deployUpload2gcs() (err error) {
 	if err != nil {
 		return err
 	}
-	if deployment.Core.Commands.MakeReleasePipeline {
+	switch true {
+	case deployment.Core.Commands.MakeReleasePipeline:
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
@@ -39,7 +40,7 @@ func (deployment *Deployment) deployUpload2gcs() (err error) {
 			deployment.Core.AssetType = strings.Replace(strings.Replace(instanceDeployment.Settings.Instance.GCF.TriggerTopic, "cai-rces-", "", -1), "-", ".placeholder/", -1)
 		}
 		err = deployment.deployInstanceReleasePipeline()
-	} else {
+	case deployment.Core.Commands.Deploy:
 		if deployment.Core.Commands.Deploy {
 			err = instanceDeployment.Deploy()
 		}
