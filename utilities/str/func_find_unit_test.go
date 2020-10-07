@@ -56,11 +56,11 @@ func TestUnitFind(t *testing.T) {
 			result := Find(tc.slice, tc.val)
 			if tc.shouldPass {
 				if tc.shouldPass != result {
-					t.Errorf("Should find string '%s' ins slice %v", tc.val, tc.slice)
+					t.Errorf("Should find string '%s' in slice %v", tc.val, tc.slice)
 				}
 			} else {
 				if tc.shouldPass != result {
-					t.Errorf("Should NOT find string '%s' ins slice %v", tc.val, tc.slice)
+					t.Errorf("Should NOT find string '%s' in slice %v", tc.val, tc.slice)
 				}
 			}
 		})
