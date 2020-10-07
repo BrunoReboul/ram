@@ -17,13 +17,23 @@ package str
 import (
 	"bytes"
 	"fmt"
+	"sort"
 )
 
 // FlattenMapStringString flatten a string string map into a string key1="value1", keyx="valuex",
 func FlattenMapStringString(m map[string]string) string {
+	keys := make([]string, len(m))
+	i := 0
+	for k := range m {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+
 	b := new(bytes.Buffer)
-	for key, value := range m {
-		fmt.Fprintf(b, "%s=\"%s\", ", key, value)
+	for _, k := range keys {
+		fmt.Println(k, m[k])
+		fmt.Fprintf(b, "%s=\"%s\", ", k, m[k])
 	}
 	return b.String()
 }
