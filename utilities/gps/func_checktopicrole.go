@@ -17,18 +17,14 @@ package gps
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"cloud.google.com/go/iam"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
-// SetTopicRole set a role on a topic
-func SetTopicRole(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, topicName string, member string, role iam.RoleName) (err error) {
-	// log.Printf("topicName %s", topicName)
-	// log.Printf("member %s", member)
-	// log.Printf("role %s", role)
+// CheckTopicRole check if a role exist on a topic
+func CheckTopicRole(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, topicName string, member string, role iam.RoleName) (err error) {
 	var getTopicRequest pubsubpb.GetTopicRequest
 	getTopicRequest.Topic = topicName
 	topic, err := pubSubPulisherClient.GetTopic(ctx, &getTopicRequest)
@@ -42,15 +38,8 @@ func SetTopicRole(ctx context.Context, pubSubPulisherClient *pubsub.PublisherCli
 		return fmt.Errorf("iamHandle.Policy %v", err)
 	}
 
-	if policy.HasRole(member, role) {
-		log.Printf("%s already has role %s on topic %s", member, role, topicName)
-		return nil
+	if !policy.HasRole(member, role) {
+		return fmt.Errorf("Missing role %s for member %s on topic %s", role, member, topicName)
 	}
-	policy.Add(member, role)
-	err = iamHandle.SetPolicy(ctx, policy)
-	if err != nil {
-		return fmt.Errorf("iamHandle.SetPolicy %v", err)
-	}
-	log.Printf("Granted role %s to %s on topic %s", role, member, topicName)
 	return nil
 }

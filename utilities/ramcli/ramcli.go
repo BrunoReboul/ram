@@ -290,7 +290,7 @@ func RAMCli(deployment *Deployment) (err error) {
 		}
 		if !breakOnFirstError {
 			if len(errors) > 0 {
-				var s string
+				s := fmt.Sprintf("Found %d errors\n", len(errors))
 				for _, e := range errors {
 					s = s + e.Error() + "\n"
 				}
