@@ -20,9 +20,12 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/BrunoReboul/ram/utilities/erm"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/cloudbuild/v1"
 )
+
+const retries = 5
 
 var globalTriggerDeployment *TriggerDeployment
 var count int
@@ -48,13 +51,19 @@ func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
 		if err = triggerDeployment.deleteTriggers(); err != nil {
 			return err
 		}
-		buildTrigger, err := triggerDeployment.Artifacts.ProjectsTriggersService.Create(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID,
-			&triggerDeployment.Artifacts.BuildTrigger).Context(triggerDeployment.Core.Ctx).Do()
-		if err != nil {
-			return err
+		for i := 0; i < retries; i++ {
+			buildTrigger, err := triggerDeployment.Artifacts.ProjectsTriggersService.Create(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID,
+				&triggerDeployment.Artifacts.BuildTrigger).Context(triggerDeployment.Core.Ctx).Do()
+			if err != nil {
+				if erm.IsNotTransientElseWait(err, 5) {
+					return err
+				}
+			} else {
+				// ffo.JSONMarshalIndentPrint(buildTrigger)
+				log.Printf("%s gcb created trigger %s id %s with tag filter %s", globalTriggerDeployment.Core.InstanceName, buildTrigger.Name, buildTrigger.Id, buildTrigger.TriggerTemplate.TagName)
+				break
+			}
 		}
-		// ffo.JSONMarshalIndentPrint(buildTrigger)
-		log.Printf("%s gcb created trigger %s id %s with tag filter %s", globalTriggerDeployment.Core.InstanceName, buildTrigger.Name, buildTrigger.Id, buildTrigger.TriggerTemplate.TagName)
 	}
 	return nil
 }
