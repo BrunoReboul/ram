@@ -23,31 +23,34 @@ import (
 func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	start := time.Now()
 	// Extended project
-	if err = instanceDeployment.deployGSUAPI(); err != nil {
-		return err
-	}
-	if err = instanceDeployment.deployGAEApp(); err != nil {
-		return err
-	}
-	if err = instanceDeployment.deployIAMProjectRoles(); err != nil {
-		return err
-	}
-	if err = instanceDeployment.deployIAMServiceAccount(); err != nil {
-		return err
-	}
-	if err = instanceDeployment.deployGRMProjectBindings(); err != nil {
-		return err
-	}
-	// Extended monitoring org
-	if err = instanceDeployment.deployIAMMonitoringOrgRole(); err != nil {
-		return err
-	}
-	if err = instanceDeployment.deployGRMMonitoringOrgBindings(); err != nil {
-		return err
-	}
-	// Core project
-	if err = instanceDeployment.deployGPSTopic(); err != nil {
-		return err
+	if !instanceDeployment.Core.Commands.Check {
+		// Deploy prequequsites only when not in check mode
+		if err = instanceDeployment.deployGSUAPI(); err != nil {
+			return err
+		}
+		if err = instanceDeployment.deployGAEApp(); err != nil {
+			return err
+		}
+		if err = instanceDeployment.deployIAMProjectRoles(); err != nil {
+			return err
+		}
+		if err = instanceDeployment.deployIAMServiceAccount(); err != nil {
+			return err
+		}
+		if err = instanceDeployment.deployGRMProjectBindings(); err != nil {
+			return err
+		}
+		// Extended monitoring org
+		if err = instanceDeployment.deployIAMMonitoringOrgRole(); err != nil {
+			return err
+		}
+		if err = instanceDeployment.deployGRMMonitoringOrgBindings(); err != nil {
+			return err
+		}
+		// Core project
+		if err = instanceDeployment.deployGPSTopic(); err != nil {
+			return err
+		}
 	}
 	if err = instanceDeployment.deployGCFFunction(); err != nil {
 		return err

@@ -22,25 +22,28 @@ import (
 // Deploy a service instance
 func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	start := time.Now()
-	// Extended project
-	if err = instanceDeployment.deployGSUAPI(); err != nil {
-		return err
-	}
-	if err = instanceDeployment.deployGAEApp(); err != nil {
-		return err
-	}
-	if err = instanceDeployment.deployIAMProjectRoles(); err != nil {
-		return err
-	}
-	if err = instanceDeployment.deployIAMServiceAccount(); err != nil {
-		return err
-	}
-	if err = instanceDeployment.deployGRMProjectBindings(); err != nil {
-		return err
-	}
-	// Core project
-	if err = instanceDeployment.deployGCSBucket(); err != nil {
-		return err
+	if !instanceDeployment.Core.Commands.Check {
+		// Deploy prequequsites only when not in check mode
+		// Extended project
+		if err = instanceDeployment.deployGSUAPI(); err != nil {
+			return err
+		}
+		if err = instanceDeployment.deployGAEApp(); err != nil {
+			return err
+		}
+		if err = instanceDeployment.deployIAMProjectRoles(); err != nil {
+			return err
+		}
+		if err = instanceDeployment.deployIAMServiceAccount(); err != nil {
+			return err
+		}
+		if err = instanceDeployment.deployGRMProjectBindings(); err != nil {
+			return err
+		}
+		// Core project
+		if err = instanceDeployment.deployGCSBucket(); err != nil {
+			return err
+		}
 	}
 	if err = instanceDeployment.deployGCFFunction(); err != nil {
 		return err

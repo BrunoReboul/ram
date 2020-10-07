@@ -24,7 +24,7 @@ import (
 	"google.golang.org/api/cloudfunctions/v1"
 )
 
-// createPatchCloudFunction looks for and existing cloud function
+// createPatchCloudFunction looks for an existing cloud function patch it if found else create it
 func (functionDeployment *FunctionDeployment) createPatchCloudFunction() (err error) {
 	var operation *cloudfunctions.Operation
 	location := fmt.Sprintf("projects/%s/locations/%s", functionDeployment.Core.SolutionSettings.Hosting.ProjectID, functionDeployment.Core.SolutionSettings.Hosting.GCF.Region)
