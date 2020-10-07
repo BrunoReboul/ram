@@ -126,6 +126,7 @@ func RAMCli(deployment *Deployment) (err error) {
 	if err != nil {
 		return fmt.Errorf("ERROR - google.FindDefaultCredentials %v", err)
 	}
+	// BQ client cannot be initiated in the Intialize func as other clients as it requires the projdctID that is know only at this stage
 	deployment.Core.Services.BigqueryClient, err = bigquery.NewClient(deployment.Core.Ctx, deployment.Core.SolutionSettings.Hosting.ProjectID, option.WithCredentials(creds))
 	if err != nil {
 		return err
@@ -133,6 +134,7 @@ func RAMCli(deployment *Deployment) (err error) {
 
 	if deployment.Core.AssetType != "" {
 		// For one (new) assetType build the list of related instances to deploy accross services. aka transversal point of view
+		// Cannot be done in checkarguments like for other deployments as requires orgIDs list that is available only after ReadValidate
 		var instanceFolderRelativePaths []string
 		for _, organizationID := range deployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
 			serviceName := "setfeeds"
@@ -237,57 +239,62 @@ func RAMCli(deployment *Deployment) (err error) {
 		}
 	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
+		errors := make([]error, 0)
+		breakOnFirstError := true
+		if deployment.Core.Commands.MakeReleasePipeline {
+			// Deploy prerequisites once before iterating over the list of instance triggers
+			if err = deployment.deployReleasePipelinePrerequsites(); err != nil {
+				return err
+			}
+		}
+		if deployment.Core.Commands.Check {
+			breakOnFirstError = false
+		}
 		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
 			deployment.Core.ServiceName, deployment.Core.InstanceName = getServiceAndInstanceNames(instanceFolderRelativePath)
 			switch deployment.Core.ServiceName {
 			case "setfeeds":
-				if err = deployment.deploySetFeeds(); err != nil {
-					return err
-				}
+				err = deployment.deploySetFeeds()
 			case "dumpinventory":
-				if err = deployment.deployDumpInventory(); err != nil {
-					return err
-				}
+				err = deployment.deployDumpInventory()
 			case "splitdump":
-				if err = deployment.deploySplitDump(); err != nil {
-					return err
-				}
+				err = deployment.deploySplitDump()
 			case "publish2fs":
-				if err = deployment.deployPublish2fs(); err != nil {
-					return err
-				}
+				err = deployment.deployPublish2fs()
 			case "monitor":
-				if err = deployment.deployMonitor(); err != nil {
-					return err
-				}
+				err = deployment.deployMonitor()
 			case "stream2bq":
-				if err = deployment.deployStream2bq(); err != nil {
-					return err
-				}
+				err = deployment.deployStream2bq()
 			case "upload2gcs":
-				if err = deployment.deployUpload2gcs(); err != nil {
-					return err
-				}
+				err = deployment.deployUpload2gcs()
 			case "listgroups":
-				if err = deployment.deployListGroups(); err != nil {
-					return err
-				}
+				err = deployment.deployListGroups()
 			case "listgroupmembers":
-				if err = deployment.deployListGroupMembers(); err != nil {
-					return err
-				}
+				err = deployment.deployListGroupMembers()
 			case "getgroupsettings":
-				if err = deployment.deployGetGroupSettings(); err != nil {
-					return err
-				}
+				err = deployment.deployGetGroupSettings()
 			case "setlogsinks":
-				if err = deployment.deploySetLogSinks(); err != nil {
-					return err
-				}
+				err = deployment.deploySetLogSinks()
 			case "convertlog2feed":
-				if err = deployment.deployConvertLog2Feed(); err != nil {
+				err = deployment.deployConvertLog2Feed()
+			}
+			if breakOnFirstError {
+				if err != nil {
 					return err
 				}
+			} else {
+				if err != nil {
+					errors = append(errors, err)
+				}
+			}
+		}
+		if !breakOnFirstError {
+			if len(errors) > 0 {
+				var s string
+				for _, e := range errors {
+					s = s + e.Error() + "\n"
+				}
+				return fmt.Errorf("%s", s)
 			}
 		}
 	}

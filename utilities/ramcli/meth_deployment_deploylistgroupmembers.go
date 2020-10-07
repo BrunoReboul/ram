@@ -29,12 +29,14 @@ func (deployment *Deployment) deployListGroupMembers() (err error) {
 	if err != nil {
 		return err
 	}
-	if deployment.Core.Commands.MakeReleasePipeline {
+	switch true {
+	case deployment.Core.Commands.MakeReleasePipeline:
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
+		deployment.Core.AssetType = ""
 		err = deployment.deployInstanceReleasePipeline()
-	} else {
+	case deployment.Core.Commands.Deploy:
 		if deployment.Core.Commands.Deploy {
 			err = instanceDeployment.Deploy()
 		}

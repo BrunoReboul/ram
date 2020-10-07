@@ -12,12 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ramcli
-
-// deployInstanceReleasePipeline deploys the cloud build trigger related to an instance
-func (deployment *Deployment) deployInstanceReleasePipeline() (err error) {
-	if err = deployment.deployGCBTrigger(); err != nil {
-		return err
-	}
-	return nil
-}
+// Package erm helps with errors management
+package erm
