@@ -26,5 +26,6 @@ func GetCommonAPIlist() []string {
 		"storage-api.googleapis.com",
 		"storage-component.googleapis.com",
 		"stackdriver.googleapis.com", // keep stackdriver in common, to have it activated in initial setup, has their is a namual step then to attach the project with a stackdriver workspace
+		"cloudbuild.googleapis.com",  // keep cloud cuild in common, as all RAM services use it for deployments
 		"sourcerepo.googleapis.com"}  // keep source repo in common, to have it activated in initial setup, has their may be a namual step then to mirror the repo from an external source
 }

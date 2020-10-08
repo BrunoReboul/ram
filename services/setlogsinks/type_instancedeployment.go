@@ -50,7 +50,6 @@ type InstanceDeployment struct {
 func NewInstanceDeployment() *InstanceDeployment {
 	var instanceDeployment InstanceDeployment
 	instanceDeployment.Settings.Service.GSU.APIList = []string{
-		"cloudbuild.googleapis.com",
 		"cloudresourcemanager.googleapis.com",
 		"containerregistry.googleapis.com",
 		"iam.googleapis.com",
