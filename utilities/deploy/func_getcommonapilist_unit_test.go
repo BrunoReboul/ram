@@ -23,7 +23,7 @@ func TestUnitGetCommonAPIlist(t *testing.T) {
 		name                string
 		wantNumberCommonAPI int
 	}{
-		{"ExactNumberOfCommonAPIs", 10},
+		{"ExactNumberOfCommonAPIs", 11},
 	}
 
 	for _, tc := range testCases {
