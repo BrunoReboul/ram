@@ -14,11 +14,14 @@
 
 package ramcli
 
+import "github.com/BrunoReboul/ram/utilities/deploy"
+
 // deployReleasePipelinePrerequsites deploy once the prerequisites to create then cloud build triggers
 func (deployment *Deployment) deployReleasePipelinePrerequsites() (err error) {
 	if err = deployment.enableBILBillingAccountOnProject(); err != nil {
 		return err
 	}
+	deployment.Settings.Service.GSU.APIList = deploy.GetCommonAPIlist()
 	if err = deployment.deployGSUAPI(); err != nil {
 		return err
 	}
