@@ -16,6 +16,49 @@ package ramcli
 
 // deployInstanceReleasePipeline deploys the cloud build trigger related to an instance
 func (deployment *Deployment) deployInstanceReleasePipeline() (err error) {
+	if !deployment.Core.Commands.Check {
+		// Deploy prequequsites only when not in check mode
+		if err = deployment.deployGSUAPI(); err != nil {
+			return err
+		}
+		// Extended hosting org
+		if err = deployment.deployIAMHostingOrgRole(); err != nil {
+			return err
+		}
+		if err = deployment.deployGRMHostingOrgBindings(); err != nil {
+			return err
+		}
+		// Extended monitoring org
+		if err = deployment.deployIAMMonitoringOrgRole(); err != nil {
+			return err
+		}
+		if err = deployment.deployGRMMonitoringOrgBindings(); err != nil {
+			return err
+		}
+		// Extended folder
+		if err = deployment.deployGRMFolder(); err != nil {
+			return err
+		}
+		if err = deployment.deployGRMProject(); err != nil {
+			return err
+		}
+		if err = deployment.deployIAMProjectRoles(); err != nil {
+			return err
+		}
+		if err = deployment.deployGRMProjectBindings(); err != nil {
+			return err
+		}
+		if err = deployment.deployIAMServiceAccount(); err != nil {
+			return err
+		}
+		if err = deployment.deployIAMBindings(); err != nil {
+			return err
+		}
+		// Core folder
+		if err = deployment.deployGSRRepo(); err != nil {
+			return err
+		}
+	}
 	if err = deployment.deployGCBTrigger(); err != nil {
 		return err
 	}

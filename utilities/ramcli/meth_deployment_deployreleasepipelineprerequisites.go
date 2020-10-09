@@ -18,48 +18,13 @@ import "github.com/BrunoReboul/ram/utilities/deploy"
 
 // deployReleasePipelinePrerequsites deploy once the prerequisites to create then cloud build triggers
 func (deployment *Deployment) deployReleasePipelinePrerequsites() (err error) {
+	// Common pre requisite, specific pre req (aka custom roles) are addresses in deployInstanceReleasePipeline
+	// see https://github.com/BrunoReboul/ram/issues/44
 	if err = deployment.enableBILBillingAccountOnProject(); err != nil {
 		return err
 	}
 	deployment.Settings.Service.GSU.APIList = deploy.GetCommonAPIlist()
 	if err = deployment.deployGSUAPI(); err != nil {
-		return err
-	}
-	// Extended hosting org
-	if err = deployment.deployIAMHostingOrgRole(); err != nil {
-		return err
-	}
-	if err = deployment.deployGRMHostingOrgBindings(); err != nil {
-		return err
-	}
-	// Extended monitoring org
-	if err = deployment.deployIAMMonitoringOrgRole(); err != nil {
-		return err
-	}
-	if err = deployment.deployGRMMonitoringOrgBindings(); err != nil {
-		return err
-	}
-	// Extended folder
-	if err = deployment.deployGRMFolder(); err != nil {
-		return err
-	}
-	if err = deployment.deployGRMProject(); err != nil {
-		return err
-	}
-	if err = deployment.deployIAMProjectRoles(); err != nil {
-		return err
-	}
-	if err = deployment.deployGRMProjectBindings(); err != nil {
-		return err
-	}
-	if err = deployment.deployIAMServiceAccount(); err != nil {
-		return err
-	}
-	if err = deployment.deployIAMBindings(); err != nil {
-		return err
-	}
-	// Core folder
-	if err = deployment.deployGSRRepo(); err != nil {
 		return err
 	}
 	return nil
