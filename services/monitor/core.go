@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -35,8 +36,6 @@ import (
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
-
-const settingsFileName string = "./settings.json"
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
@@ -228,6 +227,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+
+	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
+		log.Printf("Ignored pubsub message: %s", string(PubSubMessage.Data))
+		return nil // NO RETRY
+	}
 
 	var complianceStatus ComplianceStatus
 	var compliantLog compliantLog
@@ -474,6 +478,7 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 
 	err := json.Unmarshal(pubSubMessage.Data, &feedMessage)
 	if err != nil {
+		log.Printf("ERROR - pubSubMessage.Data cannot be UnMarshalled as a feed %s", string(pubSubMessage.Data))
 		return assetsJSONDocument, feedMessage, fmt.Errorf("json.Unmarshal(pubSubMessage.Data, &feedMessage) %v", err)
 	}
 
@@ -485,8 +490,8 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 	feedMessage.Asset.AncestorsDisplayName = cai.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
 	feedMessage.Asset.AncestryPathDisplayName = cai.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
 
-	feedMessage.Asset.Owner, _ = cai.GetAssetContact(global.ownerLabelKeyName, feedMessage.Asset.Resource)
-	feedMessage.Asset.ViolationResolver, _ = cai.GetAssetContact(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)
+	feedMessage.Asset.ViolationResolver, _ = cai.GetAssetLabelValue(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 	// Duplicate fileds into fieldLegacy for compatibility with existing policy library templates
 	feedMessage.Asset.IamPolicyLegacy = feedMessage.Asset.IamPolicy
 	feedMessage.Asset.AssetTypeLegacy = feedMessage.Asset.AssetType

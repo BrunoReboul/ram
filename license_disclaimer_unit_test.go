@@ -38,22 +38,24 @@ const GODisclaimer = `// Copyright 2020 Google LLC
 // limitations under the License.
 `
 
-func TestDisclaimer(t *testing.T) {
+func TestUnitDisclaimer(t *testing.T) {
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if filepath.Ext(path) != ".go" {
-			return nil
-		}
-		sourceCode, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		// Check the source code starts with the license and disclaimer header
-		if !bytes.HasPrefix(sourceCode, []byte(GODisclaimer)) {
-			t.Errorf("%v: license and disclaimer header not found on first line", path)
-		}
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			t.Parallel()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if filepath.Ext(path) == ".go" {
+				sourceCode, err := ioutil.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				// Check the source code starts with the license and disclaimer header
+				if !bytes.HasPrefix(sourceCode, []byte(GODisclaimer)) {
+					t.Errorf("%v: license and disclaimer header not found on first line", path)
+				}
+			}
+		})
 		return nil
 	})
 	if err != nil {

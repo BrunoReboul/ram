@@ -12,20 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ffo
+package deploy
 
 import (
-	"log"
-	"os"
+	"testing"
 )
 
-// CheckPath crashes execution when the path is not found or when an other error occurs
-func CheckPath(path string) {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			log.Fatalf("Path does not exist: %s", path)
-		} else {
-			log.Fatalln(err)
-		}
+func TestUnitGetCommonAPIlist(t *testing.T) {
+	var testCases = []struct {
+		name                string
+		wantNumberCommonAPI int
+	}{
+		{"ExactNumberOfCommonAPIs", 11},
+	}
+
+	for _, tc := range testCases {
+		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			countCommonAPIs := len(GetCommonAPIlist())
+			if tc.wantNumberCommonAPI != countCommonAPIs {
+				t.Errorf("Want %d common APIs got %d", tc.wantNumberCommonAPI, countCommonAPIs)
+			}
+		})
 	}
 }

@@ -52,7 +52,6 @@ func NewInstanceDeployment() *InstanceDeployment {
 	var instanceDeployment InstanceDeployment
 	instanceDeployment.Settings.Service.GSU.APIList = []string{
 		"cloudasset.googleapis.com",
-		"cloudbuild.googleapis.com",
 		"cloudresourcemanager.googleapis.com",
 		"containerregistry.googleapis.com",
 		"iam.googleapis.com",

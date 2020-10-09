@@ -17,19 +17,24 @@ package gcb
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 
+	"github.com/BrunoReboul/ram/utilities/erm"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/cloudbuild/v1"
 )
 
+const retries = 5
+
 var globalTriggerDeployment *TriggerDeployment
+var count int
 
 // Permission cloudbuild.builds.get is required in complemenet of cloudbuild.builds.list, event if 'get' API is not used
 
-// Deploy delete is exist, then create a cloud build trigger to deploy a microservice instance
+// Deploy delete if exist, then create a cloud build trigger to deploy a microservice instance
 func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
-	log.Printf("%s gcb cloud build trigger", triggerDeployment.Core.InstanceName)
+	// log.Printf("%s gcb cloud build trigger", triggerDeployment.Core.InstanceName)
 	if triggerDeployment.Settings.Service.GCB.QueueTTL == "" {
 		triggerDeployment.Settings.Service.GCB.QueueTTL = triggerDeployment.Core.SolutionSettings.Hosting.GCB.QueueTTL
 	}
@@ -37,21 +42,134 @@ func (triggerDeployment *TriggerDeployment) Deploy() (err error) {
 	triggerDeployment.situate()
 	// ffo.JSONMarshalIndentPrint(&triggerDeployment.Artifacts.BuildTrigger)
 	globalTriggerDeployment = triggerDeployment
-	triggerDeployment.deleteTriggers()
-	buildTrigger, err := triggerDeployment.Artifacts.ProjectsTriggersService.Create(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID,
-		&triggerDeployment.Artifacts.BuildTrigger).Context(triggerDeployment.Core.Ctx).Do()
-	if err != nil {
+	if triggerDeployment.Core.Commands.Check {
+		if err = triggerDeployment.checkTrigger(); err != nil {
+			return err
+		}
+		log.Printf("%s gcb trigger checked", globalTriggerDeployment.Core.InstanceName)
+	} else {
+		if err = triggerDeployment.deleteTriggers(); err != nil {
+			return err
+		}
+		for i := 0; i < retries; i++ {
+			buildTrigger, err := triggerDeployment.Artifacts.ProjectsTriggersService.Create(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID,
+				&triggerDeployment.Artifacts.BuildTrigger).Context(triggerDeployment.Core.Ctx).Do()
+			if err != nil {
+				if erm.IsNotTransientElseWait(err, 5) {
+					return err
+				}
+			} else {
+				// ffo.JSONMarshalIndentPrint(buildTrigger)
+				log.Printf("%s gcb created trigger %s id %s with tag filter %s", globalTriggerDeployment.Core.InstanceName, buildTrigger.Name, buildTrigger.Id, buildTrigger.TriggerTemplate.TagName)
+				break
+			}
+		}
+	}
+	return nil
+}
+
+func (triggerDeployment *TriggerDeployment) checkTrigger() (err error) {
+	count = 0
+	if err = triggerDeployment.Artifacts.ProjectsTriggersService.List(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID).Pages(triggerDeployment.Core.Ctx, browseTriggerToCheck); err != nil {
 		return err
 	}
-	// ffo.JSONMarshalIndentPrint(buildTrigger)
-	log.Printf("%s gcb created trigger %s id %s with tag filter %s", globalTriggerDeployment.Core.InstanceName, buildTrigger.Name, buildTrigger.Id, buildTrigger.TriggerTemplate.TagName)
+	if count == 0 {
+		return fmt.Errorf("%s gcb trigger NOT found for this instance", globalTriggerDeployment.Core.InstanceName)
+	}
+	return nil
+}
+
+func browseTriggerToCheck(response *cloudbuild.ListBuildTriggersResponse) error {
+	for _, buildtrigger := range response.Triggers {
+		if buildtrigger.Name == globalTriggerDeployment.Artifacts.BuildTrigger.Name {
+			count++
+			if err := checkBuildTrigger(buildtrigger); err != nil {
+				return err
+			}
+		}
+	}
+	if count > 1 {
+		return fmt.Errorf("%s gcb found more than one trigger for this instance", globalTriggerDeployment.Core.InstanceName)
+	}
+	return nil
+}
+
+func checkBuildTrigger(buildtrigger *cloudbuild.BuildTrigger) (err error) {
+	// A least one trigger maching the instance name has been found, check its configuration
+	var s string
+	if buildtrigger.Description != globalTriggerDeployment.Artifacts.BuildTrigger.Description {
+		s = fmt.Sprintf("%sdescription\nwant %s\nhave %s\n", s,
+			globalTriggerDeployment.Artifacts.BuildTrigger.Description,
+			buildtrigger.Description)
+	}
+	if len(buildtrigger.Build.Steps) != len(globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps) {
+		s = fmt.Sprintf("%sunexpected_number_of_steps\nwant %d\nhave %d\n", s,
+			len(globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps),
+			len(buildtrigger.Build.Steps))
+	} else {
+		for i := range globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps {
+			if globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps[i].Id != buildtrigger.Build.Steps[i].Id {
+				s = fmt.Sprintf("%sbuild_step_%d_id\nwant %s\nhave %s\n", s, i,
+					globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps[i].Id,
+					buildtrigger.Build.Steps[i].Id)
+			}
+			if globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps[i].Name != buildtrigger.Build.Steps[i].Name {
+				s = fmt.Sprintf("%sbuild_step_%d_name\nwant %s\nhave %s\n", s, i,
+					globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps[i].Name,
+					buildtrigger.Build.Steps[i].Name)
+			}
+			if !reflect.DeepEqual(globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps[i].Args, buildtrigger.Build.Steps[i].Args) {
+				s = fmt.Sprintf("%sbuild_step_%d_args\nwant %s\nhave %s\n", s, i,
+					strings.Join(globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps[i].Args[:], " "),
+					strings.Join(buildtrigger.Build.Steps[i].Args[:], " "))
+			}
+			if globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps[i].Entrypoint != buildtrigger.Build.Steps[i].Entrypoint {
+				s = fmt.Sprintf("%sbuild_step_%d_entryPoint\nwant %s\nhave %s\n", s, i,
+					globalTriggerDeployment.Artifacts.BuildTrigger.Build.Steps[i].Entrypoint,
+					buildtrigger.Build.Steps[i].Entrypoint)
+			}
+		}
+	}
+	if buildtrigger.Build.Timeout != globalTriggerDeployment.Artifacts.BuildTrigger.Build.Timeout {
+		s = fmt.Sprintf("%sbuild_timeout\nwant %s\nhave %s\n", s,
+			globalTriggerDeployment.Artifacts.BuildTrigger.Build.Timeout,
+			buildtrigger.Build.Timeout)
+	}
+	if buildtrigger.Build.QueueTtl != globalTriggerDeployment.Artifacts.BuildTrigger.Build.QueueTtl {
+		s = fmt.Sprintf("%sbuild_queueTtl\nwant %s\nhave %s\n", s,
+			globalTriggerDeployment.Artifacts.BuildTrigger.Build.QueueTtl,
+			buildtrigger.Build.QueueTtl)
+	}
+	if !reflect.DeepEqual(buildtrigger.Build.Tags, globalTriggerDeployment.Artifacts.BuildTrigger.Build.Tags) {
+		s = fmt.Sprintf("%sbuild_tags\nwant %s\nhave %s\n", s,
+			strings.Join(globalTriggerDeployment.Artifacts.BuildTrigger.Build.Tags[:], ","),
+			strings.Join(buildtrigger.Build.Tags[:], ","))
+	}
+	if buildtrigger.TriggerTemplate.ProjectId != globalTriggerDeployment.Artifacts.BuildTrigger.TriggerTemplate.ProjectId {
+		s = fmt.Sprintf("%striggerTemplate_projectId\nwant %s\nhave %s\n", s,
+			globalTriggerDeployment.Artifacts.BuildTrigger.TriggerTemplate.ProjectId,
+			buildtrigger.TriggerTemplate.ProjectId)
+	}
+	if buildtrigger.TriggerTemplate.RepoName != globalTriggerDeployment.Artifacts.BuildTrigger.TriggerTemplate.RepoName {
+		s = fmt.Sprintf("%striggerTemplate_repoName\nwant %s\nhave %s\n", s,
+			globalTriggerDeployment.Artifacts.BuildTrigger.TriggerTemplate.RepoName,
+			buildtrigger.TriggerTemplate.RepoName)
+	}
+	if buildtrigger.TriggerTemplate.TagName != globalTriggerDeployment.Artifacts.BuildTrigger.TriggerTemplate.TagName {
+		s = fmt.Sprintf("%striggerTemplate_tagName\nwant %s\nhave %s\n", s,
+			globalTriggerDeployment.Artifacts.BuildTrigger.TriggerTemplate.TagName, buildtrigger.TriggerTemplate.TagName)
+	}
+
+	if len(s) > 0 {
+		return fmt.Errorf("%s gcb invalid trigger configuration:\n%s", globalTriggerDeployment.Core.InstanceName, s)
+	}
 	return nil
 }
 
 func (triggerDeployment *TriggerDeployment) deleteTriggers() (err error) {
 	err = triggerDeployment.Artifacts.ProjectsTriggersService.List(triggerDeployment.Core.SolutionSettings.Hosting.ProjectID).Pages(triggerDeployment.Core.Ctx, browseTriggerToDelete)
 	if err != nil {
-		return fmt.Errorf("ProjectsTriggersService.List %v", err)
+		return fmt.Errorf("ProjectsTriggersService.List for deleting %v", err)
 	}
 	return nil
 }

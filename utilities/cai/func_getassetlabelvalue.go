@@ -16,9 +16,8 @@ package cai
 
 import "encoding/json"
 
-// GetAssetContact retrieve owner of resolver contact from asset labels and parent labels
-func GetAssetContact(contactRole string, resourceJSON json.RawMessage) (string, error) {
-	var contact string
+// GetAssetLabelValue retrieve a label value from a label key, e.g. owner of resolver contact from asset labels
+func GetAssetLabelValue(labelKey string, resourceJSON json.RawMessage) (string, error) {
 	var resource struct {
 		Data struct {
 			Labels map[string]string
@@ -29,9 +28,9 @@ func GetAssetContact(contactRole string, resourceJSON json.RawMessage) (string, 
 		return "", err
 	}
 	if resource.Data.Labels != nil {
-		if labelValue, ok := resource.Data.Labels[contactRole]; ok {
-			contact = labelValue
+		if labelValue, ok := resource.Data.Labels[labelKey]; ok {
+			return labelValue, nil
 		}
 	}
-	return contact, nil
+	return "", nil
 }

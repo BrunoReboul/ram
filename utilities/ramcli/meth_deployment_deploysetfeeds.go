@@ -15,36 +15,38 @@
 package ramcli
 
 import (
-	"log"
-
 	"github.com/BrunoReboul/ram/services/setfeeds"
 )
 
-func (deployment *Deployment) deploySetFeeds() {
+func (deployment *Deployment) deploySetFeeds() (err error) {
 	instanceDeployment := setfeeds.NewInstanceDeployment()
 	instanceDeployment.Core = &deployment.Core
-	err := instanceDeployment.ReadValidate()
+	err = instanceDeployment.ReadValidate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	err = instanceDeployment.Situate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	if deployment.Core.Commands.MakeReleasePipeline {
+	switch true {
+	case deployment.Core.Commands.MakeReleasePipeline:
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
 		if instanceDeployment.Settings.Instance.CAI.ContentType == "RESOURCE" {
 			deployment.Core.AssetType = instanceDeployment.Settings.Instance.CAI.AssetTypes[0]
+		} else {
+			deployment.Core.AssetType = ""
 		}
 		err = deployment.deployInstanceReleasePipeline()
-	} else {
+	case deployment.Core.Commands.Deploy:
 		if deployment.Core.Commands.Deploy {
 			err = instanceDeployment.Deploy()
 		}
 	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }

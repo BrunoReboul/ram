@@ -15,37 +15,40 @@
 package ramcli
 
 import (
-	"log"
 	"strings"
 
 	"github.com/BrunoReboul/ram/services/upload2gcs"
 )
 
-func (deployment *Deployment) deployUpload2gcs() {
+func (deployment *Deployment) deployUpload2gcs() (err error) {
 	instanceDeployment := upload2gcs.NewInstanceDeployment()
 	instanceDeployment.Core = &deployment.Core
-	err := instanceDeployment.ReadValidate()
+	err = instanceDeployment.ReadValidate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	err = instanceDeployment.Situate()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	if deployment.Core.Commands.MakeReleasePipeline {
+	switch true {
+	case deployment.Core.Commands.MakeReleasePipeline:
 		deployment.Settings.Service.GCB = instanceDeployment.Settings.Service.GCB
 		deployment.Settings.Service.IAM = instanceDeployment.Settings.Service.IAM
 		deployment.Settings.Service.GSU = instanceDeployment.Settings.Service.GSU
 		if strings.Contains(instanceDeployment.Settings.Instance.GCF.TriggerTopic, "cai-rces-") {
 			deployment.Core.AssetType = strings.Replace(strings.Replace(instanceDeployment.Settings.Instance.GCF.TriggerTopic, "cai-rces-", "", -1), "-", ".placeholder/", -1)
+		} else {
+			deployment.Core.AssetType = ""
 		}
 		err = deployment.deployInstanceReleasePipeline()
-	} else {
+	case deployment.Core.Commands.Deploy:
 		if deployment.Core.Commands.Deploy {
 			err = instanceDeployment.Deploy()
 		}
 	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }

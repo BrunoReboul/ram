@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	asset "cloud.google.com/go/asset/apiv1"
@@ -107,26 +108,33 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 
 // RAMCli Real-time Asset Monitor cli
 func RAMCli(deployment *Deployment) (err error) {
-	deployment.CheckArguments()
+	err = deployment.CheckArguments()
+	if err != nil {
+		return err
+	}
+	log.Printf("goVersion %s, ramVersion %s", deployment.Core.GoVersion, deployment.Core.RAMVersion)
+
 	solutionConfigFilePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, solution.SolutionSettingsFileName)
 	err = ffo.ReadValidate("", "SolutionSettings", solutionConfigFilePath, &deployment.Core.SolutionSettings)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	deployment.Core.SolutionSettings.Situate(deployment.Core.EnvironmentName)
 	deployment.Core.ProjectNumber, err = getProjectNumber(deployment.Core.Ctx, deployment.Core.Services.CloudresourcemanagerService, deployment.Core.SolutionSettings.Hosting.ProjectID)
 
 	creds, err := google.FindDefaultCredentials(deployment.Core.Ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
-		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
+		return fmt.Errorf("ERROR - google.FindDefaultCredentials %v", err)
 	}
+	// BQ client cannot be initiated in the Intialize func as other clients as it requires the projdctID that is know only at this stage
 	deployment.Core.Services.BigqueryClient, err = bigquery.NewClient(deployment.Core.Ctx, deployment.Core.SolutionSettings.Hosting.ProjectID, option.WithCredentials(creds))
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	if deployment.Core.AssetType != "" {
 		// For one (new) assetType build the list of related instances to deploy accross services. aka transversal point of view
+		// Cannot be done in checkarguments like for other deployments as requires orgIDs list that is available only after ReadValidate
 		var instanceFolderRelativePaths []string
 		for _, organizationID := range deployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
 			serviceName := "setfeeds"
@@ -139,7 +147,9 @@ func RAMCli(deployment *Deployment) (err error) {
 					organizationID,
 					cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 			instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-			ffo.CheckPath(instancePath)
+			if _, err := os.Stat(instancePath); err != nil {
+				return err
+			}
 			instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 			serviceName = "dumpinventory"
@@ -152,7 +162,9 @@ func RAMCli(deployment *Deployment) (err error) {
 					organizationID,
 					cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 			instancePath = fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-			ffo.CheckPath(instancePath)
+			if _, err := os.Stat(instancePath); err != nil {
+				return err
+			}
 			instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 		}
 		serviceName := "stream2bq"
@@ -164,7 +176,9 @@ func RAMCli(deployment *Deployment) (err error) {
 				serviceName,
 				cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 		instancePath := fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ffo.CheckPath(instancePath)
+		if _, err := os.Stat(instancePath); err != nil {
+			return err
+		}
 		instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 		serviceName = "upload2gcs"
@@ -176,7 +190,9 @@ func RAMCli(deployment *Deployment) (err error) {
 				serviceName,
 				cai.GetAssetShortTypeName(deployment.Core.AssetType)), "-", "_", -1)
 		instancePath = fmt.Sprintf("%s/%s", deployment.Core.RepositoryPath, instanceRelativePath)
-		ffo.CheckPath(instancePath)
+		if _, err := os.Stat(instancePath); err != nil {
+			return err
+		}
 		instanceFolderRelativePaths = append(instanceFolderRelativePaths, instanceRelativePath)
 
 		deployment.Core.InstanceFolderRelativePaths = instanceFolderRelativePaths
@@ -185,71 +201,100 @@ func RAMCli(deployment *Deployment) (err error) {
 	switch true {
 	case deployment.Core.Commands.Initialize:
 		if err = deployment.initialize(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	case deployment.Core.Commands.ConfigureAssetTypes:
 		if err = deployment.configureSetFeedsAssetTypes(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureDumpInventoryAssetTypes(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureSplitDumpSingleInstance(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configurePublish2fsInstances(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureStream2bqAssetTypes(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureUpload2gcsMetadataTypes(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureListGroupsDirectories(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureListGroupMembersDirectories(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureGetGroupSettingsDirectories(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureLogSinksOrganizations(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if err = deployment.configureConvertlog2feedOrganizations(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
+		errors := make([]error, 0)
+		breakOnFirstError := true
+		if deployment.Core.Commands.MakeReleasePipeline {
+			// Deploy prerequisites once before iterating over the list of instance triggers
+			if err = deployment.deployReleasePipelinePrerequsites(); err != nil {
+				return err
+			}
+		}
+		if deployment.Core.Commands.Check {
+			breakOnFirstError = false
+		}
 		for _, instanceFolderRelativePath := range deployment.Core.InstanceFolderRelativePaths {
 			deployment.Core.ServiceName, deployment.Core.InstanceName = getServiceAndInstanceNames(instanceFolderRelativePath)
 			switch deployment.Core.ServiceName {
 			case "setfeeds":
-				deployment.deploySetFeeds()
+				err = deployment.deploySetFeeds()
 			case "dumpinventory":
-				deployment.deployDumpInventory()
+				err = deployment.deployDumpInventory()
 			case "splitdump":
-				deployment.deploySplitDump()
+				err = deployment.deploySplitDump()
 			case "publish2fs":
-				deployment.deployPublish2fs()
+				err = deployment.deployPublish2fs()
 			case "monitor":
-				deployment.deployMonitor()
+				err = deployment.deployMonitor()
 			case "stream2bq":
-				deployment.deployStream2bq()
+				err = deployment.deployStream2bq()
 			case "upload2gcs":
-				deployment.deployUpload2gcs()
+				err = deployment.deployUpload2gcs()
 			case "listgroups":
-				deployment.deployListGroups()
+				err = deployment.deployListGroups()
 			case "listgroupmembers":
-				deployment.deployListGroupMembers()
+				err = deployment.deployListGroupMembers()
 			case "getgroupsettings":
-				deployment.deployGetGroupSettings()
+				err = deployment.deployGetGroupSettings()
 			case "setlogsinks":
-				deployment.deploySetLogSinks()
+				err = deployment.deploySetLogSinks()
 			case "convertlog2feed":
-				deployment.deployConvertLog2Feed()
+				err = deployment.deployConvertLog2Feed()
+			}
+			if breakOnFirstError {
+				if err != nil {
+					return err
+				}
+			} else {
+				if err != nil {
+					errors = append(errors, err)
+				}
+			}
+		}
+		if !breakOnFirstError {
+			if len(errors) > 0 {
+				s := fmt.Sprintf("Found %d errors\n", len(errors))
+				for _, e := range errors {
+					s = s + e.Error() + "\n"
+				}
+				return fmt.Errorf("%s", s)
 			}
 		}
 	}

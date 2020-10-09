@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-tags: ["ram", "unit-testing"]
+tags: ["ram", "integration-testing"]
 steps:
   - name: golang
     args:
       - go
       - test
-      - ./...
+      - ${_PKG_PATH}/...
+      - -run
+      - TestInteg*
       - -v
-    id: test all go packages verbose
+    id: integration tests all go packages verbose
+substitutions:
+  _PKG_PATH: "." # default value

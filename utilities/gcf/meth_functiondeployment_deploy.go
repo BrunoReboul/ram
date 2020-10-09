@@ -33,6 +33,9 @@ func (functionDeployment *FunctionDeployment) Deploy() (err error) {
 		return err
 	}
 	log.Printf("%s gcf situate settings done", functionDeployment.Core.InstanceName)
+	if functionDeployment.Core.Commands.Check {
+		return functionDeployment.checkCloudFunction()
+	}
 	err = ffo.ZipSource(functionDeployment.Artifacts.CloudFunctionZipFullPath, functionDeployment.Artifacts.ZipFiles)
 	if err != nil {
 		return err
@@ -59,4 +62,5 @@ func (functionDeployment *FunctionDeployment) Deploy() (err error) {
 	}
 	log.Printf("%s gcf file removed %s", functionDeployment.Core.InstanceName, functionDeployment.Artifacts.CloudFunctionZipFullPath)
 	return nil
+
 }

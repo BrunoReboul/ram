@@ -17,6 +17,7 @@ package cai
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 
 	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
@@ -38,6 +39,35 @@ func (feedDeployment *FeedDeployment) Deploy() (err error) {
 		} else {
 			return fmt.Errorf("AssetClient.GetFeed %v", err)
 		}
+	}
+	if feedDeployment.Core.Commands.Check {
+		if !feedFound {
+			return fmt.Errorf("%s cai feed NOT found for this instance", feedDeployment.Core.InstanceName)
+		}
+		var s string
+		if feedDeployment.Artifacts.ContentType != feed.ContentType {
+			s = fmt.Sprintf("%scontentType\nwant %s\nhave %s\n", s,
+				feedDeployment.Artifacts.ContentType,
+				feed.ContentType)
+		}
+		if !reflect.DeepEqual(feedDeployment.Settings.Instance.CAI.AssetTypes, feed.AssetTypes) {
+			s = fmt.Sprintf("%sassetTypes\nwant %s\nhave %s\n", s,
+				feedDeployment.Settings.Instance.CAI.AssetTypes[:],
+				feed.AssetTypes[:])
+		}
+		wantedTopic := fmt.Sprintf("projects/%s/topics/%s",
+			feedDeployment.Core.SolutionSettings.Hosting.ProjectID,
+			feedDeployment.Artifacts.TopicName)
+		d := feed.FeedOutputConfig.GetPubsubDestination()
+		if d.Topic != wantedTopic {
+			s = fmt.Sprintf("%spubSubTopic\nwant %s\nhave %s\n", s,
+				wantedTopic,
+				d.Topic)
+		}
+		if len(s) > 0 {
+			return fmt.Errorf("%s cai invalid feed configuration:\n%s", feedDeployment.Core.InstanceName, s)
+		}
+		return nil
 	}
 	if feedFound {
 		switch feed.ContentType {

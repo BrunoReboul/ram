@@ -24,7 +24,7 @@ import (
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
-// SetTopicRole check if a topic already exist, if not create it
+// SetTopicRole set a role on a topic
 func SetTopicRole(ctx context.Context, pubSubPulisherClient *pubsub.PublisherClient, topicName string, member string, role iam.RoleName) (err error) {
 	// log.Printf("topicName %s", topicName)
 	// log.Printf("member %s", member)

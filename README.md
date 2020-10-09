@@ -1,22 +1,37 @@
 # RAM Real-time Asset Monitor
 
-## What
+[Product overview](docs/product_overview.md)
 
-Audit Google Cloud resources (the assets) compliance against a set of rules when the resource is updated. The stream of detected non compliances could then be consumed to alert, report or even fix on the fly.
+## RAM Testing framework
 
-### Use cases
+### RAM Unit testing framework
 
-1. Security compliance, usually 80% of the rules
-2. Operational compliance
-   - E.g. each Cloud SQL MySQL instance should have a defined maintenance window to avoid downtime
-3. Financial Operations (finOps) compliance
-   - E.g. Do not provision anymore N1 virtual machines instances, instead provision N2: the price performance ratio is better
+- GO unit testing functions MUST be prefixed with `TestUnit` enabling filtering in [testing_unit.yaml](testing_unit.yaml)
+- GO unit test source code file SHOULD be named after the code source file using the suffix `_unit_test.go` example
+  - Code source file `func_validatestruct.go`
+  - Unit tests code file `func_validatestruct_unit_test.go`
+- Unit tests MUST be small enough so all the unit tests are run on each push and each PR update: [testing_unit.yaml](testing_unit.yaml)
+- Unit test MUST run in isolation:
+  1. No real call to a dependency API
+     - meaning, the service account used to run the CI pipeline need no expertanl API IAM related role
+  2. Test double (mocks / stubs/ fakes) are not encouraged:
+     - prefer to use a real object
+     - As calling real object is not allowed in unit test (previous guideline), move these tests to small integration tests (next section)
 
-## Why
+### RAM Integration testing framework
 
-- It is all easier to fix when it is detected early
-- Value is delivered only when a detected non compliance is fixed
+- GO integration testing functions MUST be prefixed with `TestInteg` enabling filtering in [testing_integ.yaml](testing_integ.yaml)
+- GO integration test source code file SHOULD be named after the code source file using the suffix `_integ_test.go` example
+  - Code source file `meth_folderdeployment_deploy.go`
+  - Unit tests code file `meth_folderdeployment_deploy_integ_test.go`
+- Integration tests MUST be small enough so a GO package integration tests are run on each push on the package code and each PR to master update: [testing_integ.yaml](testing_integ.yaml)
+- The following IAM bindings MUST be set with the service account used to run integration tests:
+  - sandboxes folder
+    - folder admin
+      - required by: grm
+- The project hosting the service account used to run the integration test MUST have the following API enabled:
+  - Cloud Resource Manager API
 
-## Documentation
+## What's next
 
-- `ram` GO packages are documented on line: [https://godoc.org/github.com/BrunoReboul/ram](https://godoc.org/github.com/BrunoReboul/ram)
+[RAM microservice packages on go.dev](https://pkg.go.dev/github.com/BrunoReboul/ram)
