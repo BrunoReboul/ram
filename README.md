@@ -1,6 +1,6 @@
 # RAM Real-time Asset Monitor
 
-[Product overview](docs/product_overview.md)
+[Product overview](https://github.com/BrunoReboul/ram-config-template/blob/master/docs/product_overview.md)
 
 ## RAM Testing framework
 
