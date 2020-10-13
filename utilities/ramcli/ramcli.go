@@ -39,6 +39,7 @@ import (
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/monitoring/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceusage/v1"
 	"google.golang.org/api/sourcerepo/v1"
@@ -81,6 +82,10 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 		log.Fatalln(err)
 	}
 	deployment.Core.Services.IAMService, err = iam.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	deployment.Core.Services.MonitoringService, err = monitoring.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -239,6 +244,9 @@ func RAMCli(deployment *Deployment) (err error) {
 		}
 	default:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
+		if err = deployment.deployMonitoringDashboards(); err != nil {
+			return err
+		}
 		errors := make([]error, 0)
 		breakOnFirstError := true
 		if deployment.Core.Commands.MakeReleasePipeline {
