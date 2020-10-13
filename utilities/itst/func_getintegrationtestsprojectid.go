@@ -17,6 +17,7 @@ package itst
 import (
 	"context"
 	"log"
+	"os"
 	"strings"
 
 	"golang.org/x/oauth2/google"
@@ -26,24 +27,28 @@ import (
 
 //GetIntegrationTestsProjectID check that the current project has a name that contains 'ram-build' and return the project ID
 // avoiding that integration tests resource creation, deletion occur in a project that is not dedicated to that puppose.
-func GetIntegrationTestsProjectID() (projectID string) {
+func GetIntegrationTestsProjectID() (projectID string, creds *google.Credentials) {
 	// OK to use log.Fatal here as this function will not have integration test itself by design
 	ctx := context.Background()
 	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		log.Fatalln(err)
 	}
+	projectID = os.Getenv("RAM_ITEST_PROJECT_ID")
+	if projectID == "" {
+		projectID = creds.ProjectID
+	}
 	cloudresourcemanagerService, err := cloudresourcemanager.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
 	projectService := cloudresourcemanagerService.Projects
-	project, err := projectService.Get(creds.ProjectID).Context(ctx).Do()
+	project, err := projectService.Get(projectID).Context(ctx).Do()
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("projectID '%s': %v", projectID, err)
 	}
 	if !strings.Contains(project.Name, "ram-build") {
 		log.Fatalln("The project used to run ram integration test MUST have a name that contains 'ram-build'")
 	}
-	return project.ProjectId
+	return project.ProjectId, creds
 }

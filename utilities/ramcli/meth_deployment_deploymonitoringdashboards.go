@@ -28,7 +28,6 @@ func (deployment *Deployment) deployMonitoringDashboards() (err error) {
 	dashboardDeployment.Settings.Columns = 4
 	dashboardDeployment.Settings.Widgets = []*monitoring.Widget{}
 	for _, microserviceName := range []string{"dumpinventory", "splitdump", "monitor", "stream2bq", "publish2fs", "upload2gcs"} {
-		// for _, widgetType := range []string{"widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"} {
 		for _, widgetType := range []string{"widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"} {
 			widget, err := mon.GetGCFWidget(microserviceName, widgetType)
 			if err != nil {
