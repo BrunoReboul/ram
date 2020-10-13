@@ -19,12 +19,15 @@ import (
 	"google.golang.org/api/monitoring/v1"
 )
 
+const coreDashboardName = "RAM core microservices"
+const groupsDashboardName = "RAM groups microservices"
+
 func (deployment *Deployment) deployMonitoringDashboards() (err error) {
 	dashboardDeployment := mon.NewDashboardDeployment()
 
 	// core report
 	dashboardDeployment.Core = &deployment.Core
-	dashboardDeployment.Settings.DisplayName = "RAM core microservices"
+	dashboardDeployment.Settings.DisplayName = coreDashboardName
 	dashboardDeployment.Settings.Columns = 4
 	dashboardDeployment.Settings.Widgets = []*monitoring.Widget{}
 	for _, microserviceName := range []string{"dumpinventory", "splitdump", "monitor", "stream2bq", "publish2fs", "upload2gcs"} {
@@ -42,7 +45,7 @@ func (deployment *Deployment) deployMonitoringDashboards() (err error) {
 
 	// groups report
 	dashboardDeployment.Core = &deployment.Core
-	dashboardDeployment.Settings.DisplayName = "RAM groups microservices"
+	dashboardDeployment.Settings.DisplayName = groupsDashboardName
 	dashboardDeployment.Settings.Columns = 4
 	dashboardDeployment.Settings.Widgets = []*monitoring.Widget{}
 	for _, microserviceName := range []string{"convertlog2feed", "listgroups", "getgroupsettings", "listgroupmembers"} {
