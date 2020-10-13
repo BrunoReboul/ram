@@ -48,8 +48,7 @@ func TestIntegDeployment_DeployMonitoringDashboards(t *testing.T) {
 	removeTestDashboards(core)
 
 	testCases := []struct {
-		name string
-		// wantDashboards: map[string]{}monitoring.Dashboard,
+		name         string
 		wantMessages []string
 	}{
 		{
