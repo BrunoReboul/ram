@@ -247,6 +247,9 @@ func RAMCli(deployment *Deployment) (err error) {
 		if err = deployment.deployMonitoringDashboards(); err != nil {
 			return err
 		}
+		if err = deployment.makeConstraintsYAML(); err != nil {
+			return err
+		}
 		errors := make([]error, 0)
 		breakOnFirstError := true
 		if deployment.Core.Commands.MakeReleasePipeline {
