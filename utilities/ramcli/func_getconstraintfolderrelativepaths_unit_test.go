@@ -52,6 +52,7 @@ func TestUnitGetConstraintFolderRelativePaths(t *testing.T) {
 			wantErrorMsg:   "no such file or directory",
 		},
 	}
+
 	for _, tc := range testCases {
 		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 		t.Run(tc.name, func(t *testing.T) {
