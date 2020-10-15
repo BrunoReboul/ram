@@ -15,40 +15,17 @@
 package ramcli
 
 import (
-	"fmt"
 	"log"
-	"sort"
-
-	"github.com/BrunoReboul/ram/utilities/ffo"
-	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
-func (deployment *Deployment) makeConstraintsYAML() (err error) {
-	var constraintFolderRelativePaths []string
-	instanceFolderRelativePaths, err := ffo.GetChild(deployment.Core.RepositoryPath,
-		fmt.Sprintf("%s/%s/%s", solution.MicroserviceParentFolderName, "monitor", solution.InstancesFolderName))
+func (deployment *Deployment) makeConstraintsOneFiles() (err error) {
+	constraintFolderRelativePaths, err := getConstraintFolderRelativePaths(deployment.Core.RepositoryPath)
 	if err != nil {
 		return err
 	}
-	sort.Strings(instanceFolderRelativePaths)
-	for _, instanceFolderRelativePath := range instanceFolderRelativePaths {
-		instanceConstraintFolderRelativePaths, err := ffo.GetChild(deployment.Core.RepositoryPath,
-			fmt.Sprintf("%s/constraints", instanceFolderRelativePath))
-		if err != nil {
-			return err
-		}
-		sort.Strings(instanceConstraintFolderRelativePaths)
-		for _, constraintFolderRelativePath := range instanceConstraintFolderRelativePaths {
-			constraintFolderRelativePaths = append(constraintFolderRelativePaths, constraintFolderRelativePath)
-		}
-	}
-
 	log.Printf("monitor found %d rule constraint(s)", len(constraintFolderRelativePaths))
-	for _, constraintFolderRelativePath := range constraintFolderRelativePaths {
-		fmt.Println(constraintFolderRelativePath)
+	if err = makeConstraintsYAML(deployment.Core.RepositoryPath, constraintFolderRelativePaths); err != nil {
+		return err
 	}
-
-	// ffo.ReadUnmarshalYAML()
-
 	return nil
 }

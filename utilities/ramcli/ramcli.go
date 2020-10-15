@@ -242,12 +242,12 @@ func RAMCli(deployment *Deployment) (err error) {
 		if err = deployment.configureConvertlog2feedOrganizations(); err != nil {
 			return err
 		}
-	default:
+	case deployment.Core.Commands.Deploy || deployment.Core.Commands.MakeReleasePipeline:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
-		if err = deployment.deployMonitoringDashboards(); err != nil {
+		if err = deployment.makeConstraintsOneFiles(); err != nil {
 			return err
 		}
-		if err = deployment.makeConstraintsYAML(); err != nil {
+		if err = deployment.deployMonitoringDashboards(); err != nil {
 			return err
 		}
 		errors := make([]error, 0)
@@ -307,6 +307,10 @@ func RAMCli(deployment *Deployment) (err error) {
 				}
 				return fmt.Errorf("%s", s)
 			}
+		}
+	default:
+		if err = deployment.makeConstraintsOneFiles(); err != nil {
+			return err
 		}
 	}
 	log.Println("ramcli done")

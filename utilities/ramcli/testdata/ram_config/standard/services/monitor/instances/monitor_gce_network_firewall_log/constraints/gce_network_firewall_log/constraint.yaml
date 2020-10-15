@@ -1,0 +1,10 @@
+apiVersion: constraints.gatekeeper.sh/v1alpha1
+kind: GCPNetworkEnableFirewallLogsConstraintV1
+metadata:
+  name: gce_network_firewall_log
+  annotations:
+    description: GCE Firewall must log their flows.
+spec:
+  severity: medium
+  match:
+    target: [organization/]
