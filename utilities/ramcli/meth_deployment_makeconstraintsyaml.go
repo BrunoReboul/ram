@@ -24,7 +24,7 @@ func (deployment *Deployment) makeConstraintsOneFiles() (err error) {
 		return err
 	}
 	log.Printf("monitor found %d rule constraint(s)", len(constraintFolderRelativePaths))
-	if err = makeConstraintsYAML(deployment.Core.RepositoryPath, constraintFolderRelativePaths); err != nil {
+	if _, err = makeConstraintsYAML(deployment.Core.RepositoryPath, constraintFolderRelativePaths); err != nil {
 		return err
 	}
 	return nil
