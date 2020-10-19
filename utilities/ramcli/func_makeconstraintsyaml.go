@@ -44,6 +44,7 @@ type constraints struct {
 }
 
 func makeConstraintsYAML(repositoryPath string, constraintFolderRelativePaths []string) (cs constraints, err error) {
+	// defer elapsed(track("makeConstraintsYAML"))
 	var s service
 	var r rule
 	var c constraint

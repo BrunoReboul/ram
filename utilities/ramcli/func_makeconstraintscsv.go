@@ -25,6 +25,7 @@ import (
 )
 
 func makeConstraintsCSV(repositoryPath string, constraintFolderRelativePaths []string) (records [][]string, err error) {
+	// defer elapsed(track("makeConstraintsCSV"))
 	type constraintCSV struct {
 		Kind     string
 		Metadata struct {

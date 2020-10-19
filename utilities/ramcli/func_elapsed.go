@@ -16,19 +16,13 @@ package ramcli
 
 import (
 	"log"
+	"time"
 )
 
-func (deployment *Deployment) makeConstraintsOneFiles() (err error) {
-	constraintFolderRelativePaths, err := getConstraintFolderRelativePaths(deployment.Core.RepositoryPath)
-	if err != nil {
-		return err
-	}
-	log.Printf("monitor found %d rule constraint(s)", len(constraintFolderRelativePaths))
-	if _, err = makeConstraintsYAML(deployment.Core.RepositoryPath, constraintFolderRelativePaths); err != nil {
-		return err
-	}
-	if _, err = makeConstraintsCSV(deployment.Core.RepositoryPath, constraintFolderRelativePaths); err != nil {
-		return err
-	}
-	return nil
+func elapsed(msg string, start time.Time) {
+	log.Printf("%s took %v\n", msg, time.Since(start))
+}
+
+func track(msg string) (string, time.Time) {
+	return msg, time.Now()
 }
