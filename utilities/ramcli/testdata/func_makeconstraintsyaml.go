@@ -53,11 +53,12 @@ func makeConstraintsYAML(repositoryPath string, constraintFolderRelativePaths []
 		if err != nil {
 			return cs, err
 		}
+		// constraintNum++
 		parts := strings.Split(constraintFolderRelativePath, "/")
 		microserviceName := parts[3]
 		parts = strings.Split(microserviceName, "_")
 		pathServiceName := parts[1]
-		pathRuleName := strings.Replace(microserviceName, fmt.Sprintf("%s_%s_", parts[0], parts[1]), "", 1)
+		pathRuleName := strings.Replace(microserviceName, fmt.Sprintf("%s_%s_", parts[0], parts[0]), "", 1)
 
 		if pathServiceName != s.Name {
 			// fmt.Println("\tnew service and new rule")

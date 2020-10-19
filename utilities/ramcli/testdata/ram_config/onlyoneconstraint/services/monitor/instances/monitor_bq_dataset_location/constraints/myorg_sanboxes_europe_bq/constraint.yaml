@@ -14,12 +14,13 @@
 # limitations under the License.
 #
 apiVersion: constraints.gatekeeper.sh/v1alpha1
-kind: GCPDNSSECConstraintV1
+kind: GCPBigQueryDatasetLocationConstraintV1
 metadata:
-  name: clouddns_dnssec
+  name: myorg_sanboxes_europe_bq
   annotations:
-    description: DNSSec must be enbled for all CloudDNS Zones.
+    category: Personnal Data Compliance
+    description: BQ Dataset must be in Europe for projects in myorg/sandboxes/Europe.
 spec:
-  severity: major
+  severity: critical
   match:
     target: [organization/]
