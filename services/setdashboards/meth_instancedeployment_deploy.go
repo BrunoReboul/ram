@@ -12,27 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mon
+package setdashboards
 
 import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
-	"google.golang.org/api/monitoring/v1"
+	"log"
+	"time"
 )
 
-// DashboardDeployment struct
-type DashboardDeployment struct {
-	Artifacts struct {
-		Widgets []*monitoring.Widget
-	}
-	Core     *deploy.Core
-	Settings struct {
-		Instance struct {
-			MON DashboardParameters
+// Deploy a service instance
+func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
+	start := time.Now()
+	if !instanceDeployment.Core.Commands.Check {
+		// Deploy prequequsites only when not in check mode
+		if err = instanceDeployment.deployGSUAPI(); err != nil {
+			return err
 		}
 	}
-}
-
-// NewDashboardDeployment create deployment structure
-func NewDashboardDeployment() *DashboardDeployment {
-	return &DashboardDeployment{}
+	if err = instanceDeployment.deployMonitoringDashboard(); err != nil {
+		return err
+	}
+	log.Printf("%s done in %v minutes", instanceDeployment.Core.InstanceName, time.Since(start).Minutes())
+	return nil
 }

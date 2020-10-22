@@ -22,18 +22,15 @@ import (
 // Deploy a service instance
 func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 	start := time.Now()
-	// Extended project
 	if !instanceDeployment.Core.Commands.Check {
 		// Deploy prequequsites only when not in check mode
 		if err = instanceDeployment.deployGSUAPI(); err != nil {
 			return err
 		}
-		// Core project
 		if err = instanceDeployment.deployGPSTopic(); err != nil {
 			return err
 		}
 	}
-	// Core monitoring orgs
 	if err = instanceDeployment.deployCAIFeed(); err != nil {
 		return err
 	}

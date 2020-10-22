@@ -12,27 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mon
+package setdashboards
 
-import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
-	"google.golang.org/api/monitoring/v1"
-)
+import "github.com/BrunoReboul/ram/utilities/mon"
 
-// DashboardDeployment struct
-type DashboardDeployment struct {
-	Artifacts struct {
-		Widgets []*monitoring.Widget
-	}
-	Core     *deploy.Core
-	Settings struct {
-		Instance struct {
-			MON DashboardParameters
-		}
-	}
-}
-
-// NewDashboardDeployment create deployment structure
-func NewDashboardDeployment() *DashboardDeployment {
-	return &DashboardDeployment{}
+func (instanceDeployment *InstanceDeployment) deployMonitoringDashboard() (err error) {
+	dashboardDeployment := mon.NewDashboardDeployment()
+	dashboardDeployment.Core = instanceDeployment.Core
+	dashboardDeployment.Settings.Instance.MON = instanceDeployment.Settings.Instance.MON
+	dashboardDeployment.Artifacts.Widgets = instanceDeployment.Artifacts.Widgets
+	return dashboardDeployment.Deploy()
 }

@@ -82,16 +82,16 @@ func TestIntegDashboardDeployment_Deploy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dashboardDeployment := NewDashboardDeployment()
 			dashboardDeployment.Core = &core
-			dashboardDeployment.Settings.DisplayName = testDashboardDisplayName
-			dashboardDeployment.Settings.Columns = tc.columns
-			dashboardDeployment.Settings.Widgets = []*monitoring.Widget{}
+			dashboardDeployment.Settings.Instance.MON.DisplayName = testDashboardDisplayName
+			dashboardDeployment.Settings.Instance.MON.Columns = tc.columns
+			dashboardDeployment.Artifacts.Widgets = []*monitoring.Widget{}
 			for _, microserviceName := range tc.microserviceNameList {
 				for _, widgetType := range tc.widgetTypeList {
 					widget, err := GetGCFWidget(microserviceName, widgetType)
 					if err != nil {
 						t.Fatalf("mon.GetGCFWidget %v", err)
 					}
-					dashboardDeployment.Settings.Widgets = append(dashboardDeployment.Settings.Widgets, &widget)
+					dashboardDeployment.Artifacts.Widgets = append(dashboardDeployment.Artifacts.Widgets, &widget)
 				}
 			}
 			var buffer bytes.Buffer
