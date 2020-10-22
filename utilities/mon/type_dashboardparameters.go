@@ -14,25 +14,10 @@
 
 package mon
 
-import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
-	"google.golang.org/api/monitoring/v1"
-)
-
-// DashboardDeployment struct
-type DashboardDeployment struct {
-	Artifacts struct {
-		Widgets []*monitoring.Widget
-	}
-	Core     *deploy.Core
-	Settings struct {
-		Instance struct {
-			MON DashboardParameters
-		}
-	}
-}
-
-// NewDashboardDeployment create deployment structure
-func NewDashboardDeployment() *DashboardDeployment {
-	return &DashboardDeployment{}
+// DashboardParameters structure
+type DashboardParameters struct {
+	DisplayName          string
+	Columns              int64
+	MicroServiceNameList []string `yaml:"microServiceNameList"`
+	WidgetTypeList       []string `yaml:"widgetTypeList"`
 }
