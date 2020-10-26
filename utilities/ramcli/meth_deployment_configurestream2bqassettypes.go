@@ -76,5 +76,20 @@ func (deployment *Deployment) configureStream2bqAssetTypes() (err error) {
 		}
 		log.Printf("done %s", instanceFolderPath)
 	}
+	// iam policies related assets
+	stream2bqInstance.Bigquery.TableName = "assets"
+	stream2bqInstance.GCF.TriggerTopic = deployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
+	instanceFolderPath := strings.Replace(
+		fmt.Sprintf("%s/%s_iam_assets",
+			instancesFolderPath,
+			serviceName), "-", "_", -1)
+	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
+		os.Mkdir(instanceFolderPath, 0755)
+	}
+	if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s", instanceFolderPath, solution.InstanceSettingsFileName), stream2bqInstance); err != nil {
+		return err
+	}
+	log.Printf("done %s", instanceFolderPath)
+
 	return nil
 }
