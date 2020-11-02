@@ -45,7 +45,8 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 			tableToCreateMetadata.Labels = map[string]string{"name": strings.ToLower(tableName)}
 
 			var timePartitioning bigquery.TimePartitioning
-			timePartitioning.Expiration, _ = time.ParseDuration("24h")
+			timePartitioning.Type = "DAY"
+			timePartitioning.Expiration = time.Duration(0)
 			tableToCreateMetadata.TimePartitioning = &timePartitioning
 			tableToCreateMetadata.Schema = schema
 
@@ -65,6 +66,7 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 		}
 	}
 	needToUpdate := false
+	var tableMetadataToUpdate bigquery.TableMetadataToUpdate
 	if tableMetadata.Labels != nil {
 		if value, ok := tableMetadata.Labels["name"]; ok {
 			if value != tableMetadata.Name {
@@ -77,13 +79,21 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 		needToUpdate = true
 	}
 	if needToUpdate {
-		var tableMetadataToUpdate bigquery.TableMetadataToUpdate
 		tableMetadataToUpdate.SetLabel("name", strings.ToLower(tableName))
+		log.Printf("Need to update table labels %s", tableName)
+
+	}
+	if tableMetadata.TimePartitioning.Expiration != time.Duration(0) {
+		tableMetadataToUpdate.TimePartitioning.Expiration = time.Duration(0)
+		log.Printf("Need to update table partition expiration %s", tableName)
+		needToUpdate = true
+	}
+	if needToUpdate {
 		tableMetadata, err = table.Update(ctx, tableMetadataToUpdate, "")
 		if err != nil {
 			return nil, fmt.Errorf("ERROR when updating table labels %v", err)
 		}
-		log.Printf("Update table labels %s", tableName)
+		log.Printf("Table updated %s", tableName)
 	}
 	return table, nil
 }
