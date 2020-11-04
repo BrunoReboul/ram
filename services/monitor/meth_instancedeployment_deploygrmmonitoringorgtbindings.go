@@ -28,7 +28,10 @@ func (instanceDeployment *InstanceDeployment) deployGRMMonitoringOrgBindings() (
 	for _, organizationID := range orgBindingsDeployment.Core.SolutionSettings.Monitoring.OrganizationIDs {
 		orgBindingsDeployment.Artifacts.OrganizationID = organizationID
 		orgBindingsDeployment.Artifacts.Member = fmt.Sprintf("serviceAccount:%s@%s.iam.gserviceaccount.com", instanceDeployment.Core.ServiceName, instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
-		return orgBindingsDeployment.Deploy()
+		err = orgBindingsDeployment.Deploy()
+		if err != nil {
+			break
+		}
 	}
-	return nil
+	return err
 }
