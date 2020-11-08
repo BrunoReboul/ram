@@ -57,7 +57,7 @@ func TestUnitGetConstraintFolderRelativePaths(t *testing.T) {
 		tc := tc // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			constraintFolderRelativePaths, err := getConstraintFolderRelativePaths(tc.repositoryPath)
+			constraintFolderRelativePaths, err := GetConstraintFolderRelativePaths(tc.repositoryPath)
 			if err != nil {
 				if tc.wantErrorMsg == "" {
 					t.Errorf("Did not expect an error an got %s", err.Error())
