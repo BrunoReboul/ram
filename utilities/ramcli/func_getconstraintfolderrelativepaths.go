@@ -22,7 +22,8 @@ import (
 	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
-func getConstraintFolderRelativePaths(repositoryPath string) (constraintFolderRelativePaths []string, err error) {
+// GetConstraintFolderRelativePaths make the list of constraint paths
+func GetConstraintFolderRelativePaths(repositoryPath string) (constraintFolderRelativePaths []string, err error) {
 	instanceFolderRelativePaths, err := ffo.GetChild(repositoryPath,
 		fmt.Sprintf("%s/%s/%s", solution.MicroserviceParentFolderName, "monitor", solution.InstancesFolderName))
 	if err != nil {

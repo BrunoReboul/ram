@@ -19,7 +19,7 @@ import (
 )
 
 func (deployment *Deployment) makeConstraintsOneFiles() (err error) {
-	constraintFolderRelativePaths, err := getConstraintFolderRelativePaths(deployment.Core.RepositoryPath)
+	constraintFolderRelativePaths, err := GetConstraintFolderRelativePaths(deployment.Core.RepositoryPath)
 	if err != nil {
 		return err
 	}
