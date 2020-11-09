@@ -24,10 +24,14 @@ func (deployment *Deployment) makeConstraintsOneFiles() (err error) {
 		return err
 	}
 	log.Printf("monitor found %d rule constraint(s)", len(constraintFolderRelativePaths))
-	if _, err = makeConstraintsYAML(deployment.Core.RepositoryPath, constraintFolderRelativePaths); err != nil {
+	cs, err := makeConstraintsYAML(deployment.Core.RepositoryPath, constraintFolderRelativePaths)
+	if err != nil {
 		return err
 	}
 	if _, err = makeConstraintsCSV(deployment.Core.RepositoryPath, constraintFolderRelativePaths); err != nil {
+		return err
+	}
+	if _, err = makeConstraintsReadme(deployment.Core.RepositoryPath, cs); err != nil {
 		return err
 	}
 	return nil

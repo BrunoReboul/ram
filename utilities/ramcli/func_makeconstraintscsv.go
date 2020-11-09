@@ -25,20 +25,6 @@ import (
 )
 
 func makeConstraintsCSV(repositoryPath string, constraintFolderRelativePaths []string) (records [][]string, err error) {
-	// defer elapsed(track("makeConstraintsCSV"))
-	type constraintCSV struct {
-		Kind     string
-		Metadata struct {
-			Name        string
-			Annotations struct {
-				Description string
-				Category    string
-			}
-		}
-		Spec struct {
-			Severity string
-		}
-	}
 	records = [][]string{
 		{
 			"serviceName", "ruleName", "constraintName", "severity", "category", "kind", "description",
@@ -52,7 +38,7 @@ func makeConstraintsCSV(repositoryPath string, constraintFolderRelativePaths []s
 		pathServiceName := parts[1]
 		pathRuleName := strings.Replace(microserviceName, fmt.Sprintf("%s_%s_", parts[0], parts[1]), "", 1)
 
-		var constraint constraintCSV
+		var constraint constraintInfo
 		err = ffo.ReadUnmarshalYAML(fmt.Sprintf("%s/%s/constraint.yaml", repositoryPath, constraintFolderRelativePath), &constraint)
 		if err != nil {
 			return records, err
