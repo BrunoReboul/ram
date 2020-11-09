@@ -44,7 +44,6 @@ type constraints struct {
 }
 
 func makeConstraintsYAML(repositoryPath string, constraintFolderRelativePaths []string) (cs constraints, err error) {
-	// defer elapsed(track("makeConstraintsYAML"))
 	var s service
 	var r rule
 	var c constraint
@@ -107,8 +106,8 @@ func makeConstraintsYAML(repositoryPath string, constraintFolderRelativePaths []
 		totalRules = totalRules + len(s.Rules)
 	}
 	summary = summary + fmt.Sprintf("# %d services %d rules %d constraints\n#\n", len(cs.Services), totalRules, totalConstraints)
+	summary = fmt.Sprintf("# timestamp %v\n", time.Now()) + summary
 	fmt.Print(summary)
-	summary = fmt.Sprintf("# generated code %v\n", time.Now()) + summary
 
 	bytes, err := yaml.Marshal(&cs)
 	if err != nil {
