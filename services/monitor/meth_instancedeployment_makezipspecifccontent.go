@@ -46,10 +46,14 @@ package validator.gcp.lib
 audit[result] {
 	# iterate over each asset
 	asset := data.assets[_]
+	trace(sprintf("asset name: %v", [asset.name]))
+
 	# assign the constrains in a variable
 	constraints := data.constraints
 	# iterate over each constraint
 	constraint := constraints[_]
+	trace(sprintf("constraint kind: %v", [constraint.kind]))    
+
 	# use a custom function to retreive constraint.spec, if not defined returns a default value that is an empty object
 	spec := _get_default(constraint, "spec", {})
 	# use a custom function to retreive constraint.spec.match, if not defined returns a default value that is an empty objecy
@@ -63,9 +67,11 @@ audit[result] {
 	# iterate over each target and use builtin regex to check if the asset ancestry path matches one of them
 	# TRUE if the asset ancestry path matches (regex) one of the target (iterate targets)
 	# FALSE when the ancestry path do not matches at least one of the targer
-	trace(sprintf("targets: %v", [gcp_target]))
 	trace(sprintf("asset.ancestry_path: %v", [asset.ancestry_path]))
+	trace(sprintf("targets: %v", [gcp_target]))
+	trace(sprintf("is in scope:",[re_match(gcp_target[_], asset.ancestry_path)]))
 	re_match(gcp_target[_], asset.ancestry_path)
+
 	# use a custom function to retreive constraint.spec.match.exclude, if not defined returns a default value that is an empty array
 	exclude := _get_default(match, "exclude", [])
 	# use a custom function to retreive constraint.spec.match.gcp.exclude, if not defined returns what we already got in exlucde variable
@@ -76,13 +82,14 @@ audit[result] {
 	# or is empty (set()) if the asset ancestry path does not matched any of the exclusion
 	exclusion_match := {asset.ancestry_path | re_match(gcp_exclude[_], asset.ancestry_path)}
 	trace(sprintf("exclusions: %v", [gcp_exclude]))
-	trace(sprintf("exclusion_match: %v", [exclusion_match]))
-	trace(sprintf("count exclusion_match: %v", [count(exclusion_match)]))
+	trace(sprintf("Excluded if count exclusion_match > 0: %v", [count(exclusion_match)]))
 	# this expression evaluate to true when count is zero, aka the ancestry path does not matches any of the exclusion, otherwise evaluates to false
 	count(exclusion_match) == 0
+
 	# Use a with statement to programatically call the rego rule that is specified in the YAML constraint file
 	violations := data.templates.gcp[constraint.kind].deny with input.asset as asset
 		 with input.constraint as constraint
+
 	# Iterates through each violation found
 	violation := violations[_]
 	# if the asset is in target, and not excluded and at least one violation is founds, then returns for each violation a result object with the 4 following fields:
