@@ -90,7 +90,6 @@ type Global struct {
 	GCIGroupMembersTopicName    string
 	GCIGroupSettingsTopicName   string
 	groupsSettingsService       *groupssettings.Service
-	initFailed                  bool
 	logEntry                    logEntry
 	organizationID              string
 	projectID                   string
@@ -101,12 +100,9 @@ type Global struct {
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
-func Initialize(ctx context.Context, global *Global) {
+func Initialize(ctx context.Context, global *Global) (err error) {
 	global.ctx = ctx
-	global.initFailed = false
 
-	// err is pre-declared to avoid shadowing client.
-	var err error
 	var instanceDeployment InstanceDeployment
 	var clientOption option.ClientOption
 	var ok bool
@@ -114,9 +110,7 @@ func Initialize(ctx context.Context, global *Global) {
 	log.Println("Function COLD START")
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
@@ -137,51 +131,39 @@ func Initialize(ctx context.Context, global *Global) {
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		gciAdminUserToImpersonate,
 		[]string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"}); !ok {
-		global.initFailed = true
-		return
+		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
-		log.Printf("ERROR - admin.NewService: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - admin.NewService: %v", err)
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
 	if err != nil {
-		log.Printf("ERROR - groupssettings.NewService: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - groupssettings.NewService: %v", err)
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		log.Printf("ERROR - global.pubsubPublisherClient: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - global.pubsubPublisherClient: %v", err)
 	}
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		log.Printf("ERROR - firestore.NewClient: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - firestore.NewClient: %v", err)
 	}
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
-		log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - cloudresourcemanager.NewService: %v", err)
 	}
 	err = gps.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &global.topicList)
 	if err != nil {
-		log.Printf("ERROR - gps.GetTopicList: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - gps.GetTopicList: %v", err)
 	}
+	return nil
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}
