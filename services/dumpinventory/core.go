@@ -32,27 +32,21 @@ import (
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	ctx                 context.Context
-	initFailed          bool
 	retryTimeOutSeconds int64
 	assetClient         *asset.Client
 	request             *assetpb.ExportAssetsRequest
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
-func Initialize(ctx context.Context, global *Global) {
+func Initialize(ctx context.Context, global *Global) (err error) {
 	global.ctx = ctx
-	global.initFailed = false
 
-	// err is pre-declared to avoid shadowing client.
-	var err error
 	var instanceDeployment InstanceDeployment
 
 	log.Println("Function COLD START")
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
@@ -78,9 +72,7 @@ func Initialize(ctx context.Context, global *Global) {
 	case "IAM_POLICY":
 		global.request.ContentType = assetpb.ContentType_IAM_POLICY
 	default:
-		log.Printf("ERROR - unsupported content type: %s", instanceDeployment.Settings.Instance.CAI.ContentType)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - unsupported content type: %s", instanceDeployment.Settings.Instance.CAI.ContentType)
 	}
 
 	global.request.Parent = instanceDeployment.Settings.Instance.CAI.Parent
@@ -89,16 +81,15 @@ func Initialize(ctx context.Context, global *Global) {
 
 	global.assetClient, err = asset.NewClient(ctx)
 	if err != nil {
-		log.Printf("ERROR - asset.NewClient: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - asset.NewClient: %v", err)
 	}
+	return nil
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)

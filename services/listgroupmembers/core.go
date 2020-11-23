@@ -57,7 +57,6 @@ type Global struct {
 	ctx                     context.Context
 	dirAdminService         *admin.Service
 	firestoreClient         *firestore.Client
-	initFailed              bool
 	logEventEveryXPubSubMsg uint64
 	maxResultsPerPage       int64 // API Max = 200
 	outputTopicName         string
@@ -67,12 +66,9 @@ type Global struct {
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
-func Initialize(ctx context.Context, global *Global) {
+func Initialize(ctx context.Context, global *Global) (err error) {
 	global.ctx = ctx
-	global.initFailed = false
 
-	// err is pre-declared to avoid shadowing client.
-	var err error
 	var instanceDeployment InstanceDeployment
 	var clientOption option.ClientOption
 	var ok bool
@@ -80,9 +76,7 @@ func Initialize(ctx context.Context, global *Global) {
 	log.Println("Function COLD START")
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
@@ -104,33 +98,27 @@ func Initialize(ctx context.Context, global *Global) {
 		projectID,
 		gciAdminUserToImpersonate,
 		[]string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
-		global.initFailed = true
-		return
+		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
-		log.Printf("ERROR - admin.NewService: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - admin.NewService: %v", err)
 	}
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		log.Printf("ERROR - firestore.NewClient: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - firestore.NewClient: %v", err)
 	}
 	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
 	if err != nil {
-		log.Printf("ERROR - pubsub.NewClient: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - pubsub.NewClient: %v", err)
 	}
+	return nil
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds)
+	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds)
 	if !ok {
 		return err
 	}
