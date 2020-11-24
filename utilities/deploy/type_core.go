@@ -32,6 +32,7 @@ import (
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/monitoring/v1"
 	"google.golang.org/api/serviceusage/v1"
 )
 
@@ -61,6 +62,7 @@ type Core struct {
 		CloudresourcemanagerService   *cloudresourcemanager.Service   `yaml:"-"`
 		CloudresourcemanagerServicev2 *cloudresourcemanagerv2.Service `yaml:"-"`
 		IAMService                    *iam.Service                    `yaml:"-"`
+		MonitoringService             *monitoring.Service             `yaml:"-"`
 		PubsubPublisherClient         *pubsub.PublisherClient         `yaml:"-"`
 		ServiceusageService           *serviceusage.Service           `yaml:"-"`
 		SourcerepoService             *sourcerepo.Service             `yaml:"-"`

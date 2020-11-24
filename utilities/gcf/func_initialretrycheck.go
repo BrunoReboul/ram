@@ -23,22 +23,13 @@ import (
 	"cloud.google.com/go/functions/metadata"
 )
 
-// IntialRetryCheck performs intitial controls
-// 1) return true and metadata when controls are passed
-// 2) return false when controls failed:
-// - 2a) with an error to retry the cloud function entry point function
-// - 2b) with nil to stop the cloud function entry point function
-func IntialRetryCheck(ctxEvent context.Context, initFailed bool, retryTimeOutSeconds int64) (bool, *metadata.Metadata, error) {
+// IntialRetryCheck avoids to retry more than the configured retry timeout
+func IntialRetryCheck(ctxEvent context.Context, retryTimeOutSeconds int64) (bool, *metadata.Metadata, error) {
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
 		return false, metadata, fmt.Errorf("metadata.FromContext: %v", err) // RETRY
 	}
-	if initFailed {
-		log.Println("ERROR - init function failed")
-		return false, metadata, nil // NO RETRY
-	}
-
 	// Ignore events that are too old.
 	expiration := metadata.Timestamp.Add(time.Duration(retryTimeOutSeconds) * time.Second)
 	if time.Now().After(expiration) {

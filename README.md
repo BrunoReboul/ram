@@ -1,6 +1,6 @@
 # RAM Real-time Asset Monitor
 
-[Product overview](docs/product_overview.md)
+[Product overview](https://github.com/BrunoReboul/ram-config-template/blob/master/docs/product_overview.md)
 
 ## RAM Testing framework
 
@@ -25,10 +25,16 @@
   - Code source file `meth_folderdeployment_deploy.go`
   - Unit tests code file `meth_folderdeployment_deploy_integ_test.go`
 - Integration tests MUST be small enough so a GO package integration tests are run on each push on the package code and each PR to master update: [testing_integ.yaml](testing_integ.yaml)
+- The project hosting the integration tests MUST have a project name that contains `ram-build` avoiding resources deletion, creation driven during integration test to occur in the wrong project
+- To run integration tests locally set the environment variable `RAM_ITEST_PROJECT_ID`
+- The project hosting the integration tests MUST have a Cloud Operation Workspace hosted by itself
 - The following IAM bindings MUST be set with the service account used to run integration tests:
   - sandboxes folder
     - folder admin
       - required by: grm
+  - project hosting integration tests
+    - editor
+      - required to create, delete integration test resources
 - The project hosting the service account used to run the integration test MUST have the following API enabled:
   - Cloud Resource Manager API
 

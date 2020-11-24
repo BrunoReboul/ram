@@ -40,7 +40,6 @@ import (
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	ctx                           context.Context
-	initFailed                    bool
 	retryTimeOutSeconds           int64
 	assetsCollectionID            string
 	assetsFilePath                string
@@ -156,20 +155,15 @@ type ComplianceStatus struct {
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
-func Initialize(ctx context.Context, global *Global) {
+func Initialize(ctx context.Context, global *Global) (err error) {
 	global.ctx = ctx
-	global.initFailed = false
 
-	// err is pre-declared to avoid shadowing client.
-	var err error
 	var instanceDeployment InstanceDeployment
 
 	log.Println("Function COLD START")
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	assetsFileName := instanceDeployment.Settings.Service.AssetsFileName
@@ -196,34 +190,27 @@ func Initialize(ctx context.Context, global *Global) {
 	// persist between function invocations.
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
-		log.Printf("ERROR - cloudresourcemanager.NewService: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - cloudresourcemanager.NewService: %v", err)
 	}
 	global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(ctx)
 	if err != nil {
-		log.Printf("ERROR - cloudresourcemanagerv2.NewService: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - cloudresourcemanagerv2.NewService: %v", err)
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		log.Printf("ERROR - global.pubsubPublisherClient: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - global.pubsubPublisherClient: %v", err)
 	}
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		log.Printf("ERROR - firestore.NewClient: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - firestore.NewClient: %v", err)
 	}
+	return nil
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)

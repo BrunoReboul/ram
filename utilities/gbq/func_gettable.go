@@ -45,7 +45,8 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 			tableToCreateMetadata.Labels = map[string]string{"name": strings.ToLower(tableName)}
 
 			var timePartitioning bigquery.TimePartitioning
-			timePartitioning.Expiration, _ = time.ParseDuration("24h")
+			timePartitioning.Type = "DAY"
+			timePartitioning.Expiration = time.Duration(0)
 			tableToCreateMetadata.TimePartitioning = &timePartitioning
 			tableToCreateMetadata.Schema = schema
 
@@ -60,30 +61,48 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 				}
 				return nil, fmt.Errorf("table.Create %v", err)
 			}
-			log.Printf("Created table %s", tableName)
+			log.Printf("gbq created table %s", tableName)
 			return table, nil
 		}
+		return nil, fmt.Errorf("table.Metadata(ctx) %v", err)
 	}
+	log.Printf("gbq found table %s", tableName)
 	needToUpdate := false
+	var tableMetadataToUpdate bigquery.TableMetadataToUpdate
 	if tableMetadata.Labels != nil {
 		if value, ok := tableMetadata.Labels["name"]; ok {
-			if value != tableMetadata.Name {
+			if strings.ToLower(value) != strings.ToLower(tableMetadata.Name) {
+				log.Printf("gbq found %s wants %s for label 'name' on table %s", value, tableMetadata.Name, tableName)
 				needToUpdate = true
 			}
 		} else {
+			log.Printf("gbq label 'name' not found on table %s", tableName)
 			needToUpdate = true
 		}
 	} else {
+		log.Printf("gbq no label found on table %s", tableName)
 		needToUpdate = true
 	}
 	if needToUpdate {
-		var tableMetadataToUpdate bigquery.TableMetadataToUpdate
 		tableMetadataToUpdate.SetLabel("name", strings.ToLower(tableName))
+		log.Printf("gbq need to update table labels %s", tableName)
+
+	}
+	if tableMetadata.TimePartitioning.Expiration != time.Duration(0) {
+		var timePartitioning bigquery.TimePartitioning
+		timePartitioning.Expiration = time.Duration(0)
+		timePartitioning.Type = tableMetadata.TimePartitioning.Type
+
+		tableMetadataToUpdate.TimePartitioning = &timePartitioning
+		log.Printf("gbq need to update partition expiration on table %s", tableName)
+		needToUpdate = true
+	}
+	if needToUpdate {
 		tableMetadata, err = table.Update(ctx, tableMetadataToUpdate, "")
 		if err != nil {
 			return nil, fmt.Errorf("ERROR when updating table labels %v", err)
 		}
-		log.Printf("Update table labels %s", tableName)
+		log.Printf("gbq table updated %s", tableName)
 	}
 	return table, nil
 }

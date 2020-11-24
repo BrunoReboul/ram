@@ -39,6 +39,7 @@ import (
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/monitoring/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceusage/v1"
 	"google.golang.org/api/sourcerepo/v1"
@@ -81,6 +82,10 @@ func Initialize(ctx context.Context, deployment *Deployment) {
 		log.Fatalln(err)
 	}
 	deployment.Core.Services.IAMService, err = iam.NewService(ctx, option.WithCredentials(creds))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	deployment.Core.Services.MonitoringService, err = monitoring.NewService(ctx, option.WithCredentials(creds))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -237,8 +242,14 @@ func RAMCli(deployment *Deployment) (err error) {
 		if err = deployment.configureConvertlog2feedOrganizations(); err != nil {
 			return err
 		}
-	default:
+		if err = deployment.configureSetDashboards(); err != nil {
+			return err
+		}
+	case deployment.Core.Commands.Deploy || deployment.Core.Commands.MakeReleasePipeline:
 		log.Printf("found %d instance(s)", len(deployment.Core.InstanceFolderRelativePaths))
+		if err = deployment.makeConstraintsOneFiles(); err != nil {
+			return err
+		}
 		errors := make([]error, 0)
 		breakOnFirstError := true
 		if deployment.Core.Commands.MakeReleasePipeline {
@@ -277,6 +288,8 @@ func RAMCli(deployment *Deployment) (err error) {
 				err = deployment.deploySetLogSinks()
 			case "convertlog2feed":
 				err = deployment.deployConvertLog2Feed()
+			case "setdashboards":
+				err = deployment.deploySetDashboards()
 			}
 			if breakOnFirstError {
 				if err != nil {
@@ -296,6 +309,10 @@ func RAMCli(deployment *Deployment) (err error) {
 				}
 				return fmt.Errorf("%s", s)
 			}
+		}
+	default:
+		if err = deployment.makeConstraintsOneFiles(); err != nil {
+			return err
 		}
 	}
 	log.Println("ramcli done")

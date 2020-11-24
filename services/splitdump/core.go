@@ -41,7 +41,6 @@ import (
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	ctx                        context.Context
-	initFailed                 bool
 	retryTimeOutSeconds        int64
 	iamTopicName               string
 	pubsubPublisherClient      *pubsub.PublisherClient
@@ -78,12 +77,8 @@ type assetLegacy struct {
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
-func Initialize(ctx context.Context, global *Global) {
+func Initialize(ctx context.Context, global *Global) (err error) {
 	global.ctx = ctx
-	global.initFailed = false
-
-	// err is pre-declared to avoid shadowing client.
-	var err error
 	var instanceDeployment InstanceDeployment
 	var storageClient *storage.Client
 
@@ -94,9 +89,7 @@ func Initialize(ctx context.Context, global *Global) {
 	// }
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Printf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	global.iamTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
@@ -107,23 +100,20 @@ func Initialize(ctx context.Context, global *Global) {
 
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
-		log.Printf("ERROR - storage.NewClient: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - storage.NewClient: %v", err)
 	}
 	global.storageBucket = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name)
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		log.Printf("ERROR - global.pubsubPublisherClient: %v", err)
-		global.initFailed = true
-		return
+		return fmt.Errorf("ERROR - global.pubsubPublisherClient: %v", err)
 	}
+	return nil
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.initFailed, global.retryTimeOutSeconds); !ok {
+	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds); !ok {
 		return err
 	}
 	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)

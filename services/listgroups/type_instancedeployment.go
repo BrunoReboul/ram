@@ -62,9 +62,6 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GSU.APIList = []string{
 		"appengine.googleapis.com",
 		"cloudfunctions.googleapis.com",
-		"cloudresourcemanager.googleapis.com",
-		"containerregistry.googleapis.com",
-		"iam.googleapis.com",
 		"pubsub.googleapis.com",
 		"cloudscheduler.googleapis.com",
 		"admin.googleapis.com"}
