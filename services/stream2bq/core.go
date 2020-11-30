@@ -45,7 +45,7 @@ type Global struct {
 	firestoreClient               *firestore.Client
 	inserter                      *bigquery.Inserter
 	ownerLabelKeyName             string
-	pubSubID                      string
+	PubSubID                      string
 	retryTimeOutSeconds           int64
 	tableName                     string
 	violationResolverLabelKeyName string
@@ -256,15 +256,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		// Assume an error on the function invoker and try again.
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	global.pubSubID = metadata.EventID
+	global.PubSubID = metadata.EventID
 	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
 	if time.Now().After(expiration) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.pubSubID)
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.PubSubID)
 		return nil
 	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Printf("pubsub_id %s ignored pubsub message: %s", global.pubSubID, string(PubSubMessage.Data))
+		log.Printf("pubsub_id %s ignored pubsub message: %s", global.PubSubID, string(PubSubMessage.Data))
 		return nil
 	}
 	switch global.tableName {
@@ -276,9 +276,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		err = persistAsset(PubSubMessage.Data, global)
 	}
 	if err != nil {
-		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.pubSubID, err)
+		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.PubSubID, err)
 	}
-	// log.Printf("pubsub_id %s exit nil", global.pubSubID)
+	// log.Printf("pubsub_id %s exit nil", global.PubSubID)
 	return nil
 }
 
@@ -286,7 +286,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
 	var complianceStatus monitor.ComplianceStatus
 	err := json.Unmarshal(pubSubJSONDoc, &complianceStatus)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &complianceStatus) %s %v", global.pubSubID, string(pubSubJSONDoc), err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &complianceStatus) %s %v", global.PubSubID, string(pubSubJSONDoc), err)
 		return nil
 	}
 	insertID := fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
@@ -296,7 +296,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
 		return fmt.Errorf("inserter.Put %v %v", err, savers)
 	}
-	log.Printf("pubsub_id %s insert complianceStatus ok %s", global.pubSubID, insertID)
+	log.Printf("pubsub_id %s insert complianceStatus ok %s", global.PubSubID, insertID)
 	return nil
 }
 
@@ -305,7 +305,7 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 	var violationBQ violationBQ
 	err := json.Unmarshal(pubSubJSONDoc, &violation)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &violation): %s %v", global.pubSubID, string(pubSubJSONDoc), err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &violation): %s %v", global.PubSubID, string(pubSubJSONDoc), err)
 		return nil
 	}
 	violationBQ.NonCompliance.Message = violation.NonCompliance.Message
@@ -344,7 +344,7 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
 		return fmt.Errorf("inserter.Put %v", err)
 	}
-	log.Printf("pubsub_id %s insert violation ok %s", global.pubSubID, insertID)
+	log.Printf("pubsub_id %s insert violation ok %s", global.PubSubID, insertID)
 	return nil
 }
 
@@ -352,17 +352,17 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	var feedMessage feedMessage
 	err := json.Unmarshal(pubSubJSONDoc, &feedMessage)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &feedMessage) %s %v", global.pubSubID, string(pubSubJSONDoc), err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &feedMessage) %s %v", global.PubSubID, string(pubSubJSONDoc), err)
 		return nil
 	}
 	var assetFeedMessageBQ assetFeedMessageBQ
 	err = json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ): %v", global.pubSubID, err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ): %v", global.PubSubID, err)
 		return nil
 	}
 	if assetFeedMessageBQ.Asset.Name == "" {
-		log.Printf("pubsub_id %s NORETRY_ERROR assetFeedMessageBQ.Asset.Name is empty", global.pubSubID)
+		log.Printf("pubsub_id %s NORETRY_ERROR assetFeedMessageBQ.Asset.Name is empty", global.PubSubID)
 		return nil
 	}
 	assetFeedMessageBQ.Asset.Timestamp = feedMessage.Window.StartTime
@@ -381,6 +381,6 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
 		return fmt.Errorf("inserter.Put %v", err)
 	}
-	log.Printf("pubsub_id %s insert asset ok %s", global.pubSubID, insertID)
+	log.Printf("pubsub_id %s insert asset ok %s", global.PubSubID, insertID)
 	return nil
 }
