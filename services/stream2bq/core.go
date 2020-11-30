@@ -22,11 +22,11 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/functions/metadata"
 	"github.com/BrunoReboul/ram/services/monitor"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gbq"
-	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -38,14 +38,15 @@ import (
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
-	ctx                           context.Context
-	retryTimeOutSeconds           int64
 	assetsCollectionID            string
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
+	ctx                           context.Context
 	firestoreClient               *firestore.Client
 	inserter                      *bigquery.Inserter
 	ownerLabelKeyName             string
+	pubSubID                      string
+	retryTimeOutSeconds           int64
 	tableName                     string
 	violationResolverLabelKeyName string
 }
@@ -250,17 +251,22 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds); !ok {
-		return err
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+	global.pubSubID = metadata.EventID
+	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
+	if time.Now().After(expiration) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.pubSubID)
+		return nil
+	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Printf("Ignored pubsub message: %s", string(PubSubMessage.Data))
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s ignored pubsub message: %s", global.pubSubID, string(PubSubMessage.Data))
+		return nil
 	}
-
-	var err error
 	switch global.tableName {
 	case "complianceStatus":
 		err = persistComplianceStatus(PubSubMessage.Data, global)
@@ -270,8 +276,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		err = persistAsset(PubSubMessage.Data, global)
 	}
 	if err != nil {
-		return err // RETRY
+		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.pubSubID, err)
 	}
+	// log.Printf("pubsub_id %s exit nil", global.pubSubID)
 	return nil
 }
 
@@ -279,7 +286,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
 	var complianceStatus monitor.ComplianceStatus
 	err := json.Unmarshal(pubSubJSONDoc, &complianceStatus)
 	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &complianceStatus) %s %v", string(pubSubJSONDoc), err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &complianceStatus) %s %v", global.pubSubID, string(pubSubJSONDoc), err)
 		return nil
 	}
 	insertID := fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
@@ -289,7 +296,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
 		return fmt.Errorf("inserter.Put %v %v", err, savers)
 	}
-	log.Println("insert complianceStatus ok", insertID)
+	log.Printf("pubsub_id %s insert complianceStatus ok %s", global.pubSubID, insertID)
 	return nil
 }
 
@@ -298,7 +305,7 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 	var violationBQ violationBQ
 	err := json.Unmarshal(pubSubJSONDoc, &violation)
 	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &violation): %s %v", string(pubSubJSONDoc), err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &violation): %s %v", global.pubSubID, string(pubSubJSONDoc), err)
 		return nil
 	}
 	violationBQ.NonCompliance.Message = violation.NonCompliance.Message
@@ -337,7 +344,7 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
 		return fmt.Errorf("inserter.Put %v", err)
 	}
-	log.Println("insert violation ok", insertID)
+	log.Printf("pubsub_id %s insert violation ok %s", global.pubSubID, insertID)
 	return nil
 }
 
@@ -345,17 +352,17 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	var feedMessage feedMessage
 	err := json.Unmarshal(pubSubJSONDoc, &feedMessage)
 	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &feedMessage) %s %v", string(pubSubJSONDoc), err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &feedMessage) %s %v", global.pubSubID, string(pubSubJSONDoc), err)
 		return nil
 	}
 	var assetFeedMessageBQ assetFeedMessageBQ
 	err = json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)
 	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ): %v", err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ): %v", global.pubSubID, err)
 		return nil
 	}
 	if assetFeedMessageBQ.Asset.Name == "" {
-		log.Printf("ERROR - assetFeedMessageBQ.Asset.Name is empty")
+		log.Printf("pubsub_id %s NORETRY_ERROR assetFeedMessageBQ.Asset.Name is empty", global.pubSubID)
 		return nil
 	}
 	assetFeedMessageBQ.Asset.Timestamp = feedMessage.Window.StartTime
@@ -374,6 +381,6 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
 		return fmt.Errorf("inserter.Put %v", err)
 	}
-	log.Println("insert asset ok", insertID)
+	log.Printf("pubsub_id %s insert asset ok %s", global.pubSubID, insertID)
 	return nil
 }
