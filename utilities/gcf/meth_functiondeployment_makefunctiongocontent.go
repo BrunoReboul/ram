@@ -43,6 +43,7 @@ package p
 
 import (
 	"context"
+	"log"
 
 	"github.com/BrunoReboul/ram/services/<serviceName>"
 	"github.com/BrunoReboul/ram/utilities/gps"
@@ -87,6 +88,7 @@ package p
 
 import (
 	"context"
+	"log"
 
 	"github.com/BrunoReboul/ram/services/<serviceName>"
 	"github.com/BrunoReboul/ram/utilities/gcs"
