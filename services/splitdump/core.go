@@ -28,10 +28,10 @@ import (
 
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
-	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gcs"
 	"github.com/BrunoReboul/ram/utilities/solution"
 
+	"cloud.google.com/go/functions/metadata"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/BrunoReboul/ram/utilities/gps"
@@ -41,10 +41,11 @@ import (
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	ctx                        context.Context
-	retryTimeOutSeconds        int64
 	iamTopicName               string
-	pubsubPublisherClient      *pubsub.PublisherClient
 	projectID                  string
+	PubSubID                   string
+	pubsubPublisherClient      *pubsub.PublisherClient
+	retryTimeOutSeconds        int64
 	scannerBufferSizeKiloBytes int
 	splitThresholdLineNumber   int64
 	storageBucket              *storage.BucketHandle
@@ -89,7 +90,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	// }
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	global.iamTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
@@ -100,12 +101,12 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - storage.NewClient: %v", err)
+		return fmt.Errorf("storage.NewClient: %v", err)
 	}
 	global.storageBucket = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name)
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - global.pubsubPublisherClient: %v", err)
+		return fmt.Errorf("global.pubsubPublisherClient: %v", err)
 	}
 	return nil
 }
@@ -113,10 +114,17 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds); !ok {
-		return err
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+	global.PubSubID = metadata.EventID
+	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
+	if time.Now().After(expiration) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.PubSubID)
+		return nil
+	}
 
 	var childDumpNumber int64
 	var dumpLineNumber int64
@@ -125,29 +133,29 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	var startTime time.Time
 
 	if gcsEvent.ResourceState == "not_exists" {
-		log.Printf("Object %v deleted.", gcsEvent.Name)
+		log.Printf("pubsub_id %s object %v deleted.", global.PubSubID, gcsEvent.Name)
 		return nil
 	}
 	if gcsEvent.Size == "0" {
-		log.Printf("Object %v is empty, nothing to split, ignored", gcsEvent.Name)
+		log.Printf("pubsub_id %s object %v is empty, nothing to split, ignored", global.PubSubID, gcsEvent.Name)
 		return nil
 	}
 	matched, _ := regexp.Match(`dumpinventory.*.dump`, []byte(gcsEvent.Name))
 	if !matched {
-		log.Printf("Object %v is not a CAI dump", gcsEvent.Name)
+		log.Printf("pubsub_id %s object %v is not a CAI dump", global.PubSubID, gcsEvent.Name)
 		return nil
 	}
 	if gcsEvent.Metageneration == "1" {
 		// The metageneration attribute is updated on metadata changes.
 		// The on create value is 1.
-		log.Printf("Object %v created, size: %v bytes\n", gcsEvent.Name, gcsEvent.Size)
+		log.Printf("pubsub_id %s object %v created, size: %v bytes\n", global.PubSubID, gcsEvent.Name, gcsEvent.Size)
 	} else {
-		log.Printf("Object %v updated, size: %v bytes\n", gcsEvent.Name, gcsEvent.Size)
+		log.Printf("pubsub_id %s object %v updated, size: %v bytes\n", global.PubSubID, gcsEvent.Name, gcsEvent.Size)
 	}
 	storageObject := global.storageBucket.Object(gcsEvent.Name)
 	storageObjectReader, err := storageObject.NewReader(global.ctx)
 	if err != nil {
-		return fmt.Errorf("storageObject.NewReader: %v", err) // RETRY
+		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT storageObject.NewReader: %v", global.PubSubID, err)
 	}
 	defer storageObjectReader.Close()
 	teeStorageObjectReader := io.TeeReader(storageObjectReader, &buffer)
@@ -155,7 +163,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	var topicList []string
 	err = gps.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &topicList)
 	if err != nil {
-		return fmt.Errorf("getTopicList: %v", err) // RETRY
+		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT getTopicList: %v", global.PubSubID, err)
 	}
 
 	startTime = gcsEvent.Updated
@@ -173,16 +181,15 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	if dumpLineNumber > global.splitThresholdLineNumber {
 		dumpLineNumber, childDumpNumber, duration, err = splitToChildDumps(buffer, gcsEvent.Name, childDumpNumber, global)
 		if err != nil {
-			log.Printf("ERROR - splitToChildDumps %v", err)
-			return nil // NO RETRY
+			log.Printf("pubsub_id %s NORETRY_ERROR splitToChildDumps %v", global.PubSubID, err)
+			return nil
 		}
 		childDumpNumber++
-		log.Printf("Processed %d lines, created %d childdumps files from %s generation %v duration %v\n", dumpLineNumber, childDumpNumber, gcsEvent.Name, gcsEvent.Generation, duration)
+		log.Printf("pubsub_id %s processed %d lines, created %d childdumps files from %s generation %v duration %v\n", global.PubSubID, dumpLineNumber, childDumpNumber, gcsEvent.Name, gcsEvent.Generation, duration)
 	} else {
 		dumpLineNumber, duration = splitToLines(buffer, global, &pubSubMsgNumber, &topicList, startTime)
-		log.Printf("Processed %d lines %d pubsub msg from %s generation %v duration %v\n", dumpLineNumber, pubSubMsgNumber, gcsEvent.Name, gcsEvent.Generation, duration)
+		log.Printf("pubsub_id %s processed %d lines %d pubsub msg from %s generation %v duration %v\n", global.PubSubID, dumpLineNumber, pubSubMsgNumber, gcsEvent.Name, gcsEvent.Generation, duration)
 	}
-
 	return nil
 }
 
@@ -218,7 +225,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 			for i = 0; i < 10; i++ {
 				_, err = fmt.Fprint(storageObjectWriter, childDumpContent)
 				if err != nil {
-					log.Printf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
+					log.Printf("pubsub_id %s error iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", global.PubSubID, i, err)
 					time.Sleep(i * 100 * time.Millisecond)
 				} else {
 					done = true
@@ -233,7 +240,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 			for i = 0; i < 10; i++ {
 				err = storageObjectWriter.Close()
 				if err != nil {
-					log.Printf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
+					log.Printf("pubsub_id %s error iteration %v storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", global.PubSubID, i, childDumpName, dumpLineNumber, childDumpLineNumber, err)
 					time.Sleep(i * 100 * time.Millisecond)
 				} else {
 					done = true
@@ -258,7 +265,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 	for i = 0; i < 10; i++ {
 		_, err = fmt.Fprint(storageObjectWriter, childDumpContent)
 		if err != nil {
-			log.Printf("Error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", i, err)
+			log.Printf("pubsub_id %s error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", global.PubSubID, i, err)
 			time.Sleep(i * 100 * time.Millisecond)
 		} else {
 			done = true
@@ -273,7 +280,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 	for i = 0; i < 10; i++ {
 		err = storageObjectWriter.Close()
 		if err != nil {
-			log.Printf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
+			log.Printf("pubsub_id %s error - iteration %v storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", global.PubSubID, i, childDumpName, dumpLineNumber, childDumpLineNumber, err)
 			time.Sleep(i * 100 * time.Millisecond)
 		} else {
 			done = true
@@ -313,7 +320,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 	} else {
 		asset := transposeAsset(assetLegacy)
 		if asset.IamPolicy == nil && asset.Resource == nil {
-			log.Println("Ignored dump line: no IamPolicy object nor Resource object", dumpline)
+			log.Printf("pubsub_id %s ignored dump line: no IamPolicy object nor Resource object %s", global.PubSubID, dumpline)
 		} else {
 			if asset.IamPolicy != nil {
 				topicName = global.iamTopicName
@@ -322,11 +329,11 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 			}
 			// log.Println("topicName", topicName)
 			if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, topicListPointer, topicName, global.projectID); err != nil {
-				log.Printf("Ignored dump line: no topic %s to publish %s %v", topicName, dumpline, err)
+				log.Printf("pubsub_id %s ignored dump line: no topic %s to publish %s %v", global.PubSubID, topicName, dumpline, err)
 			} else {
 				feedMessageJSON, err := json.Marshal(getFeedMessage(asset, startTime))
 				if err != nil {
-					log.Println("Error json.Marshal", err)
+					log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal %v", global.PubSubID, err)
 					return err
 				}
 				var pubSubMessage pubsubpb.PubsubMessage
@@ -341,7 +348,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 
 				pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 				if err != nil {
-					log.Printf("ERROR global.pubsubPublisherClient.Publish: %v", err) // NO RETRY
+					log.Printf("pubsub_id %s NORETRY_ERROR global.pubsubPublisherClient.Publish: %v", global.PubSubID, err)
 				}
 				// log.Printf("Published to pubsub topic %s ids %v %s", topicName, pubsubResponse.MessageIds, string(feedMessageJSON))
 				_ = pubsubResponse
