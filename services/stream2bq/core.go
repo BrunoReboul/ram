@@ -205,7 +205,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	log.Println("Function COLD START")
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	datasetName := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Dataset.Name
@@ -218,31 +218,31 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	bigQueryClient, err = bigquery.NewClient(global.ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("ERROR - bigquery.NewClient: %v", err)
+		return fmt.Errorf("bigquery.NewClient: %v", err)
 	}
 	dataset := bigQueryClient.Dataset(datasetName)
 	_, err = dataset.Metadata(ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - dataset.Metadata: %v", err)
+		return fmt.Errorf("dataset.Metadata: %v", err)
 	}
 	table = dataset.Table(global.tableName)
 	_, err = table.Metadata(ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - missing table %s %v", global.tableName, err)
+		return fmt.Errorf("missing table %s %v", global.tableName, err)
 	}
 	global.inserter = table.Inserter()
 	if global.tableName == "assets" {
 		global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(global.ctx)
 		if err != nil {
-			return fmt.Errorf("ERROR - cloudresourcemanager.NewService: %v", err)
+			return fmt.Errorf("cloudresourcemanager.NewService: %v", err)
 		}
 		global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(global.ctx)
 		if err != nil {
-			return fmt.Errorf("ERROR - cloudresourcemanagerv2.NewService: %v", err)
+			return fmt.Errorf("cloudresourcemanagerv2.NewService: %v", err)
 		}
 		global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
 		if err != nil {
-			return fmt.Errorf("ERROR - firestore.NewClient: %v", err)
+			return fmt.Errorf("firestore.NewClient: %v", err)
 		}
 	}
 	return nil

@@ -25,7 +25,6 @@ import (
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
-	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
@@ -36,6 +35,7 @@ import (
 	"google.golang.org/api/option"
 
 	"cloud.google.com/go/firestore"
+	"cloud.google.com/go/functions/metadata"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	admin "google.golang.org/api/admin/directory/v1"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
@@ -93,6 +93,7 @@ type Global struct {
 	logEntry                    logEntry
 	organizationID              string
 	projectID                   string
+	PubSubID                    string
 	pubsubPublisherClient       *pubsub.PublisherClient
 	retriesNumber               time.Duration
 	retryTimeOutSeconds         int64
@@ -110,7 +111,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	log.Println("Function COLD START")
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
@@ -135,27 +136,27 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
-		return fmt.Errorf("ERROR - admin.NewService: %v", err)
+		return fmt.Errorf("admin.NewService: %v", err)
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
 	if err != nil {
-		return fmt.Errorf("ERROR - groupssettings.NewService: %v", err)
+		return fmt.Errorf("groupssettings.NewService: %v", err)
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - global.pubsubPublisherClient: %v", err)
+		return fmt.Errorf("global.pubsubPublisherClient: %v", err)
 	}
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		return fmt.Errorf("ERROR - firestore.NewClient: %v", err)
+		return fmt.Errorf("firestore.NewClient: %v", err)
 	}
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - cloudresourcemanager.NewService: %v", err)
+		return fmt.Errorf("cloudresourcemanager.NewService: %v", err)
 	}
 	err = gps.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &global.topicList)
 	if err != nil {
-		return fmt.Errorf("ERROR - gps.GetTopicList: %v", err)
+		return fmt.Errorf("gps.GetTopicList: %v", err)
 	}
 	return nil
 }
@@ -163,17 +164,21 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds)
-	if !ok {
-		return err
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
-	// log.Printf("PubSubMessage.Data %s", PubSubMessage.Data)
-	_ = metadata
+	global.PubSubID = metadata.EventID
+	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
+	if time.Now().After(expiration) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.PubSubID)
+		return nil
+	}
 
 	err = json.Unmarshal(PubSubMessage.Data, &global.logEntry)
 	if err != nil {
-		log.Printf("ERROR json.Unmarshal logentry %v", err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal logentry %v", global.PubSubID, err)
 		return nil
 	}
 
@@ -183,11 +188,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		case "admin.googleapis.com":
 			return convertAdminActivityEvent(global)
 		default:
-			log.Printf("Unmanaged  global.logEntry.Resource.Labels service  %s", global.logEntry.Resource.Labels["service"])
+			log.Printf("pubsub_id %s NORETRY_ERROR unmanaged global.logEntry.Resource.Labels service  %s", global.PubSubID, global.logEntry.Resource.Labels["service"])
 			return nil
 		}
 	default:
-		log.Printf("Unmanaged logEntry.Resource.Type %s", global.logEntry.Resource.Type)
+		log.Printf("pubsub_id %s NORETRY_ERROR unmanaged logEntry.Resource.Type %s", global.PubSubID, global.logEntry.Resource.Type)
 		return nil
 	}
 }
@@ -198,7 +203,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 
 	err = json.Unmarshal(global.logEntry.ProtoPayload, &protoPayload)
 	if err != nil {
-		log.Printf("ERROR json.Unmarshal protoPaylaod %v", err)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal protoPaylaod %v", global.PubSubID, err)
 		return nil
 	}
 
@@ -207,10 +212,10 @@ func convertAdminActivityEvent(global *Global) (err error) {
 	// log.Printf("global.organizationID", global.organizationID)
 	err = getCustomerID(global)
 	if err != nil {
-		return err // retry
+		return err
 	}
 	if global.directoryCustomerID == "" {
-		log.Println("ERROR directoryCustomerID not found")
+		log.Printf("pubsub_id %s NORETRY_ERROR directoryCustomerID not found", global.PubSubID)
 		return nil
 	}
 
@@ -219,7 +224,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 		case "GROUP_SETTINGS":
 			return convertGroupSettings(&event, global)
 		default:
-			log.Printf("Unmanaged event.EventType %s", event.EventType)
+			log.Printf("pubsub_id %s NORETRY_ERROR unmanaged event.EventType %s", global.PubSubID, event.EventType)
 			return nil
 		}
 	}
@@ -237,8 +242,8 @@ func getCustomerID(global *Global) (err error) {
 		assetMap := documentSnap.Data()
 		assetMapJSON, err := json.Marshal(assetMap)
 		if err != nil {
-			log.Println("ERROR - json.Marshal(assetMap)")
-			return nil // NO RETRY
+			log.Printf("pubsub_id %s WARNING json.Marshal(assetMap)", global.PubSubID)
+			return nil
 		}
 		// log.Printf("%s", string(assetMapJSON))
 		_ = assetMapJSON
@@ -257,16 +262,15 @@ func getCustomerID(global *Global) (err error) {
 							return nil
 						}
 					}
-
 				}
 			}
 		}
 	} else {
-		log.Printf("WARNING - Not found in firestore %s", documentPath)
+		log.Printf("pubsub_id %s WARNING not found in firestore %s", global.PubSubID, documentPath)
 		//try resourcemamager API
 		resp, err := global.cloudresourcemanagerService.Organizations.Get(global.organizationID).Context(global.ctx).Do()
 		if err != nil {
-			log.Printf("WARNING - cloudresourcemanagerService.Organizations.Get %v", err)
+			log.Printf("pubsub_id %s WARNING cloudresourcemanagerService.Organizations.Get %v", global.PubSubID, err)
 		} else {
 			global.directoryCustomerID = resp.Owner.DirectoryCustomerId
 			return nil
@@ -279,7 +283,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 	var parameters groupSettingsParameters
 	err = json.Unmarshal(event.Parameter, &parameters)
 	if err != nil {
-		log.Printf("ERROR json.Unmarshal groupSettingsParameters %v", err)
+		log.Printf("pubsub_id %s NORETRY_ERROR groupSettingsParameters %v", global.PubSubID, err)
 		return nil
 	}
 	var groupEmail string
@@ -291,7 +295,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		}
 	}
 	if groupEmail == "" {
-		log.Printf("ERROR expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID)
+		log.Printf("pubsub_id %s NORETRY_ERROR expected parameter GROUP_EMAIL not found, insertId %s", global.PubSubID, global.logEntry.InsertID)
 		return nil
 	}
 	switch event.EventName {
@@ -315,7 +319,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			}
 		}
 		if memberEmail == "" {
-			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
+			log.Printf("pubsub_id %s NORETRY_ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.PubSubID, global.logEntry.InsertID)
 			return nil
 		}
 		return publishGroupMemberCreationOrUpdate(groupEmail, memberEmail, global)
@@ -330,7 +334,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			}
 		}
 		if memberEmail == "" {
-			log.Printf("ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID)
+			log.Printf("pubsub_id %s NORETRY_ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.PubSubID, global.logEntry.InsertID)
 			return nil
 		}
 		return publishGroupMemberDeletion(groupEmail, memberEmail, global)
@@ -338,7 +342,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#CHANGE_GROUP_SETTING
 		return publishGroupSettings(groupEmail, global)
 	default:
-		log.Printf("Unmanaged event.EventName %s", event.EventName)
+		log.Printf("pubsub_id %s NORETRY_ERROR unmanaged event.EventName %s", global.PubSubID, event.EventName)
 		return nil
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#GROUP_LIST_DOWNLOAD
 		// https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin-group-settings#UPDATE_GROUP_MEMBER_DELIVERY_SETTINGS
@@ -400,7 +404,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 	var i int64
 	for {
 		if i > 0 {
-			log.Printf("Cleaning cache group orphans iteration %d", i)
+			log.Printf("pubsub_id %s cleaning cache group orphans iteration %d", global.PubSubID, i)
 		}
 		i++
 		documentSnap, err = iter.Next()
@@ -408,13 +412,13 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("publishGroupDeletion iter.Next() %v", err) // RETRY
+			return fmt.Errorf("publishGroupDeletion iter.Next() %v", err)
 		}
 		if documentSnap.Exists() {
 			found = true
 			err = documentSnap.DataTo(&retreivedFeedMessageGroup)
 			if err != nil {
-				return fmt.Errorf("publishGroupDeletion documentSnap.DataTo %v", err) // RETRY
+				return fmt.Errorf("publishGroupDeletion documentSnap.DataTo %v", err)
 			}
 
 			// Updating fields
@@ -428,14 +432,14 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 				retreivedFeedMessageGroup.Asset.Name,
 				global)
 			if err != nil {
-				return fmt.Errorf("publishGroup(retreivedFeedMessageGroup %v", err) // RETRY
+				return fmt.Errorf("publishGroup(retreivedFeedMessageGroup %v", err)
 			}
 		} else {
-			return fmt.Errorf("document does not exist %s", documentSnap.Ref.Path) // RETRY
+			return fmt.Errorf("document does not exist %s", documentSnap.Ref.Path)
 		}
 	}
 	if !found {
-		log.Printf("ERROR - deleted group not found in cache, cannot clean up RAM data %s", groupEmail)
+		log.Printf("pubsub_id %s NORETRY_ERROR deleted group not found in cache, cannot clean up RAM data %s", global.PubSubID, groupEmail)
 	}
 	return nil
 }
@@ -443,8 +447,8 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, assetName string, global *Global) (err error) {
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
-		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", assetName, err)
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s NORETRY_ERROR %s json.Marshal(feedMessage): %v", global.PubSubID, assetName, err)
+		return nil
 	}
 	var pubSubMessage pubsubpb.PubsubMessage
 	pubSubMessage.Data = feedMessageJSON
@@ -455,8 +459,8 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 	var publishRequest pubsubpb.PublishRequest
 	topicShortName := fmt.Sprintf("gci-groups-%s", global.directoryCustomerID)
 	if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, &global.topicList, topicShortName, global.projectID); err != nil {
-		log.Printf("ERROR - %s gps.CreateTopic: %v", topicShortName, err)
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s NORETRY_ERROR %s gps.CreateTopic: %v", global.PubSubID, topicShortName, err)
+		return nil
 	}
 	topicName := fmt.Sprintf("projects/%s/topics/%s", global.projectID, topicShortName)
 	publishRequest.Topic = topicName
@@ -464,11 +468,12 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
-		log.Printf("publish err no nil %v", err)
-		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", topicShortName, err) // RETRY
+		// log.Printf("publish err no nil %v", err)
+		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", topicShortName, err)
 	}
 
-	log.Printf("PubOps group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+	log.Printf("pubsub_id %s PubOps group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+		global.PubSubID,
 		groupEmail,
 		isDeleted,
 		assetName,
@@ -551,7 +556,7 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 	var i int64
 	for {
 		if i > 0 {
-			log.Printf("Cleaning cache groupMember orphans iteration %d", i)
+			log.Printf("pubsub_id %s cleaning cache groupMember orphans iteration %d", global.PubSubID, i)
 		}
 		i++
 		documentSnap, err = iter.Next()
@@ -559,13 +564,13 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("publishGroupMemberDeletion iter.Next() %v", err) // RETRY
+			return fmt.Errorf("publishGroupMemberDeletion iter.Next() %v", err)
 		}
 		if documentSnap.Exists() {
 			found = true
 			err = documentSnap.DataTo(&retreivedFeedMessageGroupMember)
 			if err != nil {
-				return fmt.Errorf("publishGroupMemberDeletion documentSnap.DataTo %v", err) // RETRY
+				return fmt.Errorf("publishGroupMemberDeletion documentSnap.DataTo %v", err)
 			}
 
 			// Updating fields
@@ -580,14 +585,14 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 				retreivedFeedMessageGroupMember.Asset.Name,
 				global)
 			if err != nil {
-				return fmt.Errorf("publishGroup(retreivedFeedMessageGroupMember %v", err) // RETRY
+				return fmt.Errorf("publishGroup(retreivedFeedMessageGroupMember %v", err)
 			}
 		} else {
-			return fmt.Errorf("document does not exist %s", documentSnap.Ref.Path) // RETRY
+			return fmt.Errorf("document does not exist %s", documentSnap.Ref.Path)
 		}
 	}
 	if !found {
-		log.Printf("ERROR - deleted groupMember not found in cache, cannot clean up RAM data member %s group %s", memberEmail, groupEmail)
+		log.Printf("pubsub_id %s NORETRY_ERROR deleted groupMember not found in cache, cannot clean up RAM data member %s group %s", global.PubSubID, memberEmail, groupEmail)
 	}
 	return nil
 }
@@ -595,8 +600,8 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail string, memberEmail string, assetName string, global *Global) (err error) {
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
-		log.Printf("ERROR - %s json.Marshal(feedMessage): %v", assetName, err)
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s NORETRY_ERROR %s json.Marshal(feedMessage): %v", global.PubSubID, assetName, err)
+		return nil
 	}
 	var pubSubMessage pubsubpb.PubsubMessage
 	pubSubMessage.Data = feedMessageJSON
@@ -610,9 +615,10 @@ func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail stri
 
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
-		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
+		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err)
 	}
-	log.Printf("PubOps groupMember %s group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+	log.Printf("pubsub_id %s PubOps groupMember %s group %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+		global.PubSubID,
 		memberEmail,
 		groupEmail,
 		isDeleted,
@@ -634,7 +640,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 	var groupID string
 	groupSettings, err := global.groupsSettingsService.Groups.Get(groupEmail).Do()
 	if err != nil {
-		return fmt.Errorf("groupsSettingsService.Groups.Get: %s %v", groupEmail, err) // RETRY
+		return fmt.Errorf("groupsSettingsService.Groups.Get: %s %v", groupEmail, err)
 	}
 	feedMessageGroupSettings.Asset.Resource = groupSettings
 
@@ -649,8 +655,8 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 
 	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
 	if err != nil {
-		log.Println("ERROR - json.Marshal(feedMessageGroupSettings)")
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessageGroupSettings)", global.PubSubID)
+		return nil
 	}
 
 	var pubSubMessage pubsubpb.PubsubMessage
@@ -665,9 +671,10 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
-		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err) // RETRY
+		return fmt.Errorf("%s global.pubsubPublisherClient.Publish: %v", publishRequest.Topic, err)
 	}
-	log.Printf("PubOps groupSettings %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+	log.Printf("pubsub_id %s PubOps groupSettings %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+		global.PubSubID,
 		feedMessageGroupSettings.Asset.Resource.Email,
 		feedMessageGroupSettings.Deleted,
 		feedMessageGroupSettings.Asset.Name,
