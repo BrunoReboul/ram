@@ -79,7 +79,7 @@ func TestIntegFolderDeploy(t *testing.T) {
 	ctx := context.Background()
 	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
-		log.Fatalf("ERROR - google.FindDefaultCredentials %v", err)
+		log.Fatalf("google.FindDefaultCredentials %v", err)
 	}
 
 	for _, tc := range testCases {

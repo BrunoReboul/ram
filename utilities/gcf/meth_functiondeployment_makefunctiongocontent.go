@@ -36,13 +36,14 @@ const backgroundPubSubFunctionGo = `
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// generated code %v
+// generated code <timeStamp>
 
 // Package p contains a background cloud function
 package p
 
 import (
 	"context"
+	"log"
 
 	"github.com/BrunoReboul/ram/services/<serviceName>"
 	"github.com/BrunoReboul/ram/utilities/gps"
@@ -57,7 +58,10 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage) error
 }
 
 func init() {
-	<serviceName>.Initialize(ctx, &global)
+	err := <serviceName>.Initialize(ctx, &global)
+	if err != nil {
+		log.Fatalf("pubsub_id %s INIT_FAILURE %v", global.PubSubID, err)
+	}
 }
 `
 
@@ -77,13 +81,14 @@ const backgroundGCSFunctionGo = `
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// generated code %v
+// generated code <timeStamp>
 
 // Package p contains a background cloud function
 package p
 
 import (
 	"context"
+	"log"
 
 	"github.com/BrunoReboul/ram/services/<serviceName>"
 	"github.com/BrunoReboul/ram/utilities/gcs"
@@ -98,19 +103,23 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event) error {
 }
 
 func init() {
-	<serviceName>.Initialize(ctx, &global)
+	err := <serviceName>.Initialize(ctx, &global)
+	if err != nil {
+		log.Fatalf("pubsub_id %s INIT_FAILURE %v", global.PubSubID, err)
+	}
 }
 `
 
 // makeFunctionGoContent craft the content of a cloud function function.go file for a RAM microservice instance
 func (functionDeployment *FunctionDeployment) makeFunctionGoContent() (functionGoContent string, err error) {
+	timeStamp := fmt.Sprintf("%s", time.Now())
 	switch functionDeployment.Settings.Service.GCF.FunctionType {
 	case "backgroundPubSub":
-		return fmt.Sprintf(strings.Replace(backgroundPubSubFunctionGo,
-			"<serviceName>", functionDeployment.Core.ServiceName, -1), time.Now()), nil
+		return strings.Replace(strings.Replace(backgroundPubSubFunctionGo,
+			"<serviceName>", functionDeployment.Core.ServiceName, -1), "<timeStamp>", timeStamp, -1), nil
 	case "backgroundGCS":
-		return fmt.Sprintf(strings.Replace(backgroundGCSFunctionGo,
-			"<serviceName>", functionDeployment.Core.ServiceName, -1), time.Now()), nil
+		return strings.Replace(strings.Replace(backgroundGCSFunctionGo,
+			"<serviceName>", functionDeployment.Core.ServiceName, -1), "<timeStamp>", timeStamp, -1), nil
 	default:
 		return "", fmt.Errorf("functionType provided not managed: %s", functionDeployment.Settings.Service.GCF.FunctionType)
 	}

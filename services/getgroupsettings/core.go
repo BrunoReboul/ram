@@ -19,16 +19,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
-	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
 
+	"cloud.google.com/go/functions/metadata"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
@@ -40,6 +41,7 @@ type Global struct {
 	outputTopicName       string
 	projectID             string
 	pubsubPublisherClient *pubsub.PublisherClient
+	PubSubID              string
 	retryTimeOutSeconds   int64
 }
 
@@ -54,7 +56,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	log.Println("Function COLD START")
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
@@ -76,11 +78,11 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
 	if err != nil {
-		return fmt.Errorf("ERROR - groupssettings.NewService: %v", err)
+		return fmt.Errorf("groupssettings.NewService: %v", err)
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - global.pubsubPublisherClient: %v", err)
+		return fmt.Errorf("global.pubsubPublisherClient: %v", err)
 	}
 	return nil
 }
@@ -88,18 +90,24 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds)
-	if !ok {
-		return err
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+	global.PubSubID = metadata.EventID
+	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
+	if time.Now().After(expiration) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.PubSubID)
+		return nil
+	}
 
 	// Pass data to global variables to deal with func browseGroup
 	var feedMessageGroup cai.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
-		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)", global.PubSubID)
+		return nil
 	}
 
 	var feedMessageGroupSettings cai.FeedMessageGroupSettings
@@ -112,15 +120,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	if !feedMessageGroup.Deleted {
 		groupSettings, err := global.groupsSettingsService.Groups.Get(feedMessageGroup.Asset.Resource.Email).Do()
 		if err != nil {
-			return fmt.Errorf("groupsSettingsService.Groups.Get: %v", err) // RETRY
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT groupsSettingsService.Groups.Get: %v", global.PubSubID, err)
 		}
 		feedMessageGroupSettings.Asset.Resource = groupSettings
 	}
 
 	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
 	if err != nil {
-		log.Println("ERROR - json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)")
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)", global.PubSubID)
+		return nil
 	}
 
 	var pubSubMessage pubsubpb.PubsubMessage
@@ -135,9 +143,10 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
-		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err) // RETRY
+		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT global.pubsubPublisherClient.Publish: %v", global.PubSubID, err)
 	}
-	log.Printf("Group settings %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+	log.Printf("pubsub_id %s  group settings %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
+		global.PubSubID,
 		feedMessageGroup.Asset.Resource.Email,
 		feedMessageGroup.Deleted,
 		feedMessageGroup.Asset.Resource.Id,
