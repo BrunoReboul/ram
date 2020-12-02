@@ -186,7 +186,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	case "audited_resource":
 		switch global.logEntry.Resource.Labels["service"] {
 		case "admin.googleapis.com":
-			return convertAdminActivityEvent(global)
+			err = convertAdminActivityEvent(global)
+			if err != nil {
+				return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.PubSubID, err)
+			}
+			return nil
 		default:
 			log.Printf("pubsub_id %s NORETRY_ERROR unmanaged global.logEntry.Resource.Labels service  %s", global.PubSubID, global.logEntry.Resource.Labels["service"])
 			return nil
