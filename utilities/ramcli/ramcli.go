@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	asset "cloud.google.com/go/asset/apiv1"
+	"cloud.google.com/go/firestore"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	scheduler "cloud.google.com/go/scheduler/apiv1"
 
@@ -133,6 +134,11 @@ func RAMCli(deployment *Deployment) (err error) {
 	}
 	// BQ client cannot be initiated in the Intialize func as other clients as it requires the projdctID that is know only at this stage
 	deployment.Core.Services.BigqueryClient, err = bigquery.NewClient(deployment.Core.Ctx, deployment.Core.SolutionSettings.Hosting.ProjectID, option.WithCredentials(creds))
+	if err != nil {
+		return err
+	}
+	// FireStore client cannot be initiated in the Intialize func as other clients as it requires the projdctID that is know only at this stage
+	deployment.Core.Services.FirestoreClient, err = firestore.NewClient(deployment.Core.Ctx, deployment.Core.SolutionSettings.Hosting.ProjectID, option.WithCredentials(creds))
 	if err != nil {
 		return err
 	}

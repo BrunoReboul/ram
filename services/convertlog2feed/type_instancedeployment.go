@@ -67,6 +67,8 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GCB.BuildTimeout = "600s"
 	instanceDeployment.Settings.Service.GCB.DeployIAMServiceAccount = true
 	instanceDeployment.Settings.Service.GCB.DeployIAMBindings = true
+	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Project.Roles = []string{
+		"roles/datastore.owner"}
 	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
 		projectDeployCoreRole().Title,
 		iamgt.ProjectDeployExtendedRole().Title}
