@@ -22,8 +22,8 @@ import (
 )
 
 // getJWTConfigAndCleanKeys build a JWT config and manage the init state
-func getJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string, scopes []string) (jwtConfig *jwt.Config, err error) {
-	keyRestAPIFormat, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID)
+func getJWTConfigAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string, scopes []string, serviceAccountKeyNames []string) (jwtConfig *jwt.Config, err error) {
+	keyRestAPIFormat, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, serviceAccountKeyNames)
 	if err != nil {
 		return jwtConfig, err
 	}
