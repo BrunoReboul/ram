@@ -24,11 +24,13 @@ import (
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/option"
 
+	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
@@ -37,11 +39,12 @@ import (
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	ctx                   context.Context
+	firestoreClient       *firestore.Client
 	groupsSettingsService *groupssettings.Service
 	outputTopicName       string
 	projectID             string
-	pubsubPublisherClient *pubsub.PublisherClient
 	PubSubID              string
+	pubsubPublisherClient *pubsub.PublisherClient
 	retryTimeOutSeconds   int64
 }
 
@@ -68,12 +71,23 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		instanceDeployment.Core.ServiceName,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
+	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
+	if err != nil {
+		return fmt.Errorf("firestore.NewClient: %v", err)
+	}
+
+	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
+	if err != nil {
+		return fmt.Errorf("gfs.ListKeyNames %v", err)
+	}
+
 	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
 		serviceAccountEmail,
 		keyJSONFilePath,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		gciAdminUserToImpersonate,
-		[]string{"https://www.googleapis.com/auth/apps.groups.settings"}); !ok {
+		[]string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"},
+		serviceAccountKeyNames); !ok {
 		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)

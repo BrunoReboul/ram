@@ -26,6 +26,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/iterator"
@@ -94,21 +95,27 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		instanceDeployment.Core.ServiceName,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
+	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
+	if err != nil {
+		return fmt.Errorf("firestore.NewClient: %v", err)
+	}
+	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
+	if err != nil {
+		return fmt.Errorf("gfs.ListKeyNames %v", err)
+	}
+
 	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
 		serviceAccountEmail,
 		keyJSONFilePath,
-		projectID,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		gciAdminUserToImpersonate,
-		[]string{admin.AdminDirectoryGroupMemberReadonlyScope}); !ok {
+		[]string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"},
+		serviceAccountKeyNames); !ok {
 		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
 		return fmt.Errorf("admin.NewService: %v", err)
-	}
-	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
-	if err != nil {
-		return fmt.Errorf("firestore.NewClient: %v", err)
 	}
 	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
 	if err != nil {

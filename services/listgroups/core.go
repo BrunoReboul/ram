@@ -26,10 +26,12 @@ import (
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"google.golang.org/api/option"
 
+	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
 	admin "google.golang.org/api/admin/directory/v1"
@@ -54,6 +56,7 @@ type Global struct {
 	ctx                     context.Context
 	dirAdminService         *admin.Service
 	directoryCustomerID     string
+	firestoreClient         *firestore.Client
 	inputTopicName          string
 	logEventEveryXPubSubMsg uint64
 	maxResultsPerPage       int64 // API Max = 200
@@ -96,12 +99,23 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		instanceDeployment.Core.ServiceName,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
+	global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("firestore.NewClient: %v", err)
+	}
+
+	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
+	if err != nil {
+		return fmt.Errorf("gfs.ListKeyNames %v", err)
+	}
+
 	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
 		serviceAccountEmail,
 		keyJSONFilePath,
-		projectID,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		gciAdminUserToImpersonate,
-		[]string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope}); !ok {
+		[]string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"},
+		serviceAccountKeyNames); !ok {
 		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
