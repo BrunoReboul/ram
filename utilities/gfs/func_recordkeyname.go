@@ -39,6 +39,7 @@ func RecordKeyName(core *deploy.Core, serviceAccountKeyName string, retriesNumbe
 					log.Printf("ERROR - iteration %d core.Services.FirestoreClient.Doc(documentPath).Set %v", i, err)
 					time.Sleep(i * 100 * time.Millisecond)
 				} else {
+					log.Printf("%s gfs instance key name record created %s", core.InstanceName, serviceAccountKeyName)
 					return nil
 				}
 			} else {
@@ -56,6 +57,7 @@ func RecordKeyName(core *deploy.Core, serviceAccountKeyName string, retriesNumbe
 				log.Printf("ERROR - iteration %d core.Services.FirestoreClient.Doc(documentPath).Update %v", i, err)
 				time.Sleep(i * 100 * time.Millisecond)
 			} else {
+				log.Printf("%s gfs instance key name record updated %s", core.InstanceName, serviceAccountKeyName)
 				return nil
 			}
 		}
