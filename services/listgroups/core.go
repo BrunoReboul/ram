@@ -68,8 +68,9 @@ type Global struct {
 
 // Settings from PubSub triggering event
 type Settings struct {
-	Domain      string `json:"domain"`
-	EmailPrefix string `json:"emailPrefix"`
+	DirectoryCustomerID string `json:"directoryCustomerID"`
+	Domain              string `json:"domain"`
+	EmailPrefix         string `json:"emailPrefix"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -138,9 +139,19 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
 	global.PubSubID = metadata.EventID
+
+	now := time.Now()
+	d := now.Sub(metadata.Timestamp)
+	log.Printf("pubsub_id %s duration sec %v, event ts %v now %v", global.PubSubID, d.Seconds(), metadata.Timestamp, now)
+	if d.Seconds() > float64(global.retryTimeOutSeconds) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		return nil
+
+	}
 	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
+	log.Printf("pubsub_id %s event ts %v expiration ts %v", global.PubSubID, metadata.Timestamp, expiration)
 	if time.Now().After(expiration) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old now %v expriration %v", global.PubSubID, time.Now(), expiration)
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old now %v expiration %v", global.PubSubID, time.Now(), expiration)
 		return nil
 	}
 
@@ -164,11 +175,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		if err != nil {
 			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT json.Unmarshal(PubSubMessage.Data, &settings) %v", global.PubSubID, err)
 		}
-		domain = settings.Domain
-		emailPrefix = settings.EmailPrefix
-		err = queryDirectory(settings.Domain, settings.EmailPrefix, global)
-		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT queryDirectory: %v", global.PubSubID, err)
+		if settings.DirectoryCustomerID == directoryCustomerID {
+			domain = settings.Domain
+			emailPrefix = settings.EmailPrefix
+			err = queryDirectory(settings.Domain, settings.EmailPrefix, global)
+			if err != nil {
+				return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT queryDirectory: %v", global.PubSubID, err)
+			}
+		} else {
+			log.Printf("pubsub_id %s ignore as triggering event directoryCustomerID %s not equal to this instance directoryCustomerID %s", global.PubSubID, settings.DirectoryCustomerID, directoryCustomerID)
 		}
 	}
 	return nil
@@ -191,6 +206,7 @@ func initiateQueries(global *Global) error {
 	for _, domain := range domains.Domains {
 		for _, emailPrefix := range emailAuthorizedByteSet {
 			var settings Settings
+			settings.DirectoryCustomerID = global.directoryCustomerID
 			settings.Domain = domain.DomainName
 			settings.EmailPrefix = string(emailPrefix)
 			settingsJSON, err := json.Marshal(settings)
