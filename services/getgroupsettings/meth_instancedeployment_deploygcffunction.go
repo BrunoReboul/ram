@@ -49,14 +49,14 @@ func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
 	specificZipFiles[instanceDeployment.Settings.Service.KeyJSONFileName] = string(bytes)
 	functionDeployment.Artifacts.ZipFiles = specificZipFiles
 
-	err = functionDeployment.Deploy()
-	if err != nil {
-		return fmt.Errorf("functionDeployment.Deploy %v", err)
-	}
-
 	err = gfs.RecordKeyName(instanceDeployment.Core, serviceAccountKey.Name, 5)
 	if err != nil {
 		return fmt.Errorf("gfs.RecordKeyName %v", err)
+	}
+
+	err = functionDeployment.Deploy()
+	if err != nil {
+		return fmt.Errorf("functionDeployment.Deploy %v", err)
 	}
 
 	return nil
