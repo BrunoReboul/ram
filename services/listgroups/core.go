@@ -140,7 +140,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	global.PubSubID = metadata.EventID
 	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
 	if time.Now().After(expiration) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.PubSubID)
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old now %v expriration %v", global.PubSubID, time.Now(), expiration)
 		return nil
 	}
 
