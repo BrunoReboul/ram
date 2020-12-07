@@ -42,6 +42,11 @@ func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
 	if err != nil {
 		return fmt.Errorf("getServiceAccountKey %v", err)
 	}
+	err = gfs.RecordKeyName(instanceDeployment.Core, serviceAccountKey.Name, 5)
+	if err != nil {
+		return fmt.Errorf("gfs.RecordKeyName %v", err)
+	}
+
 	bytes, err := json.Marshal(serviceAccountKey)
 	if err != nil {
 		return fmt.Errorf("json.Marshal %v", err)
@@ -49,11 +54,6 @@ func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
 	specificZipFiles := make(map[string]string)
 	specificZipFiles[instanceDeployment.Settings.Service.KeyJSONFileName] = string(bytes)
 	functionDeployment.Artifacts.ZipFiles = specificZipFiles
-
-	err = gfs.RecordKeyName(instanceDeployment.Core, serviceAccountKey.Name, 5)
-	if err != nil {
-		return fmt.Errorf("gfs.RecordKeyName %v", err)
-	}
 
 	err = functionDeployment.Deploy()
 	if err != nil {

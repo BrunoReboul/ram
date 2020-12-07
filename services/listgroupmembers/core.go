@@ -109,7 +109,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		keyJSONFilePath,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		gciAdminUserToImpersonate,
-		[]string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"},
+		[]string{admin.AdminDirectoryGroupMemberReadonlyScope},
 		serviceAccountKeyNames); !ok {
 		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
