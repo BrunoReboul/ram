@@ -37,22 +37,24 @@ func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
 	functionDeployment.Settings.Service.GCF = instanceDeployment.Settings.Service.GCF
 	functionDeployment.Settings.Instance.GCF.TriggerTopic = instanceDeployment.Settings.Instance.GCF.TriggerTopic
 
-	serviceAccountKey, err := instanceDeployment.getServiceAccountKey()
-	if err != nil {
-		return fmt.Errorf("getServiceAccountKey %v", err)
-	}
-	err = gfs.RecordKeyName(instanceDeployment.Core, serviceAccountKey.Name, 5)
-	if err != nil {
-		return fmt.Errorf("gfs.RecordKeyName %v", err)
-	}
+	if !instanceDeployment.Core.Commands.Check {
+		serviceAccountKey, err := instanceDeployment.getServiceAccountKey()
+		if err != nil {
+			return fmt.Errorf("getServiceAccountKey %v", err)
+		}
+		err = gfs.RecordKeyName(instanceDeployment.Core, serviceAccountKey.Name, 5)
+		if err != nil {
+			return fmt.Errorf("gfs.RecordKeyName %v", err)
+		}
 
-	bytes, err := json.Marshal(serviceAccountKey)
-	if err != nil {
-		return fmt.Errorf("json.Marshal %v", err)
+		bytes, err := json.Marshal(serviceAccountKey)
+		if err != nil {
+			return fmt.Errorf("json.Marshal %v", err)
+		}
+		specificZipFiles := make(map[string]string)
+		specificZipFiles[instanceDeployment.Settings.Service.KeyJSONFileName] = string(bytes)
+		functionDeployment.Artifacts.ZipFiles = specificZipFiles
 	}
-	specificZipFiles := make(map[string]string)
-	specificZipFiles[instanceDeployment.Settings.Service.KeyJSONFileName] = string(bytes)
-	functionDeployment.Artifacts.ZipFiles = specificZipFiles
 
 	err = functionDeployment.Deploy()
 	if err != nil {
