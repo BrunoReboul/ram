@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/gfs"
+
 	"gopkg.in/yaml.v2"
 
 	"github.com/BrunoReboul/ram/utilities/gcf"
@@ -40,6 +42,11 @@ func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
 	if err != nil {
 		return fmt.Errorf("getServiceAccountKey %v", err)
 	}
+	err = gfs.RecordKeyName(instanceDeployment.Core, serviceAccountKey.Name, 5)
+	if err != nil {
+		return fmt.Errorf("gfs.RecordKeyName %v", err)
+	}
+
 	bytes, err := json.Marshal(serviceAccountKey)
 	if err != nil {
 		return fmt.Errorf("json.Marshal %v", err)
@@ -48,5 +55,10 @@ func (instanceDeployment *InstanceDeployment) deployGCFFunction() (err error) {
 	specificZipFiles[instanceDeployment.Settings.Service.KeyJSONFileName] = string(bytes)
 	functionDeployment.Artifacts.ZipFiles = specificZipFiles
 
-	return functionDeployment.Deploy()
+	err = functionDeployment.Deploy()
+	if err != nil {
+		return fmt.Errorf("functionDeployment.Deploy %v", err)
+	}
+
+	return nil
 }

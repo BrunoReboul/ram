@@ -23,6 +23,7 @@ import (
 
 	asset "cloud.google.com/go/asset/apiv1"
 	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/firestore"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	scheduler "cloud.google.com/go/scheduler/apiv1"
 	"cloud.google.com/go/storage"
@@ -61,6 +62,7 @@ type Core struct {
 		CloudfunctionsService         *cloudfunctions.Service         `yaml:"-"`
 		CloudresourcemanagerService   *cloudresourcemanager.Service   `yaml:"-"`
 		CloudresourcemanagerServicev2 *cloudresourcemanagerv2.Service `yaml:"-"`
+		FirestoreClient               *firestore.Client               `yaml:"-"`
 		IAMService                    *iam.Service                    `yaml:"-"`
 		MonitoringService             *monitoring.Service             `yaml:"-"`
 		PubsubPublisherClient         *pubsub.PublisherClient         `yaml:"-"`

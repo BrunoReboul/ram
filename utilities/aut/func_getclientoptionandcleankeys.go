@@ -22,11 +22,19 @@ import (
 )
 
 // GetClientOptionAndCleanKeys build a clientOption object and manage the init state
-func GetClientOptionAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, gciAdminUserToImpersonate string, scopes []string) (option.ClientOption, bool) {
+func GetClientOptionAndCleanKeys(ctx context.Context,
+	serviceAccountEmail string,
+	keyJSONFilePath string,
+	projectID string,
+	gciAdminUserToImpersonate string,
+	scopes []string,
+	serviceAccountKeyNames []string,
+	logEntryPrefix string) (
+	option.ClientOption, bool) {
 	var clientOption option.ClientOption
 	var jwtConfig *jwt.Config
 
-	jwtConfig, err := getJWTConfigAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, scopes)
+	jwtConfig, err := getJWTConfigAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, scopes, serviceAccountKeyNames, logEntryPrefix)
 	if err != nil {
 		return clientOption, false
 	}
