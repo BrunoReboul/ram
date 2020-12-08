@@ -25,30 +25,37 @@ import (
 )
 
 // getKeyJSONdataAndCleanKeys get the service account key to build a JWT and clean older keys
-func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string, keyJSONFilePath string, projectID string, serviceAccountKeyNames []string) (keyRestAPIFormat keyRestAPIFormat, err error) {
+func getKeyJSONdataAndCleanKeys(ctx context.Context,
+	serviceAccountEmail string,
+	keyJSONFilePath string,
+	projectID string,
+	serviceAccountKeyNames []string,
+	logEntryPrefix string) (
+	keyRestAPIFormat keyRestAPIFormat,
+	err error) {
 	var keyJSONdata []byte
 	var currentKeyName string
 	var iamService *iam.Service
 
 	iamService, err = iam.NewService(ctx)
 	if err != nil {
-		log.Printf("ERROR - iam.NewService: %v", err)
+		log.Printf("%s ERROR - iam.NewService: %v", logEntryPrefix, err)
 		return keyRestAPIFormat, err
 	}
 	resource := "projects/-/serviceAccounts/" + serviceAccountEmail
 	listServiceAccountKeyResponse, err := iamService.Projects.ServiceAccounts.Keys.List(resource).Do()
 	if err != nil {
-		log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.List: %v", err)
+		log.Printf("%s ERROR - iamService.Projects.ServiceAccounts.Keys.List: %v", logEntryPrefix, err)
 		return keyRestAPIFormat, err
 	}
 	keyJSONdata, err = ioutil.ReadFile(keyJSONFilePath)
 	if err != nil {
-		log.Printf("ERROR - ioutil.ReadFile(keyJSONFilePath): %v", err)
+		log.Printf("%s ERROR - ioutil.ReadFile(keyJSONFilePath): %v", logEntryPrefix, err)
 		return keyRestAPIFormat, err
 	}
 	err = json.Unmarshal(keyJSONdata, &keyRestAPIFormat)
 	if err != nil {
-		log.Printf("ERROR - json.Unmarshal(keyJSONdata, &keyRestAPIFormat): %v", err)
+		log.Printf("%s ERROR - json.Unmarshal(keyJSONdata, &keyRestAPIFormat): %v", logEntryPrefix, err)
 		return keyRestAPIFormat, err
 	}
 	currentKeyName = keyRestAPIFormat.Name
@@ -56,18 +63,18 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context, serviceAccountEmail string,
 	// Clean keys
 	for _, serviceAccountKey := range listServiceAccountKeyResponse.Keys {
 		if serviceAccountKey.Name == currentKeyName {
-			log.Printf("Keep current key ValidAfterTime %s named %s", serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
+			log.Printf("%s keep current key ValidAfterTime %s named %s", logEntryPrefix, serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
 		} else {
 			if str.Find(serviceAccountKeyNames, serviceAccountKey.Name) {
-				log.Printf("Keep recorded key ValidAfterTime %s named %s", serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
+				log.Printf("%s keep recorded key ValidAfterTime %s named %s", logEntryPrefix, serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
 			} else {
 				if serviceAccountKey.KeyType == "SYSTEM_MANAGED" {
-					log.Printf("Ignore SYSTEM_MANAGED key named %s", serviceAccountKey.Name)
+					log.Printf("%s ignore SYSTEM_MANAGED key named %s", logEntryPrefix, serviceAccountKey.Name)
 				} else {
-					log.Printf("Delete KeyType %s ValidAfterTime %s key name %s", serviceAccountKey.KeyType, serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
+					log.Printf("%s delete KeyType %s ValidAfterTime %s key name %s", logEntryPrefix, serviceAccountKey.KeyType, serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
 					_, err = iamService.Projects.ServiceAccounts.Keys.Delete(serviceAccountKey.Name).Do()
 					if err != nil {
-						log.Printf("ERROR - iamService.Projects.ServiceAccounts.Keys.Delete: %v", err)
+						log.Printf("%s ERROR - iamService.Projects.ServiceAccounts.Keys.Delete: %v", logEntryPrefix, err)
 						return keyRestAPIFormat, err
 					}
 				}

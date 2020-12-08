@@ -29,6 +29,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/google/uuid"
 	"google.golang.org/api/option"
 
 	"cloud.google.com/go/firestore"
@@ -81,7 +82,8 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	var clientOption option.ClientOption
 	var ok bool
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
 		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
@@ -102,12 +104,12 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("firestore.NewClient: %v", err)
+		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
 	}
 
 	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
 	if err != nil {
-		return fmt.Errorf("gfs.ListKeyNames %v", err)
+		return fmt.Errorf("%s gfs.ListKeyNames %v", logEntryPrefix, err)
 	}
 
 	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
@@ -116,16 +118,17 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		gciAdminUserToImpersonate,
 		[]string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope},
-		serviceAccountKeyNames); !ok {
+		serviceAccountKeyNames,
+		logEntryPrefix); !ok {
 		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
-		return fmt.Errorf("admin.NewService: %v", err)
+		return fmt.Errorf("%s admin.NewService: %v", logEntryPrefix, err)
 	}
 	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("pubsub.NewClient: %v", err)
+		return fmt.Errorf("%s pubsub.NewClient: %v", logEntryPrefix, err)
 	}
 	return nil
 }
@@ -224,7 +227,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 	pubSubMsgNumber = 0
 	pubSubErrNumber = 0
 	query := fmt.Sprintf("email:%s*", emailPrefix)
-	log.Printf("query: %s", query)
+	// log.Printf("query: %s", query)
 	// pages function expect just the name of the callback function. Not an invocation of the function
 	err := global.dirAdminService.Groups.List().Customer(global.directoryCustomerID).Domain(domain).Query(query).MaxResults(global.maxResultsPerPage).OrderBy("email").Pages(global.ctx, browseGroups)
 	if err != nil {
