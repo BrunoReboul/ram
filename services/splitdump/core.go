@@ -30,6 +30,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gcs"
 	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/google/uuid"
 
 	"cloud.google.com/go/functions/metadata"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
@@ -83,14 +84,15 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	var instanceDeployment InstanceDeployment
 	var storageClient *storage.Client
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	// err = ffo.ExploreFolder(solution.PathToFunctionCode)
 	// if err != nil {
 	// 	log.Printf("ffo.ExploreFolder %v", err)
 	// }
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
 	}
 
 	global.iamTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
@@ -101,12 +103,12 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("storage.NewClient: %v", err)
+		return fmt.Errorf("%s storage.NewClient: %v", logEntryPrefix, err)
 	}
 	global.storageBucket = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name)
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("global.pubsubPublisherClient: %v", err)
+		return fmt.Errorf("%s global.pubsubPublisherClient: %v", logEntryPrefix, err)
 	}
 	return nil
 }
@@ -120,9 +122,11 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
 	global.PubSubID = metadata.EventID
-	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
-	if time.Now().After(expiration) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.PubSubID)
+
+	now := time.Now()
+	d := now.Sub(metadata.Timestamp)
+	if d.Seconds() > float64(global.retryTimeOutSeconds) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
 		return nil
 	}
 
