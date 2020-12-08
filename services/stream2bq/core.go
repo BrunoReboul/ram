@@ -29,6 +29,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gbq"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/google/uuid"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
 	"cloud.google.com/go/bigquery"
@@ -202,10 +203,11 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	var bigQueryClient *bigquery.Client
 	var table *bigquery.Table
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
 	}
 
 	datasetName := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Dataset.Name
@@ -218,31 +220,31 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	bigQueryClient, err = bigquery.NewClient(global.ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("bigquery.NewClient: %v", err)
+		return fmt.Errorf("%s bigquery.NewClient: %v", logEntryPrefix, err)
 	}
 	dataset := bigQueryClient.Dataset(datasetName)
 	_, err = dataset.Metadata(ctx)
 	if err != nil {
-		return fmt.Errorf("dataset.Metadata: %v", err)
+		return fmt.Errorf("%s dataset.Metadata: %v", logEntryPrefix, err)
 	}
 	table = dataset.Table(global.tableName)
 	_, err = table.Metadata(ctx)
 	if err != nil {
-		return fmt.Errorf("missing table %s %v", global.tableName, err)
+		return fmt.Errorf("%s missing table %s %v", logEntryPrefix, global.tableName, err)
 	}
 	global.inserter = table.Inserter()
 	if global.tableName == "assets" {
 		global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(global.ctx)
 		if err != nil {
-			return fmt.Errorf("cloudresourcemanager.NewService: %v", err)
+			return fmt.Errorf("%s cloudresourcemanager.NewService: %v", logEntryPrefix, err)
 		}
 		global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(global.ctx)
 		if err != nil {
-			return fmt.Errorf("cloudresourcemanagerv2.NewService: %v", err)
+			return fmt.Errorf("%s cloudresourcemanagerv2.NewService: %v", logEntryPrefix, err)
 		}
 		global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
 		if err != nil {
-			return fmt.Errorf("firestore.NewClient: %v", err)
+			return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
 		}
 	}
 	return nil
@@ -257,9 +259,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
 	global.PubSubID = metadata.EventID
-	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
-	if time.Now().After(expiration) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.PubSubID)
+
+	now := time.Now()
+	d := now.Sub(metadata.Timestamp)
+	if d.Seconds() > float64(global.retryTimeOutSeconds) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
 		return nil
 	}
 

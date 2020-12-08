@@ -61,7 +61,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
 	}
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
@@ -75,12 +75,12 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		return fmt.Errorf("firestore.NewClient: %v", err)
+		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
 	}
 
 	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
 	if err != nil {
-		return fmt.Errorf("gfs.ListKeyNames %v", err)
+		return fmt.Errorf("%s gfs.ListKeyNames %v", logEntryPrefix, err)
 	}
 
 	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
@@ -95,11 +95,11 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
 	if err != nil {
-		return fmt.Errorf("groupssettings.NewService: %v", err)
+		return fmt.Errorf("%s groupssettings.NewService: %v", logEntryPrefix, err)
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("global.pubsubPublisherClient: %v", err)
+		return fmt.Errorf("%s global.pubsubPublisherClient: %v", logEntryPrefix, err)
 	}
 	return nil
 }

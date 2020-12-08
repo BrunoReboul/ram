@@ -31,6 +31,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/google/uuid"
 	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
@@ -161,10 +162,11 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	var instanceDeployment InstanceDeployment
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
 	}
 
 	assetsFileName := instanceDeployment.Settings.Service.AssetsFileName
@@ -191,19 +193,19 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	// persist between function invocations.
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
-		return fmt.Errorf("cloudresourcemanager.NewService: %v", err)
+		return fmt.Errorf("%s cloudresourcemanager.NewService: %v", logEntryPrefix, err)
 	}
 	global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(ctx)
 	if err != nil {
-		return fmt.Errorf("cloudresourcemanagerv2.NewService: %v", err)
+		return fmt.Errorf("%s cloudresourcemanagerv2.NewService: %v", logEntryPrefix, err)
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("global.pubsubPublisherClient: %v", err)
+		return fmt.Errorf("%s global.pubsubPublisherClient: %v", logEntryPrefix, err)
 	}
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		return fmt.Errorf("firestore.NewClient: %v", err)
+		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
 	}
 	return nil
 }
@@ -217,9 +219,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
 	global.PubSubID = metadata.EventID
-	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
-	if time.Now().After(expiration) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.PubSubID)
+
+	now := time.Now()
+	d := now.Sub(metadata.Timestamp)
+	if d.Seconds() > float64(global.retryTimeOutSeconds) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
 		return nil
 	}
 
@@ -319,7 +323,7 @@ func publishPubSubMessage(docJSON []byte, topicName string, global *Global) erro
 		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err)
 	}
 
-	log.Printf("Published to topic %s, msg ids: %v", topicName, pubsubResponse.MessageIds)
+	log.Printf("pubsub_id %s published to topic %s, msg ids: %v", global.PubSubID, topicName, pubsubResponse.MessageIds)
 	_ = pubsubResponse
 	return nil
 }

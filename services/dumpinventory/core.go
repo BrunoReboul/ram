@@ -28,6 +28,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/google/uuid"
 )
 
 // Global structure for global variables to optimize the cloud function performances
@@ -45,10 +46,11 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	var instanceDeployment InstanceDeployment
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
 	}
 
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
@@ -74,7 +76,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	case "IAM_POLICY":
 		global.request.ContentType = assetpb.ContentType_IAM_POLICY
 	default:
-		return fmt.Errorf("unsupported content type: %s", instanceDeployment.Settings.Instance.CAI.ContentType)
+		return fmt.Errorf("%s unsupported content type: %s", logEntryPrefix, instanceDeployment.Settings.Instance.CAI.ContentType)
 	}
 
 	global.request.Parent = instanceDeployment.Settings.Instance.CAI.Parent
@@ -83,7 +85,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	global.assetClient, err = asset.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("asset.NewClient: %v", err)
+		return fmt.Errorf("%s asset.NewClient: %v", logEntryPrefix, err)
 	}
 	return nil
 }
@@ -97,9 +99,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
 	global.PubSubID = metadata.EventID
-	expiration := metadata.Timestamp.Add(time.Duration(global.retryTimeOutSeconds) * time.Second)
-	if time.Now().After(expiration) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old", global.PubSubID)
+
+	now := time.Now()
+	d := now.Sub(metadata.Timestamp)
+	if d.Seconds() > float64(global.retryTimeOutSeconds) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
 		return nil
 	}
 
