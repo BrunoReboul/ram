@@ -29,6 +29,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/BrunoReboul/ram/utilities/str"
+	"github.com/google/uuid"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/groupssettings/v1"
 	"google.golang.org/api/iterator"
@@ -108,7 +109,8 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	var clientOption option.ClientOption
 	var ok bool
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
 		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
@@ -142,7 +144,8 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		gciAdminUserToImpersonate,
 		[]string{"https://www.googleapis.com/auth/apps.groups.settings", "https://www.googleapis.com/auth/admin.directory.group.readonly"},
-		serviceAccountKeyNames); !ok {
+		serviceAccountKeyNames,
+		logEntryPrefix); !ok {
 		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
