@@ -82,7 +82,7 @@ func NewInstanceDeployment() *InstanceDeployment {
 		"roles/datastore.viewer"}
 
 	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 128
-	instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds = 600
+	instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds = 3600
 	instanceDeployment.Settings.Service.GCF.Timeout = "540s" // is max value
 
 	instanceDeployment.Settings.Service.KeyJSONFileName = "key.json"
