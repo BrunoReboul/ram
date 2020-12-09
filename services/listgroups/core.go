@@ -26,11 +26,14 @@ import (
 	"github.com/BrunoReboul/ram/utilities/aut"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
-	"github.com/BrunoReboul/ram/utilities/gcf"
+	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/google/uuid"
 	"google.golang.org/api/option"
 
+	"cloud.google.com/go/firestore"
+	"cloud.google.com/go/functions/metadata"
 	"cloud.google.com/go/pubsub"
 	admin "google.golang.org/api/admin/directory/v1"
 )
@@ -45,6 +48,7 @@ var logEventEveryXPubSubMsg uint64
 var pubSubClient *pubsub.Client
 var outputTopicName string
 var pubSubErrNumber uint64
+var pubSubID string
 var pubSubMsgNumber uint64
 var timestamp time.Time
 
@@ -53,18 +57,21 @@ type Global struct {
 	ctx                     context.Context
 	dirAdminService         *admin.Service
 	directoryCustomerID     string
+	firestoreClient         *firestore.Client
 	inputTopicName          string
 	logEventEveryXPubSubMsg uint64
 	maxResultsPerPage       int64 // API Max = 200
 	outputTopicName         string
 	pubSubClient            *pubsub.Client
+	PubSubID                string
 	retryTimeOutSeconds     int64
 }
 
 // Settings from PubSub triggering event
 type Settings struct {
-	Domain      string `json:"domain"`
-	EmailPrefix string `json:"emailPrefix"`
+	DirectoryCustomerID string `json:"directoryCustomerID"`
+	Domain              string `json:"domain"`
+	EmailPrefix         string `json:"emailPrefix"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -75,10 +82,11 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	var clientOption option.ClientOption
 	var ok bool
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
 	}
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
@@ -94,21 +102,33 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		instanceDeployment.Core.ServiceName,
 		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID)
 
+	global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
+	}
+
+	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
+	if err != nil {
+		return fmt.Errorf("%s gfs.ListKeyNames %v", logEntryPrefix, err)
+	}
+
 	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
 		serviceAccountEmail,
 		keyJSONFilePath,
-		projectID,
+		instanceDeployment.Core.SolutionSettings.Hosting.ProjectID,
 		gciAdminUserToImpersonate,
-		[]string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope}); !ok {
+		[]string{admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryDomainReadonlyScope},
+		serviceAccountKeyNames,
+		logEntryPrefix); !ok {
 		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
-		return fmt.Errorf("ERROR - admin.NewService: %v", err)
+		return fmt.Errorf("%s admin.NewService: %v", logEntryPrefix, err)
 	}
 	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("ERROR - pubsub.NewClient: %v", err)
+		return fmt.Errorf("%s pubsub.NewClient: %v", logEntryPrefix, err)
 	}
 	return nil
 }
@@ -116,11 +136,19 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	ok, metadata, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds)
-	if !ok {
-		return err
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+	global.PubSubID = metadata.EventID
+
+	now := time.Now()
+	d := now.Sub(metadata.Timestamp)
+	if d.Seconds() > float64(global.retryTimeOutSeconds) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		return nil
+	}
 
 	// Pass data to global variables to deal with func browseGroup
 	ctx = global.ctx
@@ -129,23 +157,28 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	pubSubClient = global.pubSubClient
 	outputTopicName = global.outputTopicName
 	timestamp = metadata.Timestamp
+	pubSubID = global.PubSubID
 
 	if strings.HasPrefix(string(PubSubMessage.Data), "cron schedule") {
 		err = initiateQueries(global)
 		if err != nil {
-			return fmt.Errorf("initiateQueries: %v", err)
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT initiateQueries: %v", global.PubSubID, err)
 		}
 	} else {
 		var settings Settings
 		err = json.Unmarshal(PubSubMessage.Data, &settings)
 		if err != nil {
-			return fmt.Errorf("json.Unmarshal(PubSubMessage.Data, &settings) %v", err)
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT json.Unmarshal(PubSubMessage.Data, &settings) %v", global.PubSubID, err)
 		}
-		domain = settings.Domain
-		emailPrefix = settings.EmailPrefix
-		err = queryDirectory(settings.Domain, settings.EmailPrefix, global)
-		if err != nil {
-			return fmt.Errorf("queryDirectory: %v", err)
+		if settings.DirectoryCustomerID == directoryCustomerID {
+			domain = settings.Domain
+			emailPrefix = settings.EmailPrefix
+			err = queryDirectory(settings.Domain, settings.EmailPrefix, global)
+			if err != nil {
+				return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT queryDirectory: %v", global.PubSubID, err)
+			}
+		} else {
+			log.Printf("pubsub_id %s ignore as triggering event directoryCustomerID %s not equal to this instance directoryCustomerID %s", global.PubSubID, settings.DirectoryCustomerID, directoryCustomerID)
 		}
 	}
 	return nil
@@ -159,20 +192,21 @@ func initiateQueries(global *Global) error {
 
 	emailAuthorizedByteSet := append(figures, alphabetLower...)
 	// emailAuthorizedByteSet := append(emailAuthorizedByteSet, alphabetUpper...)
-	log.Printf("Initiate multiple queries on emailAuthorizedByteSet: %s", string(emailAuthorizedByteSet))
+	log.Printf("pubsub_id %s initiate multiple queries on emailAuthorizedByteSet: %s", global.PubSubID, string(emailAuthorizedByteSet))
 
 	domains, err := global.dirAdminService.Domains.List(global.directoryCustomerID).Context(global.ctx).Do()
 	if err != nil {
-		return fmt.Errorf("dirAdminService.Domains.List: %v", err) // RETRY
+		return fmt.Errorf("dirAdminService.Domains.List: %v", err)
 	}
 	for _, domain := range domains.Domains {
 		for _, emailPrefix := range emailAuthorizedByteSet {
 			var settings Settings
+			settings.DirectoryCustomerID = global.directoryCustomerID
 			settings.Domain = domain.DomainName
 			settings.EmailPrefix = string(emailPrefix)
 			settingsJSON, err := json.Marshal(settings)
 			if err != nil {
-				log.Printf("ERROR - json.Marshal(settings) %v", err) // NO RETRY
+				log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(settings) %v", global.PubSubID, err)
 			}
 			pubSubMessage := &pubsub.Message{
 				Data: settingsJSON,
@@ -180,36 +214,36 @@ func initiateQueries(global *Global) error {
 			topic := global.pubSubClient.Topic(global.inputTopicName)
 			id, err := topic.Publish(global.ctx, pubSubMessage).Get(global.ctx)
 			if err != nil {
-				log.Printf("ERROR - pubSubClient.Topic initateQuery: %v", err) // NO RETRY
+				log.Printf("pubsub_id %s NORETRY_ERROR pubSubClient.Topic initateQuery: %v", global.PubSubID, err)
 			}
-			log.Printf("Initiate query domain '%s' emailPrefix '%s' to topic %s msg id: %s", settings.Domain, settings.EmailPrefix, global.inputTopicName, id)
+			log.Printf("pubsub_id %s initiate query domain '%s' emailPrefix '%s' to topic %s msg id: %s", global.PubSubID, settings.Domain, settings.EmailPrefix, global.inputTopicName, id)
 		}
 	}
 	return nil
 }
 
 func queryDirectory(domain string, emailPrefix string, global *Global) error {
-	log.Printf("Settings retrieved, launch query on domain '%s' and email prefix '%s'", domain, emailPrefix)
+	log.Printf("pubsub_id %s settings retrieved, launch query on domain '%s' and email prefix '%s'", global.PubSubID, domain, emailPrefix)
 	pubSubMsgNumber = 0
 	pubSubErrNumber = 0
 	query := fmt.Sprintf("email:%s*", emailPrefix)
-	log.Printf("query: %s", query)
+	// log.Printf("query: %s", query)
 	// pages function expect just the name of the callback function. Not an invocation of the function
 	err := global.dirAdminService.Groups.List().Customer(global.directoryCustomerID).Domain(domain).Query(query).MaxResults(global.maxResultsPerPage).OrderBy("email").Pages(global.ctx, browseGroups)
 	if err != nil {
 		if strings.Contains(err.Error(), "Domain not found") {
-			log.Printf("INFO - Domain not found %s query %s customer ID %s", domain, query, global.directoryCustomerID) // NO RETRY
+			log.Printf("pubsub_id %s INFO domain not found %s query %s customer ID %s", global.PubSubID, domain, query, global.directoryCustomerID) // NO RETRY
 		} else {
-			return fmt.Errorf("dirAdminService.Groups.List: %v", err) // RETRY
+			return fmt.Errorf("dirAdminService.Groups.List: %v", err)
 		}
 	}
 	if pubSubMsgNumber > 0 {
-		log.Printf("Finished - Directory %s domain '%s' emailPrefix '%s' Number of groups published %d to topic %s", directoryCustomerID, domain, emailPrefix, pubSubMsgNumber, outputTopicName)
+		log.Printf("pubsub_id %s finished - Directory %s domain '%s' emailPrefix '%s' Number of groups published %d to topic %s", global.PubSubID, directoryCustomerID, domain, emailPrefix, pubSubMsgNumber, outputTopicName)
 	} else {
-		log.Printf("No group found for directory %s domain '%s' emailPrefix '%s'", directoryCustomerID, domain, emailPrefix)
+		log.Printf("pubsub_id %s no group found for directory %s domain '%s' emailPrefix '%s'", global.PubSubID, directoryCustomerID, domain, emailPrefix)
 	}
 	if pubSubErrNumber > 0 {
-		log.Printf("%d messages did not publish successfully", pubSubErrNumber) // NO RETRY
+		log.Printf("pubsub_id %s NORETRY_ERROR %d messages did not publish successfully", global.PubSubID, pubSubErrNumber)
 	}
 	return nil
 }
@@ -234,7 +268,7 @@ func browseGroups(groups *admin.Groups) error {
 		feedMessage.Asset.Resource.Etag = ""
 		feedMessageJSON, err := json.Marshal(feedMessage)
 		if err != nil {
-			log.Printf("ERROR - %s json.Marshal(feedMessage): %v", group.Email, err)
+			log.Printf("pubsub_id %s NORETRY_ERROR %s json.Marshal(feedMessage): %v", pubSubID, group.Email, err)
 		} else {
 			pubSubMessage := &pubsub.Message{
 				Data: feedMessageJSON,

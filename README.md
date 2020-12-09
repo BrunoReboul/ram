@@ -7,7 +7,7 @@
 ### RAM Unit testing framework
 
 - GO unit testing functions MUST be prefixed with `TestUnit` enabling filtering in [testing_unit.yaml](testing_unit.yaml)
-- GO unit test source code file SHOULD be named after the code source file using the suffix `_unit_test.go` example
+- GO unit test source code file SHOULD be named after the code source file using the suffix `_unit_test.go` example.
   - Code source file `func_validatestruct.go`
   - Unit tests code file `func_validatestruct_unit_test.go`
 - Unit tests MUST be small enough so all the unit tests are run on each push and each PR update: [testing_unit.yaml](testing_unit.yaml)

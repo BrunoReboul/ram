@@ -20,23 +20,26 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
-	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/BrunoReboul/ram/utilities/str"
+	"github.com/google/uuid"
 
 	"cloud.google.com/go/firestore"
+	"cloud.google.com/go/functions/metadata"
 )
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
-	ctx                 context.Context
-	retryTimeOutSeconds int64
 	collectionID        string
+	ctx                 context.Context
 	firestoreClient     *firestore.Client
+	PubSubID            string
+	retryTimeOutSeconds int64
 }
 
 // feedMessage Cloud Asset Inventory feed message
@@ -63,10 +66,11 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	var instanceDeployment InstanceDeployment
 	var projectID string
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
 	}
 	global.collectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
@@ -74,7 +78,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	global.firestoreClient, err = firestore.NewClient(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("ERROR - firestore.NewClient: %v", err)
+		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
 	}
 	return nil
 }
@@ -82,20 +86,29 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds); !ok {
-		return err
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+	global.PubSubID = metadata.EventID
+
+	now := time.Now()
+	d := now.Sub(metadata.Timestamp)
+	if d.Seconds() > float64(global.retryTimeOutSeconds) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		return nil
+	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Printf("Ignored pubsub message: %s", string(PubSubMessage.Data))
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s ignored pubsub message: %s", global.PubSubID, string(PubSubMessage.Data))
+		return nil
 	}
 
 	var feedMessage feedMessage
-	err := json.Unmarshal(PubSubMessage.Data, &feedMessage)
+	err = json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
-		log.Printf("ERROR - pubSubMessage.Data cannot be UnMarshalled as a feed %s %s", string(PubSubMessage.Data), err)
+		log.Printf("pubsub_id %s NORETRY_ERROR pubSubMessage.Data cannot be UnMarshalled as a feed %s %s", global.PubSubID, string(PubSubMessage.Data), err)
 		return nil // NO RETRY
 	}
 	if feedMessage.Origin == "" {
@@ -108,15 +121,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	if feedMessage.Deleted == true {
 		_, err = global.firestoreClient.Doc(documentPath).Delete(global.ctx)
 		if err != nil {
-			return fmt.Errorf("Error when deleting %s %v", documentPath, err) // RETRY
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT error when deleting %s %v", global.PubSubID, documentPath, err)
 		}
-		log.Printf("DELETED document: %s", documentPath)
+		log.Printf("pubsub_id %s DELETED document: %s", global.PubSubID, documentPath)
 	} else {
 		_, err = global.firestoreClient.Doc(documentPath).Set(global.ctx, feedMessage)
 		if err != nil {
-			return fmt.Errorf("firestoreClient.Doc(documentPath).Set: %s %v", documentPath, err) // RETRY
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT firestoreClient.Doc(documentPath).Set: %s %v", global.PubSubID, documentPath, err) // RETRY
 		}
-		log.Printf("SET document: %s", documentPath)
+		log.Printf("pubsub_id %s SET document: %s", global.PubSubID, documentPath)
 	}
 	return nil
 }

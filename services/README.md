@@ -38,10 +38,15 @@ Impact on cloud functions Stackdriver logs:
 - Other errors and loged as information to avoid unwanted retries
   - To find errors in such cloud function logs you can use the following Stackdriver logging filter
 
-```txt
+```cloudlogging
 resource.type="cloud_function"
-textPayload:"error"
+textPayload:"REDO_ON_TRANSIENT"
 ```
+
+The standard exponential backoff algorithm leads to have:
+
+- 343 retries in one hour
+- 157 retries during the first 100 seconds
 
 ## Documentation
 

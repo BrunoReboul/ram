@@ -25,12 +25,13 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"cloud.google.com/go/functions/metadata"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
-	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/google/uuid"
 	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	cloudresourcemanagerv2 "google.golang.org/api/cloudresourcemanager/v2"
@@ -39,13 +40,12 @@ import (
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
-	ctx                           context.Context
-	retryTimeOutSeconds           int64
 	assetsCollectionID            string
 	assetsFilePath                string
 	assetsFolderPath              string
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
+	ctx                           context.Context
 	deploymentTime                time.Time
 	environment                   string
 	firestoreClient               *firestore.Client
@@ -53,10 +53,12 @@ type Global struct {
 	opaFolderPath                 string
 	ownerLabelKeyName             string
 	projectID                     string
+	PubSubID                      string
 	pubsubPublisherClient         *pubsub.PublisherClient
 	ramComplianceStatusTopicName  string
 	ramViolationTopicName         string
 	regoModulesFolderPath         string
+	retryTimeOutSeconds           int64
 	violationResolverLabelKeyName string
 	writabelOPAFolderPath         string
 }
@@ -160,10 +162,11 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	var instanceDeployment InstanceDeployment
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
 	}
 
 	assetsFileName := instanceDeployment.Settings.Service.AssetsFileName
@@ -190,19 +193,19 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	// persist between function invocations.
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - cloudresourcemanager.NewService: %v", err)
+		return fmt.Errorf("%s cloudresourcemanager.NewService: %v", logEntryPrefix, err)
 	}
 	global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - cloudresourcemanagerv2.NewService: %v", err)
+		return fmt.Errorf("%s cloudresourcemanagerv2.NewService: %v", logEntryPrefix, err)
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - global.pubsubPublisherClient: %v", err)
+		return fmt.Errorf("%s global.pubsubPublisherClient: %v", logEntryPrefix, err)
 	}
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		return fmt.Errorf("ERROR - firestore.NewClient: %v", err)
+		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
 	}
 	return nil
 }
@@ -210,14 +213,23 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds); !ok {
-		return err
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+	global.PubSubID = metadata.EventID
+
+	now := time.Now()
+	d := now.Sub(metadata.Timestamp)
+	if d.Seconds() > float64(global.retryTimeOutSeconds) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		return nil
+	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Printf("Ignored pubsub message: %s", string(PubSubMessage.Data))
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s ignored pubsub message: %s", global.PubSubID, string(PubSubMessage.Data))
+		return nil
 	}
 
 	var complianceStatus ComplianceStatus
@@ -225,8 +237,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	assetsJSONDocument, feedMessage, err := buildAssetsDocument(PubSubMessage, global)
 	if err != nil {
-		log.Printf("ERROR - buildAssetsDocument %v", err)
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s NORETRY_ERROR buildAssetsDocument %v", global.PubSubID, err)
+		return nil
 	}
 	compliantLog.AssetsJSONDocument = assetsJSONDocument
 
@@ -243,13 +255,13 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		complianceStatus.Deleted = false
 		resultSet, feedMessage, err := evalutateConstraints(assetsJSONDocument, feedMessage, global)
 		if err != nil {
-			log.Printf("ERROR - evalutateConstraints %v", err)
-			return nil // NO RETRY
+			log.Printf("pubsub_id %s NORETRY_ERROR evalutateConstraints %v", global.PubSubID, err)
+			return nil
 		}
 		violations, err := inspectResultSet(resultSet, feedMessage, global)
 		if err != nil {
-			log.Printf("ERROR - inspectResultSet %v", err)
-			return nil // NO RETRY
+			log.Printf("pubsub_id %s NORETRY_ERROR inspectResultSet %v", global.PubSubID, err)
+			return nil
 		}
 		if len(violations) == 0 {
 			complianceStatus.Compliant = true
@@ -258,38 +270,38 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			for i, violation := range violations {
 				violationJSON, err := json.Marshal(violation)
 				if err != nil {
-					log.Printf("ERROR - json.Marshal(violation) %v", err)
-					return nil // NO RETRY
+					log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(violation) %v", global.PubSubID, err)
+					return nil
 				}
-				log.Printf("NOT_COMPLIANT %s %s %v violationNum %d %s", complianceStatus.AssetName, complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, i, string(violationJSON))
+				log.Printf("pubsub_id %s NOT_COMPLIANT %s %s %v violationNum %d %s", global.PubSubID, complianceStatus.AssetName, complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, i, string(violationJSON))
 				err = publishPubSubMessage(violationJSON, global.ramViolationTopicName, global)
 				if err != nil {
-					return err // RETRY
+					return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.PubSubID, err)
 				}
 			}
 		}
 	}
 	complianceStatusJSON, err := json.Marshal(complianceStatus)
 	if err != nil {
-		log.Printf("ERROR - json.Marshal(complianceStatus) %v", err)
-		return nil // NO RETRY
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(complianceStatus) %v", global.PubSubID, err)
+		return nil
 	}
 	err = publishPubSubMessage(complianceStatusJSON, global.ramComplianceStatusTopicName, global)
 	if err != nil {
-		return err // RETRY
+		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.PubSubID, err)
 	}
 	compliantLog.ComplianceStatus = complianceStatus
 
 	if complianceStatus.Compliant == true {
 		CompliantLogJSON, err := json.Marshal(compliantLog)
 		if err != nil {
-			log.Printf("ERROR - json.Marshal(compliantLog) %v", err)
-			return nil // NO RETRY
+			log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(compliantLog) %v", global.PubSubID, err)
+			return nil
 		}
 		if complianceStatus.Deleted == true {
-			log.Printf("DELETED %s %s %v %s", complianceStatus.AssetName, complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON))
+			log.Printf("pubsub_id %s DELETED %s %s %v %s", global.PubSubID, complianceStatus.AssetName, complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON))
 		} else {
-			log.Printf("COMPLIANT %s %s %v %s", complianceStatus.AssetName, complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON))
+			log.Printf("pubsub_id %s COMPLIANT %s %s %v %s", global.PubSubID, complianceStatus.AssetName, complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON))
 		}
 	}
 	return nil
@@ -308,10 +320,10 @@ func publishPubSubMessage(docJSON []byte, topicName string, global *Global) erro
 
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
-		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err) // RETRY
+		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err)
 	}
 
-	log.Printf("Published to topic %s, msg ids: %v", topicName, pubsubResponse.MessageIds)
+	log.Printf("pubsub_id %s published to topic %s, msg ids: %v", global.PubSubID, topicName, pubsubResponse.MessageIds)
 	_ = pubsubResponse
 	return nil
 }
@@ -409,14 +421,14 @@ func importRegoModulesCode(global *Global) map[string]string {
 	regoModules := make(map[string]string)
 	files, err := ioutil.ReadDir(global.regoModulesFolderPath)
 	if err != nil {
-		log.Printf("ERROR - ioutil.ReadDir %v", err)
+		log.Printf("pubsub_id %s ioutil.ReadDir %v", global.PubSubID, err)
 		return nil
 	}
 
 	for _, file := range files {
 		regoCode, err := ioutil.ReadFile(global.regoModulesFolderPath + "/" + file.Name())
 		if err != nil {
-			log.Printf("ERROR - ioutil.ReadFile %v", err)
+			log.Printf("pubsub_id %s ioutil.ReadFile %v", global.PubSubID, err)
 			return nil
 		}
 		regoModules[file.Name()] = string(regoCode)
@@ -465,7 +477,7 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 
 	err := json.Unmarshal(pubSubMessage.Data, &feedMessage)
 	if err != nil {
-		log.Printf("ERROR - pubSubMessage.Data cannot be UnMarshalled as a feed %s", string(pubSubMessage.Data))
+		// log.Printf("pubsub_id %s ERROR pubSubMessage.Data cannot be UnMarshalled as a feed %s", global.PubSubID, string(pubSubMessage.Data))
 		return assetsJSONDocument, feedMessage, fmt.Errorf("json.Unmarshal(pubSubMessage.Data, &feedMessage) %v", err)
 	}
 

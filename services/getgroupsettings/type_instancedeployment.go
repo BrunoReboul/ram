@@ -65,6 +65,8 @@ func NewInstanceDeployment() *InstanceDeployment {
 	instanceDeployment.Settings.Service.GCB.BuildTimeout = "600s"
 	instanceDeployment.Settings.Service.GCB.DeployIAMServiceAccount = true
 	instanceDeployment.Settings.Service.GCB.DeployIAMBindings = true
+	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Project.Roles = []string{
+		"roles/datastore.owner"}
 	instanceDeployment.Settings.Service.GCB.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
 		projectDeployCoreRole().Title,
 		iamgt.ProjectDeployExtendedRole().Title}
@@ -73,6 +75,9 @@ func NewInstanceDeployment() *InstanceDeployment {
 
 	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.CustomRoles = []string{
 		projectRunRole().Title}
+	// Data store permissions are not supported in custom roles
+	instanceDeployment.Settings.Service.GCF.ServiceAccountBindings.GRM.Hosting.Project.Roles = []string{
+		"roles/datastore.viewer"}
 
 	instanceDeployment.Settings.Service.GCF.AvailableMemoryMb = 128
 	instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds = 600

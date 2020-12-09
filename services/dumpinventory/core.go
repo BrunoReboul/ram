@@ -19,22 +19,25 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	asset "cloud.google.com/go/asset/apiv1"
+	"cloud.google.com/go/functions/metadata"
 	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 
 	"github.com/BrunoReboul/ram/utilities/ffo"
-	"github.com/BrunoReboul/ram/utilities/gcf"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/google/uuid"
 )
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
-	ctx                 context.Context
-	retryTimeOutSeconds int64
 	assetClient         *asset.Client
+	ctx                 context.Context
+	PubSubID            string
 	request             *assetpb.ExportAssetsRequest
+	retryTimeOutSeconds int64
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -43,10 +46,11 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	var instanceDeployment InstanceDeployment
 
-	log.Println("Function COLD START")
+	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
+	log.Printf("%s function COLD START", logEntryPrefix)
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("ERROR - ReadUnmarshalYAML %s %v", solution.SettingsFileName, err)
+		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
 	}
 
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
@@ -72,7 +76,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	case "IAM_POLICY":
 		global.request.ContentType = assetpb.ContentType_IAM_POLICY
 	default:
-		return fmt.Errorf("ERROR - unsupported content type: %s", instanceDeployment.Settings.Instance.CAI.ContentType)
+		return fmt.Errorf("%s unsupported content type: %s", logEntryPrefix, instanceDeployment.Settings.Instance.CAI.ContentType)
 	}
 
 	global.request.Parent = instanceDeployment.Settings.Instance.CAI.Parent
@@ -81,7 +85,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	global.assetClient, err = asset.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("ERROR - asset.NewClient: %v", err)
+		return fmt.Errorf("%s asset.NewClient: %v", logEntryPrefix, err)
 	}
 	return nil
 }
@@ -89,16 +93,25 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	if ok, _, err := gcf.IntialRetryCheck(ctxEvent, global.retryTimeOutSeconds); !ok {
-		return err
+	metadata, err := metadata.FromContext(ctxEvent)
+	if err != nil {
+		// Assume an error on the function invoker and try again.
+		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	// log.Printf("EventType %s EventID %s Resource %s Timestamp %v", metadata.EventType, metadata.EventID, metadata.Resource.Type, metadata.Timestamp)
+	global.PubSubID = metadata.EventID
+
+	now := time.Now()
+	d := now.Sub(metadata.Timestamp)
+	if d.Seconds() > float64(global.retryTimeOutSeconds) {
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		return nil
+	}
 
 	operation, err := global.assetClient.ExportAssets(global.ctx, global.request)
 	if err != nil {
-		return fmt.Errorf("assetClient.ExportAssets: %v", err) // RETRY
+		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT assetClient.ExportAssets: %v", global.PubSubID, err)
 	}
-	log.Printf("gcloud asset operations describe %s %v", operation.Name(), global.request)
+	log.Printf("pubsub_id %s gcloud asset operations describe %s %v", operation.Name(), global.PubSubID, global.request)
 	// do NOT wait for response to save function execution time, and avoid function timeout
 	return nil
 }
