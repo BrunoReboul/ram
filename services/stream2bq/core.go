@@ -28,7 +28,6 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gbq"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -255,7 +254,9 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
-	var logEntry logging.Entry
+
+	// var logEntry logging.Entry
+
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
@@ -267,19 +268,24 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	d := now.Sub(metadata.Timestamp)
 	log.Printf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp)
 
-	logEntry.Severity = "INFO"
-	logEntry.Message = fmt.Sprintf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp)
-	logEntry.Component = global.PubSubID
+	// logEntry.Severity = "INFO"
+	// logEntry.Message = fmt.Sprintf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp)
+	// logEntry.Component = global.PubSubID
 
-	logEntry.Message = "fmt.Printf(logEntry.String())" + logEntry.Message
-	fmt.Printf(logEntry.String())
-	logEntry.Message = "log.Println(logEntry.String())" + logEntry.Message
-	log.Println(logEntry.String())
+	// logEntry.Message = "fmt.Printf(logEntry.String())" + logEntry.Message
+	// fmt.Printf(logEntry.String())
+	// logEntry.Message = "log.Println(logEntry.String())" + logEntry.Message
+	// log.Println(logEntry.String())
 
-	log.Println(logging.Entry{
-		Severity:  "INFO",
-		Message:   "log.Println(logging.Entry{" + fmt.Sprintf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp),
-		Component: global.PubSubID,
+	log.Println(struct {
+		Severity           string `json:"severity,omitempty"`
+		Message            string `json:"message"`
+		Component          string `json:"component,omitempty"`
+		TriggeringPubsubID string `json:"triggering_pubsub_id,omitempty"`
+	}{
+		Severity:           "INFO",
+		Message:            fmt.Sprintf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp),
+		TriggeringPubsubID: global.PubSubID,
 	})
 
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
