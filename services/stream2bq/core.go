@@ -196,6 +196,8 @@ type assetAssetBQ struct {
 	Timestamp               time.Time `json:"timestamp"`
 }
 
+var originEventTimestamp time.Time
+
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) (err error) {
 	log.SetFlags(0)
@@ -264,11 +266,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
-	log.Printf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp)
-
 	log.Println(logging.Entry{
-		Severity:                   "INFO",
-		Message:                    "Pubusub event age",
+		Severity:                   "NOTICE",
+		Message:                    "start",
 		TriggeringPubsubID:         global.PubSubID,
 		TriggeringPubsubAgeSeconds: d.Seconds(),
 		TriggeringPubsubTimestamp:  metadata.Timestamp,
@@ -276,55 +276,102 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	})
 
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Println(logging.Entry{
+			Severity:                   "CRITICAL",
+			Message:                    "noretry",
+			Description:                "Pubsub message too old",
+			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubAgeSeconds: d.Seconds(),
+			TriggeringPubsubTimestamp:  metadata.Timestamp,
+			Now:                        now,
+		})
 		return nil
 	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Printf("pubsub_id %s ignored pubsub message: %s", global.PubSubID, string(PubSubMessage.Data))
+		log.Println(logging.Entry{
+			Severity:           "NOTICE",
+			Message:            "cancel",
+			Description:        fmt.Sprintf("ignored pubsub message: %s", string(PubSubMessage.Data)),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
+	var insertID string
 	switch global.tableName {
 	case "complianceStatus":
-		err = persistComplianceStatus(PubSubMessage.Data, global)
+		insertID, err = persistComplianceStatus(PubSubMessage.Data, global)
 	case "violations":
-		err = persistViolation(PubSubMessage.Data, global)
+		insertID, err = persistViolation(PubSubMessage.Data, global)
 	case "assets":
-		err = persistAsset(PubSubMessage.Data, global)
+		insertID, err = persistAsset(PubSubMessage.Data, global)
 	}
 	if err != nil {
-		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.PubSubID, err)
+		log.Println(logging.Entry{
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        err.Error(),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
-	// log.Printf("pubsub_id %s exit nil", global.PubSubID)
+	if insertID != "" {
+		now := time.Now()
+		latency := now.Sub(metadata.Timestamp)
+		latencyE2E := now.Sub(originEventTimestamp)
+		log.Println(logging.Entry{
+			Severity:             "NOTICE",
+			Message:              "finish",
+			Description:          fmt.Sprintf("insert %s ok %s", global.tableName, insertID),
+			Now:                  now,
+			TriggeringPubsubID:   global.PubSubID,
+			OriginEventTimestamp: originEventTimestamp,
+			LatencySeconds:       latency.Seconds(),
+			LatencyE2ESeconds:    latencyE2E.Seconds(),
+		})
+	}
 	return nil
 }
 
-func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
+func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) (insertID string, err error) {
 	var complianceStatus monitor.ComplianceStatus
-	err := json.Unmarshal(pubSubJSONDoc, &complianceStatus)
+	err = json.Unmarshal(pubSubJSONDoc, &complianceStatus)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &complianceStatus) %s %v", global.PubSubID, string(pubSubJSONDoc), err)
-		return nil
+		log.Println(logging.Entry{
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        "json.Unmarshal(pubSubJSONDoc, &complianceStatus)",
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
-	insertID := fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
+	originEventTimestamp = complianceStatus.AssetInventoryTimeStamp
+
+	insertID = fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
 	savers := []*bigquery.StructSaver{
 		{Struct: complianceStatus, Schema: gbq.GetComplianceStatusSchema(), InsertID: insertID},
 	}
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
-		return fmt.Errorf("inserter.Put %v %v", err, savers)
+		return "", fmt.Errorf("inserter.Put %v %v", err, savers)
 	}
-	log.Printf("pubsub_id %s insert complianceStatus ok %s", global.PubSubID, insertID)
-	return nil
+	return insertID, nil
 }
 
-func persistViolation(pubSubJSONDoc []byte, global *Global) error {
+func persistViolation(pubSubJSONDoc []byte, global *Global) (insertID string, err error) {
 	var violation violation
 	var violationBQ violationBQ
-	err := json.Unmarshal(pubSubJSONDoc, &violation)
+	err = json.Unmarshal(pubSubJSONDoc, &violation)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &violation): %s %v", global.PubSubID, string(pubSubJSONDoc), err)
-		return nil
+		log.Println(logging.Entry{
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        "json.Unmarshal(pubSubJSONDoc, &violation)",
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
+	originEventTimestamp = violation.FeedMessage.Window.StartTime
+
 	violationBQ.NonCompliance.Message = violation.NonCompliance.Message
 	violationBQ.NonCompliance.Metadata = string(violation.NonCompliance.Metadata)
 	violationBQ.FunctionConfig = violation.FunctionConfig
@@ -348,40 +395,50 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 	violationBQ.FeedMessage.Asset.Resource = string(violation.FeedMessage.Asset.Resource)
 	violationBQ.RegoModules = string(violation.RegoModules)
 
-	// violationBQJSON, err := json.Marshal(violationBQ)
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// log.Println(string(violationBQJSON))
-
-	insertID := fmt.Sprintf("%s%v%s%v%s", violationBQ.FeedMessage.Asset.Name, violation.FeedMessage.Window.StartTime, violation.FunctionConfig.FunctionName, violation.FunctionConfig.DeploymentTime, violation.NonCompliance.Message)
+	insertID = fmt.Sprintf("%s%v%s%v%s", violationBQ.FeedMessage.Asset.Name, violation.FeedMessage.Window.StartTime, violation.FunctionConfig.FunctionName, violation.FunctionConfig.DeploymentTime, violation.NonCompliance.Message)
 	savers := []*bigquery.StructSaver{
 		{Struct: violationBQ, Schema: gbq.GetViolationsSchema(), InsertID: insertID},
 	}
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
-		return fmt.Errorf("inserter.Put %v", err)
+		return "", fmt.Errorf("inserter.Put %v", err)
 	}
-	log.Printf("pubsub_id %s insert violation ok %s", global.PubSubID, insertID)
-	return nil
+	return insertID, nil
 }
 
-func persistAsset(pubSubJSONDoc []byte, global *Global) error {
+func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err error) {
 	var feedMessage feedMessage
-	err := json.Unmarshal(pubSubJSONDoc, &feedMessage)
+	err = json.Unmarshal(pubSubJSONDoc, &feedMessage)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &feedMessage) %s %v", global.PubSubID, string(pubSubJSONDoc), err)
-		return nil
+		log.Println(logging.Entry{
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        "json.Unmarshal(pubSubJSONDoc, &feedMessage)",
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
 	var assetFeedMessageBQ assetFeedMessageBQ
 	err = json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ): %v", global.PubSubID, err)
-		return nil
+		log.Println(logging.Entry{
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        "json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)",
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
 	if assetFeedMessageBQ.Asset.Name == "" {
-		log.Printf("pubsub_id %s NORETRY_ERROR assetFeedMessageBQ.Asset.Name is empty", global.PubSubID)
-		return nil
+		log.Println(logging.Entry{
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        "assetFeedMessageBQ.Asset.Name is empty",
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
+	originEventTimestamp = feedMessage.Window.StartTime
+
 	assetFeedMessageBQ.Asset.Timestamp = feedMessage.Window.StartTime
 	assetFeedMessageBQ.Asset.Deleted = assetFeedMessageBQ.Deleted
 	assetFeedMessageBQ.Asset.AncestryPath = cai.BuildAncestryPath(assetFeedMessageBQ.Asset.Ancestors)
@@ -390,14 +447,14 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	assetFeedMessageBQ.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)
 	assetFeedMessageBQ.Asset.ViolationResolver, _ = cai.GetAssetLabelValue(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 
-	insertID := fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
+	insertID = fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
 	savers := []*bigquery.StructSaver{
 		{Struct: assetFeedMessageBQ.Asset, Schema: gbq.GetAssetsSchema(), InsertID: insertID},
 	}
 
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
-		return fmt.Errorf("inserter.Put %v", err)
+		return "", fmt.Errorf("inserter.Put %v", err)
 	}
 	log.Printf("pubsub_id %s insert asset ok %s", global.PubSubID, insertID)
-	return nil
+	return insertID, nil
 }

@@ -23,14 +23,19 @@ import (
 // Entry defines a Google Cloud logging structured entry
 // https://cloud.google.com/logging/docs/agent/configuration#special-fields
 type Entry struct {
-	Message                    string    `json:"message"`
 	Severity                   string    `json:"severity,omitempty"`
+	Message                    string    `json:"message"`
+	Description                string    `json:"description"`
+	Now                        time.Time `json:"now,omitempty"`
 	Trace                      string    `json:"logging.googleapis.com/trace,omitempty"`
 	Component                  string    `json:"component,omitempty"`
 	TriggeringPubsubID         string    `json:"triggering_pubsub_id,omitempty"`
-	TriggeringPubsubAgeSeconds float64   `json:"triggering_pubsub_age_seconds,omitempty"`
 	TriggeringPubsubTimestamp  time.Time `json:"triggering_pubsub_timestamp,omitempty"`
-	Now                        time.Time `json:"now,omitempty"`
+	TriggeringPubsubAgeSeconds float64   `json:"triggering_pubsub_age_seconds,omitempty"`
+	OriginEventID              string    `json:"origin_event_id,omitempty"`
+	OriginEventTimestamp       time.Time `json:"origin_event_timestamp,omitempty"`
+	LatencySeconds             float64   `json:"latency_seconds,omitempty"`
+	LatencyE2ESeconds          float64   `json:"latency_e2e_seconds,omitempty"`
 }
 
 // String renders an entry structure to the JSON format expected by Cloud Logging.
