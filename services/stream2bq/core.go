@@ -44,8 +44,11 @@ type Global struct {
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
 	ctx                           context.Context
+	environment                   string
 	firestoreClient               *firestore.Client
 	inserter                      *bigquery.Inserter
+	instanceName                  string
+	microserviceName              string
 	ownerLabelKeyName             string
 	PubSubID                      string
 	retryTimeOutSeconds           int64
@@ -214,6 +217,10 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
 	}
 
+	global.environment = instanceDeployment.Core.EnvironmentName
+	global.instanceName = instanceDeployment.Core.InstanceName
+	global.microserviceName = instanceDeployment.Core.ServiceName
+
 	datasetName := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Dataset.Name
 	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
 	global.ownerLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.Owner
@@ -263,10 +270,12 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
 	global.PubSubID = metadata.EventID
-
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
 	log.Println(logging.Entry{
+		MicroserviceName:           global.microserviceName,
+		InstanceName:               global.instanceName,
+		Environment:                global.environment,
 		Severity:                   "NOTICE",
 		Message:                    "start",
 		TriggeringPubsubID:         global.PubSubID,
@@ -277,6 +286,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
 		log.Println(logging.Entry{
+			MicroserviceName:           global.microserviceName,
+			InstanceName:               global.instanceName,
+			Environment:                global.environment,
 			Severity:                   "CRITICAL",
 			Message:                    "noretry",
 			Description:                "Pubsub message too old",
@@ -290,6 +302,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
 		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
 			Severity:           "NOTICE",
 			Message:            "cancel",
 			Description:        fmt.Sprintf("ignored pubsub message: %s", string(PubSubMessage.Data)),
@@ -308,6 +323,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	}
 	if err != nil {
 		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        err.Error(),
@@ -320,6 +338,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		latency := now.Sub(metadata.Timestamp)
 		latencyE2E := now.Sub(originEventTimestamp)
 		log.Println(logging.Entry{
+			MicroserviceName:     global.microserviceName,
+			InstanceName:         global.instanceName,
+			Environment:          global.environment,
 			Severity:             "NOTICE",
 			Message:              "finish",
 			Description:          fmt.Sprintf("insert %s ok %s", global.tableName, insertID),
@@ -338,6 +359,9 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) (insertID str
 	err = json.Unmarshal(pubSubJSONDoc, &complianceStatus)
 	if err != nil {
 		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        "json.Unmarshal(pubSubJSONDoc, &complianceStatus)",
@@ -363,6 +387,9 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) (insertID string, er
 	err = json.Unmarshal(pubSubJSONDoc, &violation)
 	if err != nil {
 		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        "json.Unmarshal(pubSubJSONDoc, &violation)",
@@ -410,6 +437,9 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	err = json.Unmarshal(pubSubJSONDoc, &feedMessage)
 	if err != nil {
 		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        "json.Unmarshal(pubSubJSONDoc, &feedMessage)",
@@ -421,6 +451,9 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	err = json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)
 	if err != nil {
 		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        "json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)",
@@ -430,6 +463,9 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	}
 	if assetFeedMessageBQ.Asset.Name == "" {
 		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        "assetFeedMessageBQ.Asset.Name is empty",

@@ -23,6 +23,9 @@ import (
 // Entry defines a Google Cloud logging structured entry
 // https://cloud.google.com/logging/docs/agent/configuration#special-fields
 type Entry struct {
+	MicroserviceName           string    `json:"microservice_name"`
+	InstanceName               string    `json:"instance_name"`
+	Environment                string    `json:"environment"`
 	Severity                   string    `json:"severity,omitempty"`
 	Message                    string    `json:"message"`
 	Description                string    `json:"description"`
