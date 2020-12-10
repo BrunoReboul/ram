@@ -271,12 +271,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	logEntry.Message = fmt.Sprintf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp)
 	logEntry.Component = global.PubSubID
 
+	logEntry.Message = "fmt.Printf(logEntry.String())" + logEntry.Message
 	fmt.Printf(logEntry.String())
+	logEntry.Message = "log.Println(logEntry.String())" + logEntry.Message
 	log.Println(logEntry.String())
 
 	log.Println(logging.Entry{
 		Severity:  "INFO",
-		Message:   fmt.Sprintf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp),
+		Message:   "log.Println(logging.Entry{" + fmt.Sprintf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp),
 		Component: global.PubSubID,
 	})
 
