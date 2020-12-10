@@ -28,6 +28,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gbq"
 	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -197,6 +198,7 @@ type assetAssetBQ struct {
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) (err error) {
+	log.SetFlags(0)
 	global.ctx = ctx
 
 	var instanceDeployment InstanceDeployment
@@ -253,6 +255,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
 	// log.Println(string(PubSubMessage.Data))
+	var logEntry logging.Entry
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
@@ -262,6 +265,21 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
+	log.Printf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp)
+
+	logEntry.Severity = "INFO"
+	logEntry.Message = fmt.Sprintf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp)
+	logEntry.Component = global.PubSubID
+
+	fmt.Printf(logEntry.String())
+	log.Println(logEntry.String())
+
+	log.Println(logging.Entry{
+		Severity:  "INFO",
+		Message:   fmt.Sprintf("pubsub_id %s age sec %v now %v event timestamp %s", global.PubSubID, d.Seconds(), now, metadata.Timestamp),
+		Component: global.PubSubID,
+	})
+
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
 		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
 		return nil
