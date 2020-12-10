@@ -267,7 +267,16 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
 	global.PubSubID = metadata.EventID
 	now := time.Now()
@@ -491,6 +500,5 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
 		return "", fmt.Errorf("inserter.Put %v", err)
 	}
-	log.Printf("pubsub_id %s insert asset ok %s", global.PubSubID, insertID)
 	return insertID, nil
 }
