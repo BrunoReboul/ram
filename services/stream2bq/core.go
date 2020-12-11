@@ -346,7 +346,6 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return err
 	}
-	ffo.JSONMarshalIndentPrint(metadata.Resource)
 	global.PubSubID = metadata.EventID
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
@@ -415,8 +414,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		now := time.Now()
 		latency := now.Sub(metadata.Timestamp)
 		latencyE2E := now.Sub(originEventTimestamp)
+		parts := strings.Split(metadata.Resource.Name, "/")
 		step := logging.Step{
-			StepID:        global.PubSubID,
+			StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 			StepTimestamp: metadata.Timestamp,
 		}
 		var stepStack logging.Steps
