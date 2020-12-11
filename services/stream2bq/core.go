@@ -346,6 +346,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return err
 	}
+	ffo.JSONMarshalIndentPrint(metadata.Resource)
 	global.PubSubID = metadata.EventID
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
