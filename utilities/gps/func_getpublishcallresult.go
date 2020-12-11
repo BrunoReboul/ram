@@ -16,11 +16,13 @@ package gps
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/BrunoReboul/ram/utilities/logging"
 )
 
 // GetPublishCallResult func to be used in go routine to scale pubsub event publish
@@ -28,7 +30,11 @@ func GetPublishCallResult(ctx context.Context, publishResult *pubsub.PublishResu
 	defer waitgroup.Done()
 	id, err := publishResult.Get(ctx)
 	if err != nil {
-		log.Printf("ERROR count %d on %s: %v", atomic.AddUint64(pubSubErrNumber, 1), msgInfo, err)
+		log.Println(logging.Entry{
+			Severity:    "WARNING",
+			Message:     "publishResult.Get(ctx)",
+			Description: fmt.Sprintf("count %d on %s: %v", atomic.AddUint64(pubSubErrNumber, 1), msgInfo, err),
+		})
 		return
 	}
 	msgNumber := atomic.AddUint64(pubSubMsgNumber, 1)

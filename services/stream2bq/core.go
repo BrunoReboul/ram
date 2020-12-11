@@ -347,6 +347,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return err
 	}
 	global.PubSubID = metadata.EventID
+
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
 	log.Println(logging.Entry{
@@ -411,18 +412,16 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return err
 	}
 	if insertID != "" {
-		now := time.Now()
-		latency := now.Sub(metadata.Timestamp)
-		latencyE2E := now.Sub(originEventTimestamp)
 		parts := strings.Split(metadata.Resource.Name, "/")
-		stepID := fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID)
-		fmt.Printf("%s || %s || %v ", metadata.Resource.Name, stepID, parts)
 		step := logging.Step{
 			StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 			StepTimestamp: metadata.Timestamp,
 		}
 		var stepStack logging.Steps
 		stepStack = append(stepStack, step)
+		now := time.Now()
+		latency := now.Sub(metadata.Timestamp)
+		latencyE2E := now.Sub(originEventTimestamp)
 		log.Println(logging.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,

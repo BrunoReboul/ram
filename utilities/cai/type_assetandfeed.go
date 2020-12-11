@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/BrunoReboul/ram/utilities/logging"
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/groupssettings/v1"
 )
@@ -63,10 +64,11 @@ type member struct {
 
 // FeedMessageGroup CAI like format
 type FeedMessageGroup struct {
-	Asset   assetGroup `json:"asset"`
-	Window  Window     `json:"window"`
-	Deleted bool       `json:"deleted"`
-	Origin  string     `json:"origin"`
+	Asset     assetGroup    `json:"asset"`
+	Window    Window        `json:"window"`
+	Deleted   bool          `json:"deleted"`
+	Origin    string        `json:"origin"`
+	StepStack logging.Steps `json:"step_stack,omitempty"`
 }
 
 // FeedMessageGroupSettings CAI like format
