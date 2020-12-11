@@ -210,16 +210,30 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	var bigQueryClient *bigquery.Client
 	var table *bigquery.Table
 
-	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
-	log.Printf("%s function COLD START", logEntryPrefix)
+	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
+		log.Println(logging.Entry{
+			Severity:    "CRITICAL",
+			Message:     "init_failed",
+			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
+			InitID:      initID,
+		})
+		return err
 	}
 
 	global.environment = instanceDeployment.Core.EnvironmentName
 	global.instanceName = instanceDeployment.Core.InstanceName
 	global.microserviceName = instanceDeployment.Core.ServiceName
+
+	log.Println(logging.Entry{
+		MicroserviceName: global.microserviceName,
+		InstanceName:     global.instanceName,
+		Environment:      global.environment,
+		Severity:         "NOTICE",
+		Message:          "coldstart",
+		InitID:           initID,
+	})
 
 	datasetName := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Dataset.Name
 	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
@@ -231,31 +245,85 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	bigQueryClient, err = bigquery.NewClient(global.ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("%s bigquery.NewClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("bigquery.NewClient %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	dataset := bigQueryClient.Dataset(datasetName)
 	_, err = dataset.Metadata(ctx)
 	if err != nil {
-		return fmt.Errorf("%s dataset.Metadata: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("dataset.Metadata %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	table = dataset.Table(global.tableName)
 	_, err = table.Metadata(ctx)
 	if err != nil {
-		return fmt.Errorf("%s missing table %s %v", logEntryPrefix, global.tableName, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("missing table %s %v", global.tableName, err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.inserter = table.Inserter()
 	if global.tableName == "assets" {
 		global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(global.ctx)
 		if err != nil {
-			return fmt.Errorf("%s cloudresourcemanager.NewService: %v", logEntryPrefix, err)
+			log.Println(logging.Entry{
+				MicroserviceName: global.microserviceName,
+				InstanceName:     global.instanceName,
+				Environment:      global.environment,
+				Severity:         "CRITICAL",
+				Message:          "init_failed",
+				Description:      fmt.Sprintf("cloudresourcemanager.NewService %v", err),
+				InitID:           initID,
+			})
+			return err
 		}
 		global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(global.ctx)
 		if err != nil {
-			return fmt.Errorf("%s cloudresourcemanagerv2.NewService: %v", logEntryPrefix, err)
+			log.Println(logging.Entry{
+				MicroserviceName: global.microserviceName,
+				InstanceName:     global.instanceName,
+				Environment:      global.environment,
+				Severity:         "CRITICAL",
+				Message:          "init_failed",
+				Description:      fmt.Sprintf("cloudresourcemanagerv2.NewService %v", err),
+				InitID:           initID,
+			})
+			return err
 		}
 		global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
 		if err != nil {
-			return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
+			log.Println(logging.Entry{
+				MicroserviceName: global.microserviceName,
+				InstanceName:     global.instanceName,
+				Environment:      global.environment,
+				Severity:         "CRITICAL",
+				Message:          "init_failed",
+				Description:      fmt.Sprintf("firestore.NewClient %v", err),
+				InitID:           initID,
+			})
+			return err
 		}
 	}
 	return nil
@@ -346,6 +414,12 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		now := time.Now()
 		latency := now.Sub(metadata.Timestamp)
 		latencyE2E := now.Sub(originEventTimestamp)
+		step := logging.Step{
+			StepID:        global.PubSubID,
+			StepTimestamp: metadata.Timestamp,
+		}
+		var stepStack logging.Steps
+		stepStack = append(stepStack, step)
 		log.Println(logging.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
@@ -358,6 +432,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			OriginEventTimestamp: originEventTimestamp,
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
+			StepStack:            stepStack,
 		})
 	}
 	return nil

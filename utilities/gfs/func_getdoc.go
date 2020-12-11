@@ -16,21 +16,30 @@ package gfs
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"github.com/BrunoReboul/ram/utilities/logging"
 )
 
 // GetDoc check if a document exist with retries
-func GetDoc(ctx context.Context, firestoreClient *firestore.Client, documentPath string, retriesNumber time.Duration) (*firestore.DocumentSnapshot, bool) {
+func GetDoc(ctx context.Context,
+	firestoreClient *firestore.Client,
+	documentPath string,
+	retriesNumber time.Duration) (*firestore.DocumentSnapshot, bool) {
 	var documentSnap *firestore.DocumentSnapshot
 	var err error
 	var i time.Duration
 	for i = 0; i < retriesNumber; i++ {
 		documentSnap, err = firestoreClient.Doc(documentPath).Get(ctx)
 		if err != nil {
-			log.Printf("ERROR - iteration %d firestoreClient.Doc(documentPath).Get(ctx) %v", i, err)
+			log.Println(logging.Entry{
+				Severity:    "WARNING",
+				Message:     "no_found_in_cache",
+				Description: fmt.Sprintf("iteration %d firestoreClient.Doc(documentPath).Get(ctx) %v", i, err),
+			})
 			time.Sleep(i * 100 * time.Millisecond)
 		} else {
 			return documentSnap, documentSnap.Exists()
