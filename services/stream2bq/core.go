@@ -357,8 +357,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Message:                    "start",
 		TriggeringPubsubID:         global.PubSubID,
 		TriggeringPubsubAgeSeconds: d.Seconds(),
-		TriggeringPubsubTimestamp:  metadata.Timestamp,
-		Now:                        now,
+		TriggeringPubsubTimestamp:  &metadata.Timestamp,
+		Now:                        &now,
 	})
 
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
@@ -371,8 +371,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Description:                "Pubsub message too old",
 			TriggeringPubsubID:         global.PubSubID,
 			TriggeringPubsubAgeSeconds: d.Seconds(),
-			TriggeringPubsubTimestamp:  metadata.Timestamp,
-			Now:                        now,
+			TriggeringPubsubTimestamp:  &metadata.Timestamp,
+			Now:                        &now,
 		})
 		return nil
 	}
@@ -427,9 +427,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:             "NOTICE",
 			Message:              "finish",
 			Description:          fmt.Sprintf("insert %s ok %s", global.tableName, insertID),
-			Now:                  now,
+			Now:                  &now,
 			TriggeringPubsubID:   global.PubSubID,
-			OriginEventTimestamp: originEventTimestamp,
+			OriginEventTimestamp: &originEventTimestamp,
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
 			StepStack:            stepStack,

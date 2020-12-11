@@ -23,24 +23,24 @@ import (
 // Entry defines a Google Cloud logging structured entry
 // https://cloud.google.com/logging/docs/agent/configuration#special-fields
 type Entry struct {
-	MicroserviceName           string    `json:"microservice_name,omitempty"`
-	InstanceName               string    `json:"instance_name,omitempty"`
-	Environment                string    `json:"environment,omitempty"`
-	Severity                   string    `json:"severity,omitempty"`
-	Message                    string    `json:"message"`
-	Description                string    `json:"description"`
-	Now                        time.Time `json:"now,omitempty"`
-	Trace                      string    `json:"logging.googleapis.com/trace,omitempty"`
-	Component                  string    `json:"component,omitempty"`
-	InitID                     string    `json:"init_id,omitempty"`
-	TriggeringPubsubID         string    `json:"triggering_pubsub_id,omitempty"`
-	TriggeringPubsubTimestamp  time.Time `json:"triggering_pubsub_timestamp,omitempty"`
-	TriggeringPubsubAgeSeconds float64   `json:"triggering_pubsub_age_seconds,omitempty"`
-	OriginEventID              string    `json:"origin_event_id,omitempty"`
-	OriginEventTimestamp       time.Time `json:"origin_event_timestamp,omitempty"`
-	LatencySeconds             float64   `json:"latency_seconds,omitempty"`
-	LatencyE2ESeconds          float64   `json:"latency_e2e_seconds,omitempty"`
-	StepStack                  Steps     `json:"step_stack,omitempty"`
+	MicroserviceName           string     `json:"microservice_name,omitempty"`
+	InstanceName               string     `json:"instance_name,omitempty"`
+	Environment                string     `json:"environment,omitempty"`
+	Severity                   string     `json:"severity,omitempty"`
+	Message                    string     `json:"message"`
+	Description                string     `json:"description,omitempty"`
+	Now                        *time.Time `json:"now,omitempty"`
+	Trace                      string     `json:"logging.googleapis.com/trace,omitempty"`
+	Component                  string     `json:"component,omitempty"`
+	InitID                     string     `json:"init_id,omitempty"`
+	TriggeringPubsubID         string     `json:"triggering_pubsub_id,omitempty"`
+	TriggeringPubsubTimestamp  *time.Time `json:"triggering_pubsub_timestamp,omitempty"`
+	TriggeringPubsubAgeSeconds float64    `json:"triggering_pubsub_age_seconds,omitempty"`
+	OriginEventID              string     `json:"origin_event_id,omitempty"`
+	OriginEventTimestamp       *time.Time `json:"origin_event_timestamp,omitempty"`
+	LatencySeconds             float64    `json:"latency_seconds,omitempty"`
+	LatencyE2ESeconds          float64    `json:"latency_e2e_seconds,omitempty"`
+	StepStack                  Steps      `json:"step_stack,omitempty"`
 }
 
 // Step defines a step in a serverless chain of events
