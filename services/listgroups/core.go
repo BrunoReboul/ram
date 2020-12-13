@@ -317,7 +317,6 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			return nil
 		}
 		if settings.DirectoryCustomerID != directoryCustomerID {
-			log.Printf("pubsub_id %s ignore as triggering event directoryCustomerID %s not equal to this instance directoryCustomerID %s", global.PubSubID, settings.DirectoryCustomerID, directoryCustomerID)
 			log.Println(logging.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
@@ -423,7 +422,14 @@ func initiateQueries(global *Global) error {
 }
 
 func queryDirectory(domain string, emailPrefix string, global *Global) error {
-	log.Printf("pubsub_id %s settings retrieved, launch query on domain '%s' and email prefix '%s'", global.PubSubID, domain, emailPrefix)
+	log.Println(logging.Entry{
+		MicroserviceName:   global.microserviceName,
+		InstanceName:       global.instanceName,
+		Environment:        global.environment,
+		Severity:           "INFO",
+		Message:            fmt.Sprintf("settings retrieved, launch query on domain '%s' and email prefix '%s'", domain, emailPrefix),
+		TriggeringPubsubID: global.PubSubID,
+	})
 	pubSubMsgNumber = 0
 	pubSubErrNumber = 0
 	query := fmt.Sprintf("email:%s*", emailPrefix)
