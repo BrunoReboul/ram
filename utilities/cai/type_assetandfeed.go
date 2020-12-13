@@ -73,10 +73,11 @@ type FeedMessageGroup struct {
 
 // FeedMessageGroupSettings CAI like format
 type FeedMessageGroupSettings struct {
-	Asset   assetGroupSettings `json:"asset"`
-	Window  Window             `json:"window"`
-	Deleted bool               `json:"deleted"`
-	Origin  string             `json:"origin"`
+	Asset     assetGroupSettings `json:"asset"`
+	Window    Window             `json:"window"`
+	Deleted   bool               `json:"deleted"`
+	Origin    string             `json:"origin"`
+	StepStack logging.Steps      `json:"step_stack,omitempty"`
 }
 
 // FeedMessageMember CAI like format

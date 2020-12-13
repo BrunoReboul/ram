@@ -311,7 +311,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Environment:        global.environment,
 				Severity:           "CRITICAL",
 				Message:            "noretry",
-				Description:        "json.Unmarshal(PubSubMessage.Data, &settings)",
+				Description:        fmt.Sprintf("json.Unmarshal(PubSubMessage.Data, &settings) %v %v", PubSubMessage.Data, err),
 				TriggeringPubsubID: global.PubSubID,
 			})
 			return nil

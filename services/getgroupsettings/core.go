@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/BrunoReboul/ram/utilities/aut"
@@ -26,6 +27,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"google.golang.org/api/groupssettings/v1"
@@ -40,29 +42,53 @@ import (
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	ctx                   context.Context
+	environment           string
 	firestoreClient       *firestore.Client
 	groupsSettingsService *groupssettings.Service
+	instanceName          string
+	microserviceName      string
 	outputTopicName       string
 	projectID             string
 	PubSubID              string
 	pubsubPublisherClient *pubsub.PublisherClient
 	retryTimeOutSeconds   int64
+	step                  logging.Step
+	stepStack             logging.Steps
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) (err error) {
+	log.SetFlags(0)
 	global.ctx = ctx
 
 	var instanceDeployment InstanceDeployment
 	var clientOption option.ClientOption
 	var ok bool
 
-	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
-	log.Printf("%s function COLD START", logEntryPrefix)
+	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
+		log.Println(logging.Entry{
+			Severity:    "CRITICAL",
+			Message:     "init_failed",
+			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
+			InitID:      initID,
+		})
+		return err
 	}
+
+	global.environment = instanceDeployment.Core.EnvironmentName
+	global.instanceName = instanceDeployment.Core.InstanceName
+	global.microserviceName = instanceDeployment.Core.ServiceName
+
+	log.Println(logging.Entry{
+		MicroserviceName: global.microserviceName,
+		InstanceName:     global.instanceName,
+		Environment:      global.environment,
+		Severity:         "NOTICE",
+		Message:          "coldstart",
+		InitID:           initID,
+	})
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
 	global.outputTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.GCIGroupSettings
@@ -75,14 +101,31 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("firestore.NewClient %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 
 	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
 	if err != nil {
-		return fmt.Errorf("%s gfs.ListKeyNames %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("gfs.ListKeyNames %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
-
 	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
 		serviceAccountEmail,
 		keyJSONFilePath,
@@ -90,16 +133,37 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		gciAdminUserToImpersonate,
 		[]string{"https://www.googleapis.com/auth/apps.groups.settings"},
 		serviceAccountKeyNames,
-		logEntryPrefix); !ok {
+		initID,
+		global.microserviceName,
+		global.instanceName,
+		global.environment); !ok {
 		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
 	if err != nil {
-		return fmt.Errorf("%s groupssettings.NewService: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("groupssettings.NewService %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("%s global.pubsubPublisherClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("global.pubsubPublisherClient %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	return nil
 }
@@ -110,14 +174,51 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
 	global.PubSubID = metadata.EventID
+	parts := strings.Split(metadata.Resource.Name, "/")
+	global.step = logging.Step{
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepTimestamp: metadata.Timestamp,
+	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
+	log.Println(logging.Entry{
+		MicroserviceName:           global.microserviceName,
+		InstanceName:               global.instanceName,
+		Environment:                global.environment,
+		Severity:                   "NOTICE",
+		Message:                    "start",
+		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubAgeSeconds: d.Seconds(),
+		TriggeringPubsubTimestamp:  &metadata.Timestamp,
+		Now:                        &now,
+	})
+
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:           global.microserviceName,
+			InstanceName:               global.instanceName,
+			Environment:                global.environment,
+			Severity:                   "CRITICAL",
+			Message:                    "noretry",
+			Description:                "Pubsub message too old",
+			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubAgeSeconds: d.Seconds(),
+			TriggeringPubsubTimestamp:  &metadata.Timestamp,
+			Now:                        &now,
+		})
 		return nil
 	}
 
@@ -126,8 +227,18 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
 		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)", global.PubSubID)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubMessage.Data, &feedMessageGroup) %v %v", PubSubMessage.Data, err),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
+	global.stepStack = append(feedMessageGroup.StepStack, global.step)
 
 	var feedMessageGroupSettings cai.FeedMessageGroupSettings
 	feedMessageGroupSettings.Window.StartTime = metadata.Timestamp
@@ -139,14 +250,32 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	if !feedMessageGroup.Deleted {
 		groupSettings, err := global.groupsSettingsService.Groups.Get(feedMessageGroup.Asset.Resource.Email).Do()
 		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT groupsSettingsService.Groups.Get: %v", global.PubSubID, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "redo_on_transient",
+				Description:        fmt.Sprintf("groupsSettingsService.Groups.Get %v", err),
+				TriggeringPubsubID: global.PubSubID,
+			})
+			return err
 		}
 		feedMessageGroupSettings.Asset.Resource = groupSettings
 	}
+	feedMessageGroupSettings.StepStack = global.stepStack
 
 	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)", global.PubSubID)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Marshal(feedMessageGroupSettings) %v %v", feedMessageGroupSettings, err),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
 
@@ -162,16 +291,33 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 	if err != nil {
-		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT global.pubsubPublisherClient.Publish: %v", global.PubSubID, err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("global.pubsubPublisherClient.Publish %v %v", &publishRequest, err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
-	log.Printf("pubsub_id %s  group settings %s isdeleted: %v %s published to pubsub topic %s ids %v %s",
-		global.PubSubID,
-		feedMessageGroup.Asset.Resource.Email,
-		feedMessageGroup.Deleted,
-		feedMessageGroup.Asset.Resource.Id,
-		global.outputTopicName,
-		pubsubResponse.MessageIds,
-		string(feedMessageGroupSettingsJSON))
-
+	now = time.Now()
+	latency := now.Sub(metadata.Timestamp)
+	latencyE2E := latency // as is the originating event form listgroups
+	log.Println(logging.Entry{
+		MicroserviceName:     global.microserviceName,
+		InstanceName:         global.instanceName,
+		Environment:          global.environment,
+		Severity:             "NOTICE",
+		Message:              "finish",
+		Description:          fmt.Sprintf("groupSettings published to pubsub %s (isdeleted status=%v) %s topic %s ids %v %s", feedMessageGroup.Asset.Resource.Email, feedMessageGroup.Deleted, feedMessageGroup.Asset.Resource.Id, global.outputTopicName, pubsubResponse.MessageIds, string(feedMessageGroupSettingsJSON)),
+		Now:                  &now,
+		TriggeringPubsubID:   global.PubSubID,
+		OriginEventTimestamp: &metadata.Timestamp,
+		LatencySeconds:       latency.Seconds(),
+		LatencyE2ESeconds:    latencyE2E.Seconds(),
+		StepStack:            global.stepStack,
+	})
 	return nil
 }
