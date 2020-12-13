@@ -310,7 +310,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		InstanceName:         global.instanceName,
 		Environment:          global.environment,
 		Severity:             "NOTICE",
-		Message:              "finish",
+		Message:              fmt.Sprintf("finish %s", feedMessageGroup.Asset.Resource.Email),
 		Description:          fmt.Sprintf("groupSettings published to pubsub %s (isdeleted status=%v) %s topic %s ids %v %s", feedMessageGroup.Asset.Resource.Email, feedMessageGroup.Deleted, feedMessageGroup.Asset.Resource.Id, global.outputTopicName, pubsubResponse.MessageIds, string(feedMessageGroupSettingsJSON)),
 		Now:                  &now,
 		TriggeringPubsubID:   global.PubSubID,

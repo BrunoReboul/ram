@@ -52,6 +52,8 @@ type Global struct {
 	ownerLabelKeyName             string
 	PubSubID                      string
 	retryTimeOutSeconds           int64
+	step                          logging.Step
+	stepStack                     logging.Steps
 	tableName                     string
 	violationResolverLabelKeyName string
 }
@@ -137,9 +139,10 @@ type specBQ struct {
 
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
-	Asset  asset      `json:"asset"`
-	Window cai.Window `json:"window"`
-	Origin string     `json:"origin"`
+	Asset     asset         `json:"asset"`
+	Window    cai.Window    `json:"window"`
+	Origin    string        `json:"origin"`
+	StepStack logging.Steps `json:"step_stack,omitempty"`
 }
 
 // feedMessageBQ format to persist in BQ
@@ -347,6 +350,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return err
 	}
 	global.PubSubID = metadata.EventID
+	parts := strings.Split(metadata.Resource.Name, "/")
+	global.step = logging.Step{
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepTimestamp: metadata.Timestamp,
+	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
@@ -412,13 +420,6 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return err
 	}
 	if insertID != "" {
-		parts := strings.Split(metadata.Resource.Name, "/")
-		step := logging.Step{
-			StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
-			StepTimestamp: metadata.Timestamp,
-		}
-		var stepStack logging.Steps
-		stepStack = append(stepStack, step)
 		now := time.Now()
 		latency := now.Sub(metadata.Timestamp)
 		latencyE2E := now.Sub(originEventTimestamp)
@@ -427,15 +428,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
 			Severity:             "NOTICE",
-			Message:              "finish",
-			Description:          fmt.Sprintf("insert %s ok %s", global.tableName, insertID),
+			Message:              fmt.Sprintf("finish %s", insertID),
 			Now:                  &now,
 			TriggeringPubsubID:   global.PubSubID,
 			OriginEventTimestamp: &originEventTimestamp,
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
-			StepStack:            stepStack,
+			StepStack:            global.stepStack,
 		})
+		// Description:          fmt.Sprintf("insert %s ok %s", global.tableName, insertID),
 	}
 	return nil
 }
@@ -559,7 +560,8 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 		})
 		return "", nil
 	}
-	originEventTimestamp = feedMessage.Window.StartTime
+	originEventTimestamp = feedMessage.StepStack[0].StepTimestamp
+	global.stepStack = append(feedMessage.StepStack, global.step)
 
 	assetFeedMessageBQ.Asset.Timestamp = feedMessage.Window.StartTime
 	assetFeedMessageBQ.Asset.Deleted = assetFeedMessageBQ.Deleted
