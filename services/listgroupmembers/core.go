@@ -28,6 +28,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"google.golang.org/api/iterator"
@@ -43,46 +44,73 @@ import (
 // https://pkg.go.dev/google.golang.org/api/admin/directory/v1?tab=doc#GroupsListCall.Pages
 var ancestors []string
 var ctx context.Context
+var environment string
 var groupAssetName string
 var groupEmail string
+var instanceName string
 var logEventEveryXPubSubMsg uint64
-var pubSubClient *pubsub.Client
+var microserviceName string
+var origin string
 var outputTopicName string
+var pubSubClient *pubsub.Client
 var pubSubErrNumber uint64
 var pubSubID string
 var pubSubMsgNumber uint64
+var stepStack logging.Steps
 var timestamp time.Time
-var origin string
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	collectionID            string
 	ctx                     context.Context
 	dirAdminService         *admin.Service
+	environment             string
 	firestoreClient         *firestore.Client
+	instanceName            string
 	logEventEveryXPubSubMsg uint64
 	maxResultsPerPage       int64 // API Max = 200
+	microserviceName        string
 	outputTopicName         string
 	projectID               string
 	pubSubClient            *pubsub.Client
 	PubSubID                string
 	retryTimeOutSeconds     int64
+	step                    logging.Step
+	stepStack               logging.Steps
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) (err error) {
+	log.SetFlags(0)
 	global.ctx = ctx
 
 	var instanceDeployment InstanceDeployment
 	var clientOption option.ClientOption
 	var ok bool
 
-	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
-	log.Printf("%s function COLD START", logEntryPrefix)
+	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
+		log.Println(logging.Entry{
+			Severity:    "CRITICAL",
+			Message:     "init_failed",
+			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
+			InitID:      initID,
+		})
 	}
+
+	global.environment = instanceDeployment.Core.EnvironmentName
+	global.instanceName = instanceDeployment.Core.InstanceName
+	global.microserviceName = instanceDeployment.Core.ServiceName
+
+	log.Println(logging.Entry{
+		MicroserviceName: global.microserviceName,
+		InstanceName:     global.instanceName,
+		Environment:      global.environment,
+		Severity:         "NOTICE",
+		Message:          "coldstart",
+		InitID:           initID,
+	})
 
 	gciAdminUserToImpersonate := instanceDeployment.Settings.Instance.GCI.SuperAdminEmail
 	global.collectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
@@ -99,11 +127,30 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("firestore.NewClient %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
+
 	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
 	if err != nil {
-		return fmt.Errorf("%s gfs.ListKeyNames %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("gfs.ListKeyNames %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 
 	if clientOption, ok = aut.GetClientOptionAndCleanKeys(ctx,
@@ -113,16 +160,37 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		gciAdminUserToImpersonate,
 		[]string{admin.AdminDirectoryGroupMemberReadonlyScope},
 		serviceAccountKeyNames,
-		logEntryPrefix); !ok {
+		initID,
+		global.microserviceName,
+		global.instanceName,
+		global.environment); !ok {
 		return fmt.Errorf("aut.GetClientOptionAndCleanKeys")
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
-		return fmt.Errorf("%s admin.NewService: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("admin.NewService %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("%s pubsub.NewClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("pubsub.NewClient %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	return nil
 }
@@ -133,14 +201,51 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
 	global.PubSubID = metadata.EventID
+	parts := strings.Split(metadata.Resource.Name, "/")
+	global.step = logging.Step{
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepTimestamp: metadata.Timestamp,
+	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
+	log.Println(logging.Entry{
+		MicroserviceName:           global.microserviceName,
+		InstanceName:               global.instanceName,
+		Environment:                global.environment,
+		Severity:                   "NOTICE",
+		Message:                    "start",
+		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubAgeSeconds: d.Seconds(),
+		TriggeringPubsubTimestamp:  &metadata.Timestamp,
+		Now:                        &now,
+	})
+
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:           global.microserviceName,
+			InstanceName:               global.instanceName,
+			Environment:                global.environment,
+			Severity:                   "CRITICAL",
+			Message:                    "noretry",
+			Description:                "Pubsub message too old",
+			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubAgeSeconds: d.Seconds(),
+			TriggeringPubsubTimestamp:  &metadata.Timestamp,
+			Now:                        &now,
+		})
 		return nil
 	}
 
@@ -151,13 +256,27 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	outputTopicName = global.outputTopicName
 	timestamp = metadata.Timestamp
 	pubSubID = global.PubSubID
+	microserviceName = global.microserviceName
+	instanceName = global.instanceName
+	environment = global.environment
 
 	var feedMessageGroup cai.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
 		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)", global.PubSubID)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubMessage.Data, &feedMessageGroup) %v %v", PubSubMessage.Data, err),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
+	global.stepStack = append(feedMessageGroup.StepStack, global.step)
+	stepStack = global.stepStack
 
 	pubSubMsgNumber = 0
 	groupAssetName = feedMessageGroup.Asset.Name
@@ -173,23 +292,51 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		// retreive members from cache
 		err = browseFeedMessageGroupMembersFromCache(global)
 		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT browseFeedMessageGroupMembersFromCache(global): %v", global.PubSubID, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "redo_on_transient",
+				Description:        fmt.Sprintf("browseFeedMessageGroupMembersFromCache(global) %v", err),
+				TriggeringPubsubID: global.PubSubID,
+			})
+			return err
 		}
 	} else {
 		// retreive members from admin SDK
 		// pages function except just the name of the callback function. Not an invocation of the function
 		err = global.dirAdminService.Members.List(feedMessageGroup.Asset.Resource.Id).MaxResults(global.maxResultsPerPage).Pages(ctx, browseMembers)
 		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT dirAdminService.Members.List: %v", global.PubSubID, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "redo_on_transient",
+				Description:        fmt.Sprintf("dirAdminService.Members.List %v", err),
+				TriggeringPubsubID: global.PubSubID,
+			})
+			return err
 		}
 	}
-	log.Printf("pubsub_id %s  completed - Group %s %s isDeleted %v Number of members published to pubsub topic %s: %d",
-		global.PubSubID,
-		feedMessageGroup.Asset.Resource.Email,
-		feedMessageGroup.Asset.Resource.Id,
-		feedMessageGroup.Deleted,
-		outputTopicName,
-		pubSubMsgNumber)
+	now = time.Now()
+	latency := now.Sub(global.step.StepTimestamp)
+	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
+	log.Println(logging.Entry{
+		MicroserviceName:     global.microserviceName,
+		InstanceName:         global.instanceName,
+		Environment:          global.environment,
+		Severity:             "NOTICE",
+		Message:              "finish",
+		Description:          fmt.Sprintf("Group %s %s isDeleted %v Number of members published to pubsub topic %s: %d", feedMessageGroup.Asset.Resource.Email, feedMessageGroup.Asset.Resource.Id, feedMessageGroup.Deleted, outputTopicName, pubSubMsgNumber),
+		Now:                  &now,
+		TriggeringPubsubID:   global.PubSubID,
+		OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
+		LatencySeconds:       latency.Seconds(),
+		LatencyE2ESeconds:    latencyE2E.Seconds(),
+		StepStack:            global.stepStack,
+	})
 	return nil
 }
 
@@ -210,30 +357,72 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 			break
 		}
 		if err != nil {
-			log.Printf("pubsub_id %s NORETRY_ERROR log and move to next iter.Next() %v", global.PubSubID, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "WARNING",
+				Message:            "browseFeedMessageGroupMembersFromCache",
+				Description:        fmt.Sprintf("log and move to next iter.Next() %v", err),
+				TriggeringPubsubID: global.PubSubID,
+			})
 		} else {
 			if documentSnap.Exists() {
 				err = documentSnap.DataTo(&feedMessageMember)
 				if err != nil {
-					log.Printf("pubsub_id %s NORETRY_ERROR log and move to next documentSnap.DataTo %v", global.PubSubID, err)
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "WARNING",
+						Message:            "browseFeedMessageGroupMembersFromCache",
+						Description:        fmt.Sprintf("log and move to next documentSnap.DataTo %v", err),
+						TriggeringPubsubID: global.PubSubID,
+					})
 				} else {
 					feedMessageMember.Deleted = true
 					feedMessageMember.Window.StartTime = timestamp
 					feedMessageMember.Origin = origin
 					feedMessageMemberJSON, err := json.Marshal(feedMessageMember)
 					if err != nil {
-						log.Printf("pubsub_id %s NORETRY_ERROR log and move to next %s json.Marshal(feedMessageMember): %v", global.PubSubID, feedMessageMember.Asset.Name, err)
+						log.Println(logging.Entry{
+							MicroserviceName:   global.microserviceName,
+							InstanceName:       global.instanceName,
+							Environment:        global.environment,
+							Severity:           "WARNING",
+							Message:            "browseFeedMessageGroupMembersFromCache",
+							Description:        fmt.Sprintf("log and move to next %s json.Marshal(feedMessageMember) %v", feedMessageMember.Asset.Name, err),
+							TriggeringPubsubID: global.PubSubID,
+						})
 					} else {
 						pubSubMessage := &pubsub.Message{
 							Data: feedMessageMemberJSON,
 						}
 						publishResult := topic.Publish(ctx, pubSubMessage)
 						waitgroup.Add(1)
-						go gps.GetPublishCallResult(ctx, publishResult, &waitgroup, feedMessageMember.Asset.Name, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+						go gps.GetPublishCallResult(ctx,
+							publishResult,
+							&waitgroup,
+							feedMessageMember.Asset.Name,
+							&pubSubErrNumber,
+							&pubSubMsgNumber,
+							logEventEveryXPubSubMsg,
+							pubSubID,
+							microserviceName,
+							instanceName,
+							environment)
 					}
 				}
 			} else {
-				log.Printf("pubsub_id %s NORETRY_ERROR log and move to next document does not exists %s", global.PubSubID, documentSnap.Ref.Path)
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "WARNING",
+					Message:            "browseFeedMessageGroupMembersFromCache",
+					Description:        fmt.Sprintf("log and move to next document does not exists %s", documentSnap.Ref.Path),
+					TriggeringPubsubID: global.PubSubID,
+				})
 			}
 		}
 	}
@@ -261,16 +450,34 @@ func browseMembers(members *admin.Members) error {
 		feedMessageMember.Asset.Resource.Kind = member.Kind
 		feedMessageMember.Asset.Resource.Role = member.Role
 		feedMessageMember.Asset.Resource.Type = member.Type
+		feedMessageMember.StepStack = stepStack
 		feedMessageMemberJSON, err := json.Marshal(feedMessageMember)
 		if err != nil {
-			log.Printf("pubsub_id %s NORETRY_ERROR %s json.Marshal(feedMessageMember): %v", pubSubID, member.Email, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   microserviceName,
+				InstanceName:       instanceName,
+				Environment:        environment,
+				Severity:           "WARNING",
+				Message:            "browseMembers",
+				Description:        fmt.Sprintf("log and move to next %s json.Marshal(feedMessageMember) %v", member.Email, err),
+				TriggeringPubsubID: pubSubID,
+			})
 		} else {
 			pubSubMessage := &pubsub.Message{
 				Data: feedMessageMemberJSON,
 			}
 			publishResult := topic.Publish(ctx, pubSubMessage)
 			waitgroup.Add(1)
-			go gps.GetPublishCallResult(ctx, publishResult, &waitgroup, groupAssetName+"/"+member.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+			go gps.GetPublishCallResult(ctx,
+				publishResult, &waitgroup,
+				groupAssetName+"/"+member.Email,
+				&pubSubErrNumber,
+				&pubSubMsgNumber,
+				logEventEveryXPubSubMsg,
+				pubSubID,
+				microserviceName,
+				instanceName,
+				environment)
 		}
 	}
 	return nil

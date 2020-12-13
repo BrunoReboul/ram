@@ -82,10 +82,11 @@ type FeedMessageGroupSettings struct {
 
 // FeedMessageMember CAI like format
 type FeedMessageMember struct {
-	Asset   assetMember `json:"asset"`
-	Window  Window      `json:"window"`
-	Deleted bool        `json:"deleted"`
-	Origin  string      `json:"origin"`
+	Asset     assetMember   `json:"asset"`
+	Window    Window        `json:"window"`
+	Deleted   bool          `json:"deleted"`
+	Origin    string        `json:"origin"`
+	StepStack logging.Steps `json:"step_stack,omitempty"`
 }
 
 // Window Cloud Asset Inventory feed message time window

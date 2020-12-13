@@ -45,17 +45,17 @@ var ctx context.Context
 var directoryCustomerID string
 var domain string
 var emailPrefix string
+var environment string
+var instanceName string
 var logEventEveryXPubSubMsg uint64
-var pubSubClient *pubsub.Client
+var microserviceName string
 var outputTopicName string
+var pubSubClient *pubsub.Client
 var pubSubErrNumber uint64
 var pubSubID string
 var pubSubMsgNumber uint64
-var timestamp time.Time
-var microserviceName string
-var instanceName string
-var environment string
 var stepStack logging.Steps
+var timestamp time.Time
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
@@ -540,7 +540,17 @@ func browseGroups(groups *admin.Groups) error {
 			}
 			publishResult := topic.Publish(ctx, pubSubMessage)
 			waitgroup.Add(1)
-			go gps.GetPublishCallResult(ctx, publishResult, &waitgroup, directoryCustomerID+"/"+group.Email, &pubSubErrNumber, &pubSubMsgNumber, logEventEveryXPubSubMsg)
+			go gps.GetPublishCallResult(ctx,
+				publishResult,
+				&waitgroup,
+				directoryCustomerID+"/"+group.Email,
+				&pubSubErrNumber,
+				&pubSubMsgNumber,
+				logEventEveryXPubSubMsg,
+				pubSubID,
+				microserviceName,
+				instanceName,
+				environment)
 		}
 	}
 	waitgroup.Wait()
