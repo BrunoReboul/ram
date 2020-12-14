@@ -30,6 +30,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"github.com/open-policy-agent/opa/rego"
@@ -50,25 +51,30 @@ type Global struct {
 	environment                   string
 	firestoreClient               *firestore.Client
 	functionName                  string
+	instanceName                  string
+	microserviceName              string
 	opaFolderPath                 string
 	ownerLabelKeyName             string
 	projectID                     string
-	PubSubID                      string
+	pubsubID                      string
 	pubsubPublisherClient         *pubsub.PublisherClient
 	ramComplianceStatusTopicName  string
 	ramViolationTopicName         string
 	regoModulesFolderPath         string
 	retryTimeOutSeconds           int64
+	step                          logging.Step
+	stepStack                     logging.Steps
 	violationResolverLabelKeyName string
 	writabelOPAFolderPath         string
 }
 
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
-	Asset   asset      `json:"asset"`
-	Window  cai.Window `json:"window"`
-	Deleted bool       `json:"deleted"`
-	Origin  string     `json:"origin"`
+	Asset     asset         `json:"asset"`
+	Window    cai.Window    `json:"window"`
+	Deleted   bool          `json:"deleted"`
+	Origin    string        `json:"origin"`
+	StepStack logging.Steps `json:"step_stack,omitempty"`
 }
 
 // asset Cloud Asset Metadata
@@ -102,6 +108,7 @@ type violation struct {
 	ConstraintConfig constraintConfig  `json:"constraintConfig"`
 	FeedMessage      feedMessage       `json:"feedMessage"`
 	RegoModules      map[string]string `json:"regoModules"`
+	StepStack        logging.Steps     `json:"step_stack,omitempty"`
 }
 
 // nonCompliance form the "deny" rego policy in a <templateName>.rego module
@@ -147,33 +154,52 @@ type compliantLog struct {
 
 // ComplianceStatus by asset, by rule, true/false compliance status
 type ComplianceStatus struct {
-	AssetName               string    `json:"assetName"`
-	AssetInventoryTimeStamp time.Time `json:"assetInventoryTimeStamp"`
-	AssetInventoryOrigin    string    `json:"assetInventoryOrigin"`
-	RuleName                string    `json:"ruleName"`
-	RuleDeploymentTimeStamp time.Time `json:"ruleDeploymentTimeStamp"`
-	Compliant               bool      `json:"compliant"`
-	Deleted                 bool      `json:"deleted"`
+	AssetName               string        `json:"assetName"`
+	AssetInventoryTimeStamp time.Time     `json:"assetInventoryTimeStamp"`
+	AssetInventoryOrigin    string        `json:"assetInventoryOrigin"`
+	RuleName                string        `json:"ruleName"`
+	RuleDeploymentTimeStamp time.Time     `json:"ruleDeploymentTimeStamp"`
+	Compliant               bool          `json:"compliant"`
+	Deleted                 bool          `json:"deleted"`
+	StepStack               logging.Steps `json:"step_stack,omitempty"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) (err error) {
+	log.SetFlags(0)
 	global.ctx = ctx
 
 	var instanceDeployment InstanceDeployment
 
-	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
-	log.Printf("%s function COLD START", logEntryPrefix)
+	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
+		log.Println(logging.Entry{
+			Severity:    "CRITICAL",
+			Message:     "init_failed",
+			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
+			InitID:      initID,
+		})
+		return err
 	}
+
+	global.environment = instanceDeployment.Core.EnvironmentName
+	global.instanceName = instanceDeployment.Core.InstanceName
+	global.microserviceName = instanceDeployment.Core.ServiceName
+
+	log.Println(logging.Entry{
+		MicroserviceName: global.microserviceName,
+		InstanceName:     global.instanceName,
+		Environment:      global.environment,
+		Severity:         "NOTICE",
+		Message:          "coldstart",
+		InitID:           initID,
+	})
 
 	assetsFileName := instanceDeployment.Settings.Service.AssetsFileName
 	assetsFolderName := instanceDeployment.Settings.Service.AssetsFolderName
 	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
 	global.deploymentTime = instanceDeployment.Settings.Instance.DeploymentTime
-	global.environment = instanceDeployment.Core.EnvironmentName
 	global.functionName = instanceDeployment.Core.InstanceName
 	global.opaFolderPath = instanceDeployment.Settings.Service.OPAFolderPath
 	global.ownerLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.Owner
@@ -193,19 +219,55 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	// persist between function invocations.
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
-		return fmt.Errorf("%s cloudresourcemanager.NewService: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("cloudresourcemanager.NewService %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(ctx)
 	if err != nil {
-		return fmt.Errorf("%s cloudresourcemanagerv2.NewService: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("cloudresourcemanagerv2.NewService %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("%s global.pubsubPublisherClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("pubsub.NewPublisherClient %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("firestore.NewClient %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	return nil
 }
@@ -216,19 +278,64 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
+			TriggeringPubsubID: global.pubsubID,
+		})
+		return err
 	}
-	global.PubSubID = metadata.EventID
+	global.pubsubID = metadata.EventID
+	parts := strings.Split(metadata.Resource.Name, "/")
+	global.step = logging.Step{
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.pubsubID),
+		StepTimestamp: metadata.Timestamp,
+	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
+	log.Println(logging.Entry{
+		MicroserviceName:           global.microserviceName,
+		InstanceName:               global.instanceName,
+		Environment:                global.environment,
+		Severity:                   "NOTICE",
+		Message:                    "start",
+		TriggeringPubsubID:         global.pubsubID,
+		TriggeringPubsubAgeSeconds: d.Seconds(),
+		TriggeringPubsubTimestamp:  &metadata.Timestamp,
+		Now:                        &now,
+	})
+
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:           global.microserviceName,
+			InstanceName:               global.instanceName,
+			Environment:                global.environment,
+			Severity:                   "CRITICAL",
+			Message:                    "noretry",
+			Description:                "Pubsub message too old",
+			TriggeringPubsubID:         global.pubsubID,
+			TriggeringPubsubAgeSeconds: d.Seconds(),
+			TriggeringPubsubTimestamp:  &metadata.Timestamp,
+			Now:                        &now,
+		})
 		return nil
 	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Printf("pubsub_id %s ignored pubsub message: %s", global.PubSubID, string(PubSubMessage.Data))
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "NOTICE",
+			Message:            "cancel",
+			Description:        fmt.Sprintf("ignored pubsub message: %s", string(PubSubMessage.Data)),
+			TriggeringPubsubID: global.pubsubID,
+		})
 		return nil
 	}
 
@@ -237,7 +344,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	assetsJSONDocument, feedMessage, err := buildAssetsDocument(PubSubMessage, global)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR buildAssetsDocument %v", global.PubSubID, err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("buildAssetsDocument(PubSubMessage, global) %v", err),
+			TriggeringPubsubID: global.pubsubID,
+		})
 		return nil
 	}
 	compliantLog.AssetsJSONDocument = assetsJSONDocument
@@ -247,6 +362,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	complianceStatus.AssetInventoryOrigin = feedMessage.Origin
 	complianceStatus.RuleName = global.functionName
 	complianceStatus.RuleDeploymentTimeStamp = global.deploymentTime
+	countViolations := 0
 	if feedMessage.Deleted == true {
 		complianceStatus.Deleted = feedMessage.Deleted
 		// bool cannot be nil and have a zero value to false
@@ -255,12 +371,28 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		complianceStatus.Deleted = false
 		resultSet, feedMessage, err := evalutateConstraints(assetsJSONDocument, feedMessage, global)
 		if err != nil {
-			log.Printf("pubsub_id %s NORETRY_ERROR evalutateConstraints %v", global.PubSubID, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "noretry",
+				Description:        fmt.Sprintf("evalutateConstraints(assetsJSONDocument, feedMessage, global) %v", err),
+				TriggeringPubsubID: global.pubsubID,
+			})
 			return nil
 		}
 		violations, err := inspectResultSet(resultSet, feedMessage, global)
 		if err != nil {
-			log.Printf("pubsub_id %s NORETRY_ERROR inspectResultSet %v", global.PubSubID, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "noretry",
+				Description:        fmt.Sprintf("inspectResultSet(resultSet, feedMessage, global) %v", err),
+				TriggeringPubsubID: global.pubsubID,
+			})
 			return nil
 		}
 		if len(violations) == 0 {
@@ -268,42 +400,132 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		} else {
 			complianceStatus.Compliant = false
 			for i, violation := range violations {
+				countViolations = i
 				violationJSON, err := json.Marshal(violation)
 				if err != nil {
-					log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(violation) %v", global.PubSubID, err)
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "CRITICAL",
+						Message:            "noretry",
+						Description:        fmt.Sprintf("json.Marshal(violation) %v", err),
+						TriggeringPubsubID: global.pubsubID,
+					})
 					return nil
 				}
-				log.Printf("pubsub_id %s NOT_COMPLIANT %s %s %v violationNum %d %s", global.PubSubID, complianceStatus.AssetName, complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, i, string(violationJSON))
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "NOTICE",
+					Message:            fmt.Sprintf("not_compliant %s violationNum %d", complianceStatus.AssetName, i),
+					Description:        fmt.Sprintf("origin %s timestamp %v violationJSON %s", complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(violationJSON)),
+					TriggeringPubsubID: global.pubsubID,
+				})
 				err = publishPubSubMessage(violationJSON, global.ramViolationTopicName, global)
 				if err != nil {
-					return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.PubSubID, err)
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "CRITICAL",
+						Message:            "redo_on_transient",
+						Description:        err.Error(),
+						TriggeringPubsubID: global.pubsubID,
+					})
+					return err
 				}
 			}
 		}
 	}
 	complianceStatusJSON, err := json.Marshal(complianceStatus)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(complianceStatus) %v", global.PubSubID, err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Marshal(complianceStatus) %v", err),
+			TriggeringPubsubID: global.pubsubID,
+		})
 		return nil
 	}
 	err = publishPubSubMessage(complianceStatusJSON, global.ramComplianceStatusTopicName, global)
 	if err != nil {
-		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.PubSubID, err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        err.Error(),
+			TriggeringPubsubID: global.pubsubID,
+		})
+		return err
 	}
 	compliantLog.ComplianceStatus = complianceStatus
 
 	if complianceStatus.Compliant == true {
 		CompliantLogJSON, err := json.Marshal(compliantLog)
 		if err != nil {
-			log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(compliantLog) %v", global.PubSubID, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "noretry",
+				Description:        fmt.Sprintf("json.Marshal(compliantLog) %v", err),
+				TriggeringPubsubID: global.pubsubID,
+			})
 			return nil
 		}
 		if complianceStatus.Deleted == true {
-			log.Printf("pubsub_id %s DELETED %s %s %v %s", global.PubSubID, complianceStatus.AssetName, complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON))
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "NOTICE",
+				Message:            fmt.Sprintf("deleted %s", complianceStatus.AssetName),
+				Description:        fmt.Sprintf("origin %s timestamp %v CompliantLogJSON %s", complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON)),
+				TriggeringPubsubID: global.pubsubID,
+			})
 		} else {
-			log.Printf("pubsub_id %s COMPLIANT %s %s %v %s", global.PubSubID, complianceStatus.AssetName, complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON))
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "NOTICE",
+				Message:            fmt.Sprintf("compliant %s", complianceStatus.AssetName),
+				Description:        fmt.Sprintf("origin %s timestamp %v CompliantLogJSON %s", complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON)),
+				TriggeringPubsubID: global.pubsubID,
+			})
 		}
 	}
+	var status string
+	if complianceStatus.Compliant {
+		status = "compliant"
+	} else {
+		status = "not_compliant"
+	}
+	now = time.Now()
+	latency := now.Sub(metadata.Timestamp)
+	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
+	log.Println(logging.Entry{
+		MicroserviceName:     global.microserviceName,
+		InstanceName:         global.instanceName,
+		Environment:          global.environment,
+		Severity:             "NOTICE",
+		Message:              fmt.Sprintf("finish %s %s", status, complianceStatus.AssetName),
+		Description:          fmt.Sprintf("number of violations %d", countViolations),
+		Now:                  &now,
+		TriggeringPubsubID:   global.pubsubID,
+		OriginEventTimestamp: &metadata.Timestamp,
+		LatencySeconds:       latency.Seconds(),
+		LatencyE2ESeconds:    latencyE2E.Seconds(),
+		StepStack:            global.stepStack,
+	})
 	return nil
 }
 
@@ -323,7 +545,15 @@ func publishPubSubMessage(docJSON []byte, topicName string, global *Global) erro
 		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err)
 	}
 
-	log.Printf("pubsub_id %s published to topic %s, msg ids: %v", global.PubSubID, topicName, pubsubResponse.MessageIds)
+	log.Println(logging.Entry{
+		MicroserviceName:   global.microserviceName,
+		InstanceName:       global.instanceName,
+		Environment:        global.environment,
+		Severity:           "NOTICE",
+		Message:            fmt.Sprintf("published to topic %s", topicName),
+		Description:        fmt.Sprintf("msg ids %v", pubsubResponse.MessageIds),
+		TriggeringPubsubID: global.pubsubID,
+	})
 	_ = pubsubResponse
 	return nil
 }
@@ -333,9 +563,9 @@ func inspectResultSet(resultSet rego.ResultSet, feedMessage feedMessage, global 
 	var violations violations
 	var violation violation
 
-	regoModules := importRegoModulesCode(global)
-	if regoModules == nil {
-		return nil, fmt.Errorf("importRegoModulesCode was nil and should not")
+	regoModules, err := importRegoModulesCode(global)
+	if err != nil {
+		return nil, err
 	}
 
 	Expressions := resultSet[0].Expressions
@@ -417,23 +647,21 @@ func inspectResultSet(resultSet rego.ResultSet, feedMessage feedMessage, global 
 }
 
 // importRegoModulesCode read regoModule code to be added in violation for logging / troubleshooting purposes
-func importRegoModulesCode(global *Global) map[string]string {
-	regoModules := make(map[string]string)
+func importRegoModulesCode(global *Global) (regoModules map[string]string, err error) {
+	regoModules = make(map[string]string)
 	files, err := ioutil.ReadDir(global.regoModulesFolderPath)
 	if err != nil {
-		log.Printf("pubsub_id %s ioutil.ReadDir %v", global.PubSubID, err)
-		return nil
+		return nil, fmt.Errorf("ioutil.ReadDir(global.regoModulesFolderPath) %v", err)
 	}
 
 	for _, file := range files {
 		regoCode, err := ioutil.ReadFile(global.regoModulesFolderPath + "/" + file.Name())
 		if err != nil {
-			log.Printf("pubsub_id %s ioutil.ReadFile %v", global.PubSubID, err)
-			return nil
+			return nil, fmt.Errorf("ioutil.ReadFile(global.regoModulesFolderPath %v", err)
 		}
 		regoModules[file.Name()] = string(regoCode)
 	}
-	return regoModules
+	return regoModules, nil
 }
 
 // evalutateConstraints audit assets data to rego rules
@@ -477,8 +705,13 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 
 	err := json.Unmarshal(pubSubMessage.Data, &feedMessage)
 	if err != nil {
-		// log.Printf("pubsub_id %s ERROR pubSubMessage.Data cannot be UnMarshalled as a feed %s", global.PubSubID, string(pubSubMessage.Data))
 		return assetsJSONDocument, feedMessage, fmt.Errorf("json.Unmarshal(pubSubMessage.Data, &feedMessage) %v", err)
+	}
+
+	if feedMessage.StepStack != nil {
+		global.stepStack = append(feedMessage.StepStack, global.step)
+	} else {
+		global.stepStack = append(global.stepStack, global.step) // as originating event
 	}
 
 	if feedMessage.Origin == "" {
@@ -502,6 +735,5 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 		return assetsJSONDocument, feedMessage, fmt.Errorf("json.Marshal(assets) %v", err)
 	}
 
-	// log.Println("assetsJSONDocument", string(assetsJSONDocument))
 	return assetsJSONDocument, feedMessage, nil
 }

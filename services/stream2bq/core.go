@@ -50,7 +50,7 @@ type Global struct {
 	instanceName                  string
 	microserviceName              string
 	ownerLabelKeyName             string
-	PubSubID                      string
+	pubsubID                      string
 	retryTimeOutSeconds           int64
 	step                          logging.Step
 	stepStack                     logging.Steps
@@ -65,6 +65,7 @@ type violation struct {
 	ConstraintConfig constraintConfig `json:"constraintConfig"`
 	FeedMessage      feedMessage      `json:"feedMessage"`
 	RegoModules      json.RawMessage  `json:"regoModules"`
+	StepStack        logging.Steps    `json:"step_stack,omitempty"`
 }
 
 // violationBQ from the "audit" rego policy in "audit.rego" module
@@ -201,8 +202,6 @@ type assetAssetBQ struct {
 	Deleted                 bool      `json:"deleted"`
 	Timestamp               time.Time `json:"timestamp"`
 }
-
-var originEventTimestamp time.Time
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) (err error) {
@@ -345,14 +344,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return err
 	}
-	global.PubSubID = metadata.EventID
+	global.pubsubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
-		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.pubsubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
@@ -364,7 +363,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Environment:                global.environment,
 		Severity:                   "NOTICE",
 		Message:                    "start",
-		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubID:         global.pubsubID,
 		TriggeringPubsubAgeSeconds: d.Seconds(),
 		TriggeringPubsubTimestamp:  &metadata.Timestamp,
 		Now:                        &now,
@@ -378,7 +377,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:                   "CRITICAL",
 			Message:                    "noretry",
 			Description:                "Pubsub message too old",
-			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubID:         global.pubsubID,
 			TriggeringPubsubAgeSeconds: d.Seconds(),
 			TriggeringPubsubTimestamp:  &metadata.Timestamp,
 			Now:                        &now,
@@ -394,7 +393,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "NOTICE",
 			Message:            "cancel",
 			Description:        fmt.Sprintf("ignored pubsub message: %s", string(PubSubMessage.Data)),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -415,14 +414,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        err.Error(),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return err
 	}
 	if insertID != "" {
 		now := time.Now()
 		latency := now.Sub(metadata.Timestamp)
-		latencyE2E := now.Sub(originEventTimestamp)
+		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
 		log.Println(logging.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
@@ -430,8 +429,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:             "NOTICE",
 			Message:              fmt.Sprintf("finish %s", insertID),
 			Now:                  &now,
-			TriggeringPubsubID:   global.PubSubID,
-			OriginEventTimestamp: &originEventTimestamp,
+			TriggeringPubsubID:   global.pubsubID,
+			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
 			StepStack:            global.stepStack,
@@ -451,12 +450,16 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) (insertID str
 			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
-			Description:        "json.Unmarshal(pubSubJSONDoc, &complianceStatus)",
-			TriggeringPubsubID: global.PubSubID,
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubJSONDoc, &complianceStatus) %v", err),
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return "", nil
 	}
-	originEventTimestamp = complianceStatus.AssetInventoryTimeStamp
+	if complianceStatus.StepStack != nil {
+		global.stepStack = append(complianceStatus.StepStack, global.step)
+	} else {
+		global.stepStack = append(global.stepStack, global.step)
+	}
 
 	insertID = fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
 	savers := []*bigquery.StructSaver{
@@ -479,12 +482,16 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) (insertID string, er
 			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
-			Description:        "json.Unmarshal(pubSubJSONDoc, &violation)",
-			TriggeringPubsubID: global.PubSubID,
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubJSONDoc, &violation) %v", err),
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return "", nil
 	}
-	originEventTimestamp = violation.FeedMessage.Window.StartTime
+	if violation.StepStack != nil {
+		global.stepStack = append(violation.StepStack, global.step)
+	} else {
+		global.stepStack = append(global.stepStack, global.step)
+	}
 
 	violationBQ.NonCompliance.Message = violation.NonCompliance.Message
 	violationBQ.NonCompliance.Metadata = string(violation.NonCompliance.Metadata)
@@ -529,8 +536,8 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
-			Description:        "json.Unmarshal(pubSubJSONDoc, &feedMessage)",
-			TriggeringPubsubID: global.PubSubID,
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubJSONDoc, &feedMessage) %v", err),
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return "", nil
 	}
@@ -543,8 +550,8 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
-			Description:        "json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)",
-			TriggeringPubsubID: global.PubSubID,
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ) %v", err),
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return "", nil
 	}
@@ -556,12 +563,15 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        "assetFeedMessageBQ.Asset.Name is empty",
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return "", nil
 	}
-	originEventTimestamp = feedMessage.StepStack[0].StepTimestamp
-	global.stepStack = append(feedMessage.StepStack, global.step)
+	if feedMessage.StepStack != nil {
+		global.stepStack = append(feedMessage.StepStack, global.step)
+	} else {
+		global.stepStack = append(global.stepStack, global.step)
+	}
 
 	assetFeedMessageBQ.Asset.Timestamp = feedMessage.Window.StartTime
 	assetFeedMessageBQ.Asset.Deleted = assetFeedMessageBQ.Deleted

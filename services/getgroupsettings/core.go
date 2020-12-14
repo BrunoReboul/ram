@@ -49,7 +49,7 @@ type Global struct {
 	microserviceName      string
 	outputTopicName       string
 	projectID             string
-	PubSubID              string
+	pubsubID              string
 	pubsubPublisherClient *pubsub.PublisherClient
 	retryTimeOutSeconds   int64
 	step                  logging.Step
@@ -181,14 +181,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return err
 	}
-	global.PubSubID = metadata.EventID
+	global.pubsubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
-		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.pubsubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
@@ -200,7 +200,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Environment:                global.environment,
 		Severity:                   "NOTICE",
 		Message:                    "start",
-		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubID:         global.pubsubID,
 		TriggeringPubsubAgeSeconds: d.Seconds(),
 		TriggeringPubsubTimestamp:  &metadata.Timestamp,
 		Now:                        &now,
@@ -214,7 +214,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:                   "CRITICAL",
 			Message:                    "noretry",
 			Description:                "Pubsub message too old",
-			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubID:         global.pubsubID,
 			TriggeringPubsubAgeSeconds: d.Seconds(),
 			TriggeringPubsubTimestamp:  &metadata.Timestamp,
 			Now:                        &now,
@@ -226,7 +226,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	var feedMessageGroup cai.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)", global.PubSubID)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)", global.pubsubID)
 		log.Println(logging.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
@@ -234,7 +234,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("json.Unmarshal(pubSubMessage.Data, &feedMessageGroup) %v %v", PubSubMessage.Data, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -257,7 +257,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "CRITICAL",
 				Message:            "redo_on_transient",
 				Description:        fmt.Sprintf("groupsSettingsService.Groups.Get %v", err),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 			return err
 		}
@@ -274,7 +274,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("json.Marshal(feedMessageGroupSettings) %v %v", feedMessageGroupSettings, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -298,13 +298,13 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        fmt.Sprintf("global.pubsubPublisherClient.Publish %v %v", &publishRequest, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return err
 	}
 	now = time.Now()
 	latency := now.Sub(metadata.Timestamp)
-	latencyE2E := latency // as is the originating event form listgroups
+	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
 	log.Println(logging.Entry{
 		MicroserviceName:     global.microserviceName,
 		InstanceName:         global.instanceName,
@@ -313,7 +313,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Message:              fmt.Sprintf("finish %s", feedMessageGroup.Asset.Resource.Email),
 		Description:          fmt.Sprintf("groupSettings published to pubsub %s (isdeleted status=%v) %s topic %s ids %v %s", feedMessageGroup.Asset.Resource.Email, feedMessageGroup.Deleted, feedMessageGroup.Asset.Resource.Id, global.outputTopicName, pubsubResponse.MessageIds, string(feedMessageGroupSettingsJSON)),
 		Now:                  &now,
-		TriggeringPubsubID:   global.PubSubID,
+		TriggeringPubsubID:   global.pubsubID,
 		OriginEventTimestamp: &metadata.Timestamp,
 		LatencySeconds:       latency.Seconds(),
 		LatencyE2ESeconds:    latencyE2E.Seconds(),

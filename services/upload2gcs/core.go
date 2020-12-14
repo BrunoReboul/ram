@@ -45,7 +45,7 @@ type Global struct {
 	ctx                           context.Context
 	firestoreClient               *firestore.Client
 	ownerLabelKeyName             string
-	PubSubID                      string
+	pubsubID                      string
 	retryTimeOutSeconds           int64
 	violationResolverLabelKeyName string
 }
@@ -125,23 +125,23 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		// Assume an error on the function invoker and try again.
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	global.PubSubID = metadata.EventID
+	global.pubsubID = metadata.EventID
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.pubsubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
 		return nil
 	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Printf("pubsub_id %s ignored pubsub message: %s", global.PubSubID, string(PubSubMessage.Data))
+		log.Printf("pubsub_id %s ignored pubsub message: %s", global.pubsubID, string(PubSubMessage.Data))
 		return nil
 	}
 	var feedMessage feedMessage
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR PubSubMessage.Data cannot be UnMarshalled as a feed %s %v", global.PubSubID, string(PubSubMessage.Data), err)
+		log.Printf("pubsub_id %s NORETRY_ERROR PubSubMessage.Data cannot be UnMarshalled as a feed %s %v", global.pubsubID, string(PubSubMessage.Data), err)
 		return nil
 	}
 	if feedMessage.Origin == "" {
@@ -161,7 +161,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessage)", global.PubSubID)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessage)", global.pubsubID)
 		return nil
 	}
 	// log.Printf("%s", string(feedMessageJSON))
@@ -182,28 +182,28 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		err = storageObject.Delete(global.ctx)
 		if err != nil {
 			if strings.Contains(err.Error(), "object doesn't exist") {
-				log.Printf("pubsub_id %s NORETRY_ERROR object doesn't exist, cannot delete %s %v", global.PubSubID, objectName, err)
+				log.Printf("pubsub_id %s NORETRY_ERROR object doesn't exist, cannot delete %s %v", global.pubsubID, objectName, err)
 				return nil
 			}
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT error when deleting %s %v", global.PubSubID, objectName, err)
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT error when deleting %s %v", global.pubsubID, objectName, err)
 		}
-		log.Printf("pubsub_id %s DELETED object: %s", global.PubSubID, objectName)
+		log.Printf("pubsub_id %s DELETED object: %s", global.pubsubID, objectName)
 	} else {
 		content, err := json.MarshalIndent(feedMessage.Asset, "", "    ")
 		if err != nil {
-			log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessage.Asset): %v", global.PubSubID, err)
+			log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessage.Asset): %v", global.pubsubID, err)
 			return nil
 		}
 		storageObjectWriter := storageObject.NewWriter(global.ctx)
 		_, err = fmt.Fprint(storageObjectWriter, string(content))
 		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT fmt.Fprint(storageObjectWriter, string(content)): %s %v", global.PubSubID, objectName, err)
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT fmt.Fprint(storageObjectWriter, string(content)): %s %v", global.pubsubID, objectName, err)
 		}
 		err = storageObjectWriter.Close()
 		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT storageObjectWriter.Close(): %s %v", global.PubSubID, objectName, err)
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT storageObjectWriter.Close(): %s %v", global.pubsubID, objectName, err)
 		}
-		log.Printf("pubsub_id %s WRITE object: %s", global.PubSubID, objectName)
+		log.Printf("pubsub_id %s WRITE object: %s", global.pubsubID, objectName)
 	}
 	return nil
 }

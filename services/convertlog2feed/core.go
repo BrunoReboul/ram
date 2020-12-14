@@ -98,7 +98,7 @@ type Global struct {
 	microserviceName            string
 	organizationID              string
 	projectID                   string
-	PubSubID                    string
+	pubsubID                    string
 	pubsubPublisherClient       *pubsub.PublisherClient
 	retriesNumber               time.Duration
 	retryTimeOutSeconds         int64
@@ -271,14 +271,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return err
 	}
-	global.PubSubID = metadata.EventID
+	global.pubsubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
-		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.pubsubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 	global.stepStack = append(global.stepStack, global.step) // as the pubsub log entry is an initial step
@@ -291,7 +291,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Environment:                global.environment,
 		Severity:                   "NOTICE",
 		Message:                    "start",
-		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubID:         global.pubsubID,
 		TriggeringPubsubAgeSeconds: d.Seconds(),
 		TriggeringPubsubTimestamp:  &metadata.Timestamp,
 		Now:                        &now,
@@ -305,7 +305,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:                   "CRITICAL",
 			Message:                    "noretry",
 			Description:                "Pubsub message too old",
-			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubID:         global.pubsubID,
 			TriggeringPubsubAgeSeconds: d.Seconds(),
 			TriggeringPubsubTimestamp:  &metadata.Timestamp,
 			Now:                        &now,
@@ -322,7 +322,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("json.Unmarshal logentry %v %v", PubSubMessage.Data, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -333,7 +333,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		case "admin.googleapis.com":
 			return convertAdminActivityEvent(global)
 		default:
-			log.Printf("pubsub_id %s NORETRY_ERROR unmanaged global.logEntry.Resource.Labels service  %s", global.PubSubID, global.logEntry.Resource.Labels["service"])
+			log.Printf("pubsub_id %s NORETRY_ERROR unmanaged global.logEntry.Resource.Labels service  %s", global.pubsubID, global.logEntry.Resource.Labels["service"])
 			now := time.Now()
 			latency := now.Sub(global.step.StepTimestamp)
 			latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
@@ -345,7 +345,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Message:              "cancel",
 				Description:          fmt.Sprintf("unmanaged global.logEntry.Resource.Labels service  %s", global.logEntry.Resource.Labels["service"]),
 				Now:                  &now,
-				TriggeringPubsubID:   global.PubSubID,
+				TriggeringPubsubID:   global.pubsubID,
 				OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 				LatencySeconds:       latency.Seconds(),
 				LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -365,7 +365,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Message:              "cancel",
 			Description:          fmt.Sprintf("unmanaged logEntry.Resource.Type %s", global.logEntry.Resource.Type),
 			Now:                  &now,
-			TriggeringPubsubID:   global.PubSubID,
+			TriggeringPubsubID:   global.pubsubID,
 			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -388,7 +388,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("json.Unmarshal protoPaylaod %v %v", global.logEntry.ProtoPayload, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -404,7 +404,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        "cannot get customer ID",
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -425,7 +425,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 				Message:              "cancel",
 				Description:          fmt.Sprintf("unmanaged event.EventType %s", event.EventType),
 				Now:                  &now,
-				TriggeringPubsubID:   global.PubSubID,
+				TriggeringPubsubID:   global.pubsubID,
 				OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 				LatencySeconds:       latency.Seconds(),
 				LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -455,7 +455,7 @@ func getCustomerID(global *Global) {
 				Severity:           "WARNING",
 				Message:            "json.Marshal(assetMap)",
 				Description:        fmt.Sprintf("assetMap %v err %v", assetMap, err),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 			return
 		}
@@ -480,7 +480,7 @@ func getCustomerID(global *Global) {
 			}
 		}
 	} else {
-		log.Printf("pubsub_id %s WARNING not found in firestore %s", global.PubSubID, documentPath)
+		log.Printf("pubsub_id %s WARNING not found in firestore %s", global.pubsubID, documentPath)
 		log.Println(logging.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
@@ -488,7 +488,7 @@ func getCustomerID(global *Global) {
 			Severity:           "WARNING",
 			Message:            "not found in firestore",
 			Description:        fmt.Sprintf("documentPath %s", documentPath),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		//try resourcemamager API
 		resp, err := global.cloudresourcemanagerService.Organizations.Get(global.organizationID).Context(global.ctx).Do()
@@ -500,7 +500,7 @@ func getCustomerID(global *Global) {
 				Severity:           "WARNING",
 				Message:            "not found with resource manager",
 				Description:        fmt.Sprintf("cloudresourcemanagerService.Organizations.Get orgID %s err %v ", global.organizationID, err),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 		} else {
 			global.directoryCustomerID = resp.Owner.DirectoryCustomerId
@@ -521,7 +521,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("json.Unmarshal(event.Parameter, &parameters) %v %v", event.Parameter, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -541,7 +541,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("expected parameter GROUP_EMAIL not found, insertId %s", global.logEntry.InsertID),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -566,7 +566,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			}
 		}
 		if memberEmail == "" {
-			log.Printf("pubsub_id %s NORETRY_ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.PubSubID, global.logEntry.InsertID)
+			log.Printf("pubsub_id %s NORETRY_ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.pubsubID, global.logEntry.InsertID)
 			return nil
 		}
 		return publishGroupMemberCreationOrUpdate(groupEmail, memberEmail, global)
@@ -581,7 +581,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			}
 		}
 		if memberEmail == "" {
-			log.Printf("pubsub_id %s NORETRY_ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.PubSubID, global.logEntry.InsertID)
+			log.Printf("pubsub_id %s NORETRY_ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.pubsubID, global.logEntry.InsertID)
 			log.Println(logging.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
@@ -589,7 +589,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 				Severity:           "CRITICAL",
 				Message:            "noretry",
 				Description:        fmt.Sprintf("ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.logEntry.InsertID),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 			return nil
 		}
@@ -609,7 +609,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 			Message:              "cancel",
 			Description:          fmt.Sprintf("unmanaged event.EventName %s", event.EventName),
 			Now:                  &now,
-			TriggeringPubsubID:   global.PubSubID,
+			TriggeringPubsubID:   global.pubsubID,
 			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -684,7 +684,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 				Severity:           "INFO",
 				Message:            "cleaning cache group orphans",
 				Description:        fmt.Sprintf("iteration %d", i),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 		}
 		i++
@@ -727,7 +727,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			Severity:           "WARNING",
 			Message:            "deleted group not found in cache, cannot clean up RAM data",
 			Description:        fmt.Sprintf("groupEmail %s", groupEmail),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 	}
 	return nil
@@ -743,7 +743,7 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("publishGroup json.Marshal(feedMessage) %v %v", feedMessage, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -763,7 +763,7 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("gps.CreateTopic %s %v", topicShortName, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -787,7 +787,7 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 		Message:              fmt.Sprintf("finish group %s", groupEmail),
 		Description:          fmt.Sprintf("group published to pubsub %s (isdeleted status=%v) %s topic %s ids %v %s", groupEmail, isDeleted, assetName, topicName, pubsubResponse.MessageIds, string(feedMessageJSON)),
 		Now:                  &now,
-		TriggeringPubsubID:   global.PubSubID,
+		TriggeringPubsubID:   global.pubsubID,
 		OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 		LatencySeconds:       latency.Seconds(),
 		LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -876,7 +876,7 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 				Severity:           "INFO",
 				Message:            "cleaning cache groupMember orphans",
 				Description:        fmt.Sprintf("iteration %d", i),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 		}
 		i++
@@ -913,7 +913,7 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 		}
 	}
 	if !found {
-		log.Printf("pubsub_id %s NORETRY_ERROR deleted groupMember not found in cache, cannot clean up RAM data member %s group %s", global.PubSubID, memberEmail, groupEmail)
+		log.Printf("pubsub_id %s NORETRY_ERROR deleted groupMember not found in cache, cannot clean up RAM data member %s group %s", global.pubsubID, memberEmail, groupEmail)
 		log.Println(logging.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
@@ -921,7 +921,7 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 			Severity:           "WARNING",
 			Message:            "deleted groupMember not found in cache, cannot clean up RAM data",
 			Description:        fmt.Sprintf("member %s group %s", memberEmail, groupEmail),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 	}
 	return nil
@@ -930,7 +930,7 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail string, memberEmail string, assetName string, global *Global) (err error) {
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR %s json.Marshal(feedMessage): %v", global.PubSubID, assetName, err)
+		log.Printf("pubsub_id %s NORETRY_ERROR %s json.Marshal(feedMessage): %v", global.pubsubID, assetName, err)
 		log.Println(logging.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
@@ -938,7 +938,7 @@ func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail stri
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("publishGroupMember json.Marshal(feedMessage) %v %v", feedMessage, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -967,7 +967,7 @@ func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail stri
 		Message:              fmt.Sprintf("finish member %s in group %s", memberEmail, groupEmail),
 		Description:          fmt.Sprintf("groupMember published to pubsub %s in group %s (isdeleted status=%v) %s topic %s ids %v %s", memberEmail, groupEmail, isDeleted, assetName, global.GCIGroupMembersTopicName, pubsubResponse.MessageIds, string(feedMessageJSON)),
 		Now:                  &now,
-		TriggeringPubsubID:   global.PubSubID,
+		TriggeringPubsubID:   global.pubsubID,
 		OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 		LatencySeconds:       latency.Seconds(),
 		LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -1001,7 +1001,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 
 	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessageGroupSettings)", global.PubSubID)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessageGroupSettings)", global.pubsubID)
 		log.Println(logging.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
@@ -1009,7 +1009,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("json.Marshal(feedMessageGroupSettings) %v %v", feedMessageGroupSettings, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -1039,7 +1039,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 		Message:              fmt.Sprintf("finish groupSetting %s", feedMessageGroupSettings.Asset.Resource.Email),
 		Description:          fmt.Sprintf("groupSettings published to pubsub %s (isdeleted status=%v) %s topic %s ids %v %s", feedMessageGroupSettings.Asset.Resource.Email, feedMessageGroupSettings.Deleted, feedMessageGroupSettings.Asset.Name, global.GCIGroupSettingsTopicName, pubsubResponse.MessageIds, string(feedMessageGroupSettingsJSON)),
 		Now:                  &now,
-		TriggeringPubsubID:   global.PubSubID,
+		TriggeringPubsubID:   global.pubsubID,
 		OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 		LatencySeconds:       latency.Seconds(),
 		LatencyE2ESeconds:    latencyE2E.Seconds(),

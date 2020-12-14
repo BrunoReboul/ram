@@ -71,7 +71,7 @@ type Global struct {
 	microserviceName        string
 	outputTopicName         string
 	pubSubClient            *pubsub.Client
-	PubSubID                string
+	pubsubID                string
 	retryTimeOutSeconds     int64
 	step                    logging.Step
 	stepStack               logging.Steps
@@ -215,14 +215,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return err
 	}
-	global.PubSubID = metadata.EventID
+	global.pubsubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
-		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.pubsubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
@@ -234,7 +234,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Environment:                global.environment,
 		Severity:                   "NOTICE",
 		Message:                    "start",
-		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubID:         global.pubsubID,
 		TriggeringPubsubAgeSeconds: d.Seconds(),
 		TriggeringPubsubTimestamp:  &metadata.Timestamp,
 		Now:                        &now,
@@ -248,7 +248,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:                   "CRITICAL",
 			Message:                    "noretry",
 			Description:                "Pubsub message too old",
-			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubID:         global.pubsubID,
 			TriggeringPubsubAgeSeconds: d.Seconds(),
 			TriggeringPubsubTimestamp:  &metadata.Timestamp,
 			Now:                        &now,
@@ -263,7 +263,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	pubSubClient = global.pubSubClient
 	outputTopicName = global.outputTopicName
 	timestamp = metadata.Timestamp
-	pubSubID = global.PubSubID
+	pubSubID = global.pubsubID
 	microserviceName = global.microserviceName
 	instanceName = global.instanceName
 	environment = global.environment
@@ -280,13 +280,13 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "CRITICAL",
 				Message:            "redo_on_transient",
 				Description:        fmt.Sprintf("initiateQueries %v", err),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 			return err
 		}
 		now := time.Now()
 		latency := now.Sub(metadata.Timestamp)
-		latencyE2E := latency // as is the originating event form listgroups
+		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
 		log.Println(logging.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
@@ -295,7 +295,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Message:              "finish launching sub queries",
 			Description:          "Pubsub messages published to reentrant topic to initiate sub queries",
 			Now:                  &now,
-			TriggeringPubsubID:   global.PubSubID,
+			TriggeringPubsubID:   global.pubsubID,
 			OriginEventTimestamp: &metadata.Timestamp,
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -312,7 +312,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "CRITICAL",
 				Message:            "noretry",
 				Description:        fmt.Sprintf("json.Unmarshal(PubSubMessage.Data, &settings) %v %v", PubSubMessage.Data, err),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 			return nil
 		}
@@ -324,7 +324,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "INFO",
 				Message:            "ignore this trigerring event",
 				Description:        fmt.Sprintf("as directoryCustomerID %s not equal to this instance directoryCustomerID %s", settings.DirectoryCustomerID, directoryCustomerID),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 		} else {
 			domain = settings.Domain
@@ -342,7 +342,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 					Severity:           "CRITICAL",
 					Message:            "redo_on_transient",
 					Description:        fmt.Sprintf("queryDirectory %v", err),
-					TriggeringPubsubID: global.PubSubID,
+					TriggeringPubsubID: global.pubsubID,
 				})
 				return err
 			}
@@ -363,7 +363,7 @@ func initiateQueries(global *Global) error {
 		Severity:           "INFO",
 		Message:            "initiate multiple queries",
 		Description:        fmt.Sprintf("emailAuthorizedByteSet %s", string(emailAuthorizedByteSet)),
-		TriggeringPubsubID: global.PubSubID,
+		TriggeringPubsubID: global.pubsubID,
 	})
 
 	domains, err := global.dirAdminService.Domains.List(global.directoryCustomerID).Context(global.ctx).Do()
@@ -386,7 +386,7 @@ func initiateQueries(global *Global) error {
 					Severity:           "WARNING",
 					Message:            "json.Marshal(settings)",
 					Description:        fmt.Sprintf("settings %v", settings),
-					TriggeringPubsubID: global.PubSubID,
+					TriggeringPubsubID: global.pubsubID,
 				})
 			} else {
 				pubSubMessage := &pubsub.Message{
@@ -402,7 +402,7 @@ func initiateQueries(global *Global) error {
 						Severity:           "WARNING",
 						Message:            "topic.Publish",
 						Description:        fmt.Sprintf("pubSubMessage %v", pubSubMessage),
-						TriggeringPubsubID: global.PubSubID,
+						TriggeringPubsubID: global.pubsubID,
 					})
 				} else {
 					log.Println(logging.Entry{
@@ -412,7 +412,7 @@ func initiateQueries(global *Global) error {
 						Severity:           "INFO",
 						Message:            "Pubsub msg published to reentrant topic",
 						Description:        fmt.Sprintf("initiate sub query: domain '%s' emailPrefix '%s' to topic %s msg id: %s", settings.Domain, settings.EmailPrefix, global.inputTopicName, id),
-						TriggeringPubsubID: global.PubSubID,
+						TriggeringPubsubID: global.pubsubID,
 					})
 				}
 			}
@@ -428,7 +428,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 		Environment:        global.environment,
 		Severity:           "INFO",
 		Message:            fmt.Sprintf("settings retrieved, launch query on domain '%s' and email prefix '%s'", domain, emailPrefix),
-		TriggeringPubsubID: global.PubSubID,
+		TriggeringPubsubID: global.pubsubID,
 	})
 	pubSubMsgNumber = 0
 	pubSubErrNumber = 0
@@ -449,7 +449,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 				Message:              "cancel",
 				Description:          fmt.Sprintf("domain not found %s query %s customer ID %s", domain, query, global.directoryCustomerID),
 				Now:                  &now,
-				TriggeringPubsubID:   global.PubSubID,
+				TriggeringPubsubID:   global.pubsubID,
 				OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 				LatencySeconds:       latency.Seconds(),
 				LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -471,7 +471,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 			Message:              fmt.Sprintf("finish %d groups", pubSubMsgNumber),
 			Description:          fmt.Sprintf("directory %s domain '%s' emailPrefix '%s' Number of groups published %d to topic %s", directoryCustomerID, domain, emailPrefix, pubSubMsgNumber, outputTopicName),
 			Now:                  &now,
-			TriggeringPubsubID:   global.PubSubID,
+			TriggeringPubsubID:   global.pubsubID,
 			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -489,7 +489,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 			Message:              "cancel",
 			Description:          fmt.Sprintf("no group found for directory %s domain '%s' emailPrefix '%s'", directoryCustomerID, domain, emailPrefix),
 			Now:                  &now,
-			TriggeringPubsubID:   global.PubSubID,
+			TriggeringPubsubID:   global.pubsubID,
 			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),

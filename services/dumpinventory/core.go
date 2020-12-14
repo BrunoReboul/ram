@@ -35,7 +35,7 @@ import (
 type Global struct {
 	assetClient         *asset.Client
 	ctx                 context.Context
-	PubSubID            string
+	pubsubID            string
 	request             *assetpb.ExportAssetsRequest
 	retryTimeOutSeconds int64
 }
@@ -98,20 +98,20 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		// Assume an error on the function invoker and try again.
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	global.PubSubID = metadata.EventID
+	global.pubsubID = metadata.EventID
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.pubsubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
 		return nil
 	}
 
 	operation, err := global.assetClient.ExportAssets(global.ctx, global.request)
 	if err != nil {
-		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT assetClient.ExportAssets: %v", global.PubSubID, err)
+		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT assetClient.ExportAssets: %v", global.pubsubID, err)
 	}
-	log.Printf("pubsub_id %s gcloud asset operations describe %s %v", operation.Name(), global.PubSubID, global.request)
+	log.Printf("pubsub_id %s gcloud asset operations describe %s %v", operation.Name(), global.pubsubID, global.request)
 	// do NOT wait for response to save function execution time, and avoid function timeout
 	return nil
 }

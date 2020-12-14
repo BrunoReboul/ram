@@ -73,7 +73,7 @@ type Global struct {
 	outputTopicName         string
 	projectID               string
 	pubSubClient            *pubsub.Client
-	PubSubID                string
+	pubsubID                string
 	retryTimeOutSeconds     int64
 	step                    logging.Step
 	stepStack               logging.Steps
@@ -208,14 +208,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return err
 	}
-	global.PubSubID = metadata.EventID
+	global.pubsubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
-		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.pubsubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
@@ -227,7 +227,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Environment:                global.environment,
 		Severity:                   "NOTICE",
 		Message:                    "start",
-		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubID:         global.pubsubID,
 		TriggeringPubsubAgeSeconds: d.Seconds(),
 		TriggeringPubsubTimestamp:  &metadata.Timestamp,
 		Now:                        &now,
@@ -241,7 +241,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:                   "CRITICAL",
 			Message:                    "noretry",
 			Description:                "Pubsub message too old",
-			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubID:         global.pubsubID,
 			TriggeringPubsubAgeSeconds: d.Seconds(),
 			TriggeringPubsubTimestamp:  &metadata.Timestamp,
 			Now:                        &now,
@@ -255,7 +255,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	pubSubClient = global.pubSubClient
 	outputTopicName = global.outputTopicName
 	timestamp = metadata.Timestamp
-	pubSubID = global.PubSubID
+	pubSubID = global.pubsubID
 	microserviceName = global.microserviceName
 	instanceName = global.instanceName
 	environment = global.environment
@@ -263,7 +263,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	var feedMessageGroup cai.FeedMessageGroup
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessageGroup)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)", global.PubSubID)
+		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubMessage.Data, &feedMessageGroup)", global.pubsubID)
 		log.Println(logging.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
@@ -271,7 +271,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("json.Unmarshal(pubSubMessage.Data, &feedMessageGroup) %v %v", PubSubMessage.Data, err),
-			TriggeringPubsubID: global.PubSubID,
+			TriggeringPubsubID: global.pubsubID,
 		})
 		return nil
 	}
@@ -299,7 +299,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "CRITICAL",
 				Message:            "redo_on_transient",
 				Description:        fmt.Sprintf("browseFeedMessageGroupMembersFromCache(global) %v", err),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 			return err
 		}
@@ -315,7 +315,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "CRITICAL",
 				Message:            "redo_on_transient",
 				Description:        fmt.Sprintf("dirAdminService.Members.List %v", err),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 			return err
 		}
@@ -331,7 +331,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Message:              fmt.Sprintf("finish %s %d", feedMessageGroup.Asset.Resource.Email, pubSubMsgNumber),
 		Description:          fmt.Sprintf("Group %s %s isDeleted %v Number of members published to pubsub topic %s: %d", feedMessageGroup.Asset.Resource.Email, feedMessageGroup.Asset.Resource.Id, feedMessageGroup.Deleted, outputTopicName, pubSubMsgNumber),
 		Now:                  &now,
-		TriggeringPubsubID:   global.PubSubID,
+		TriggeringPubsubID:   global.pubsubID,
 		OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
 		LatencySeconds:       latency.Seconds(),
 		LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -364,7 +364,7 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 				Severity:           "WARNING",
 				Message:            "browseFeedMessageGroupMembersFromCache",
 				Description:        fmt.Sprintf("log and move to next iter.Next() %v", err),
-				TriggeringPubsubID: global.PubSubID,
+				TriggeringPubsubID: global.pubsubID,
 			})
 		} else {
 			if documentSnap.Exists() {
@@ -377,7 +377,7 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 						Severity:           "WARNING",
 						Message:            "browseFeedMessageGroupMembersFromCache",
 						Description:        fmt.Sprintf("log and move to next documentSnap.DataTo %v", err),
-						TriggeringPubsubID: global.PubSubID,
+						TriggeringPubsubID: global.pubsubID,
 					})
 				} else {
 					feedMessageMember.Deleted = true
@@ -392,7 +392,7 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 							Severity:           "WARNING",
 							Message:            "browseFeedMessageGroupMembersFromCache",
 							Description:        fmt.Sprintf("log and move to next %s json.Marshal(feedMessageMember) %v", feedMessageMember.Asset.Name, err),
-							TriggeringPubsubID: global.PubSubID,
+							TriggeringPubsubID: global.pubsubID,
 						})
 					} else {
 						pubSubMessage := &pubsub.Message{
@@ -421,7 +421,7 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 					Severity:           "WARNING",
 					Message:            "browseFeedMessageGroupMembersFromCache",
 					Description:        fmt.Sprintf("log and move to next document does not exists %s", documentSnap.Ref.Path),
-					TriggeringPubsubID: global.PubSubID,
+					TriggeringPubsubID: global.pubsubID,
 				})
 			}
 		}
