@@ -56,7 +56,7 @@ type Global struct {
 	opaFolderPath                 string
 	ownerLabelKeyName             string
 	projectID                     string
-	pubsubID                      string
+	PubSubID                      string
 	pubsubPublisherClient         *pubsub.PublisherClient
 	ramComplianceStatusTopicName  string
 	ramViolationTopicName         string
@@ -285,14 +285,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
-			TriggeringPubsubID: global.pubsubID,
+			TriggeringPubsubID: global.PubSubID,
 		})
 		return err
 	}
-	global.pubsubID = metadata.EventID
+	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
-		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.pubsubID),
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
@@ -304,7 +304,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Environment:                global.environment,
 		Severity:                   "NOTICE",
 		Message:                    "start",
-		TriggeringPubsubID:         global.pubsubID,
+		TriggeringPubsubID:         global.PubSubID,
 		TriggeringPubsubAgeSeconds: d.Seconds(),
 		TriggeringPubsubTimestamp:  &metadata.Timestamp,
 		Now:                        &now,
@@ -318,7 +318,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:                   "CRITICAL",
 			Message:                    "noretry",
 			Description:                "Pubsub message too old",
-			TriggeringPubsubID:         global.pubsubID,
+			TriggeringPubsubID:         global.PubSubID,
 			TriggeringPubsubAgeSeconds: d.Seconds(),
 			TriggeringPubsubTimestamp:  &metadata.Timestamp,
 			Now:                        &now,
@@ -334,7 +334,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "NOTICE",
 			Message:            "cancel",
 			Description:        fmt.Sprintf("ignored pubsub message: %s", string(PubSubMessage.Data)),
-			TriggeringPubsubID: global.pubsubID,
+			TriggeringPubsubID: global.PubSubID,
 		})
 		return nil
 	}
@@ -351,7 +351,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("buildAssetsDocument(PubSubMessage, global) %v", err),
-			TriggeringPubsubID: global.pubsubID,
+			TriggeringPubsubID: global.PubSubID,
 		})
 		return nil
 	}
@@ -378,7 +378,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "CRITICAL",
 				Message:            "noretry",
 				Description:        fmt.Sprintf("evalutateConstraints(assetsJSONDocument, feedMessage, global) %v", err),
-				TriggeringPubsubID: global.pubsubID,
+				TriggeringPubsubID: global.PubSubID,
 			})
 			return nil
 		}
@@ -391,7 +391,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "CRITICAL",
 				Message:            "noretry",
 				Description:        fmt.Sprintf("inspectResultSet(resultSet, feedMessage, global) %v", err),
-				TriggeringPubsubID: global.pubsubID,
+				TriggeringPubsubID: global.PubSubID,
 			})
 			return nil
 		}
@@ -410,7 +410,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 						Severity:           "CRITICAL",
 						Message:            "noretry",
 						Description:        fmt.Sprintf("json.Marshal(violation) %v", err),
-						TriggeringPubsubID: global.pubsubID,
+						TriggeringPubsubID: global.PubSubID,
 					})
 					return nil
 				}
@@ -421,7 +421,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 					Severity:           "NOTICE",
 					Message:            fmt.Sprintf("not_compliant %s violationNum %d", complianceStatus.AssetName, i),
 					Description:        fmt.Sprintf("origin %s timestamp %v violationJSON %s", complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(violationJSON)),
-					TriggeringPubsubID: global.pubsubID,
+					TriggeringPubsubID: global.PubSubID,
 				})
 				err = publishPubSubMessage(violationJSON, global.ramViolationTopicName, global)
 				if err != nil {
@@ -432,7 +432,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 						Severity:           "CRITICAL",
 						Message:            "redo_on_transient",
 						Description:        err.Error(),
-						TriggeringPubsubID: global.pubsubID,
+						TriggeringPubsubID: global.PubSubID,
 					})
 					return err
 				}
@@ -448,7 +448,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "noretry",
 			Description:        fmt.Sprintf("json.Marshal(complianceStatus) %v", err),
-			TriggeringPubsubID: global.pubsubID,
+			TriggeringPubsubID: global.PubSubID,
 		})
 		return nil
 	}
@@ -461,7 +461,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Severity:           "CRITICAL",
 			Message:            "redo_on_transient",
 			Description:        err.Error(),
-			TriggeringPubsubID: global.pubsubID,
+			TriggeringPubsubID: global.PubSubID,
 		})
 		return err
 	}
@@ -477,7 +477,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "CRITICAL",
 				Message:            "noretry",
 				Description:        fmt.Sprintf("json.Marshal(compliantLog) %v", err),
-				TriggeringPubsubID: global.pubsubID,
+				TriggeringPubsubID: global.PubSubID,
 			})
 			return nil
 		}
@@ -489,7 +489,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "NOTICE",
 				Message:            fmt.Sprintf("deleted %s", complianceStatus.AssetName),
 				Description:        fmt.Sprintf("origin %s timestamp %v CompliantLogJSON %s", complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON)),
-				TriggeringPubsubID: global.pubsubID,
+				TriggeringPubsubID: global.PubSubID,
 			})
 		} else {
 			log.Println(logging.Entry{
@@ -499,7 +499,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				Severity:           "NOTICE",
 				Message:            fmt.Sprintf("compliant %s", complianceStatus.AssetName),
 				Description:        fmt.Sprintf("origin %s timestamp %v CompliantLogJSON %s", complianceStatus.AssetInventoryOrigin, complianceStatus.AssetInventoryTimeStamp, string(CompliantLogJSON)),
-				TriggeringPubsubID: global.pubsubID,
+				TriggeringPubsubID: global.PubSubID,
 			})
 		}
 	}
@@ -520,7 +520,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Message:              fmt.Sprintf("finish %s %s", status, complianceStatus.AssetName),
 		Description:          fmt.Sprintf("number of violations %d", countViolations),
 		Now:                  &now,
-		TriggeringPubsubID:   global.pubsubID,
+		TriggeringPubsubID:   global.PubSubID,
 		OriginEventTimestamp: &metadata.Timestamp,
 		LatencySeconds:       latency.Seconds(),
 		LatencyE2ESeconds:    latencyE2E.Seconds(),
@@ -552,7 +552,7 @@ func publishPubSubMessage(docJSON []byte, topicName string, global *Global) erro
 		Severity:           "NOTICE",
 		Message:            fmt.Sprintf("published to topic %s", topicName),
 		Description:        fmt.Sprintf("msg ids %v", pubsubResponse.MessageIds),
-		TriggeringPubsubID: global.pubsubID,
+		TriggeringPubsubID: global.PubSubID,
 	})
 	_ = pubsubResponse
 	return nil

@@ -60,7 +60,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage) error
 func init() {
 	err := <serviceName>.Initialize(ctx, &global)
 	if err != nil {
-		log.Fatalf("pubsub_id %s INIT_FAILURE %v", global.pubsubID, err)
+		log.Fatalf("pubsub_id %s INIT_FAILURE %v", global.PubSubID, err)
 	}
 }
 `
@@ -105,7 +105,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event) error {
 func init() {
 	err := <serviceName>.Initialize(ctx, &global)
 	if err != nil {
-		log.Fatalf("pubsub_id %s INIT_FAILURE %v", global.pubsubID, err)
+		log.Fatalf("pubsub_id %s INIT_FAILURE %v", global.PubSubID, err)
 	}
 }
 `

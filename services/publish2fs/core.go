@@ -38,7 +38,7 @@ type Global struct {
 	collectionID        string
 	ctx                 context.Context
 	firestoreClient     *firestore.Client
-	pubsubID            string
+	PubSubID            string
 	retryTimeOutSeconds int64
 }
 
@@ -91,24 +91,24 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		// Assume an error on the function invoker and try again.
 		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
 	}
-	global.pubsubID = metadata.EventID
+	global.PubSubID = metadata.EventID
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.pubsubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
 		return nil
 	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Printf("pubsub_id %s ignored pubsub message: %s", global.pubsubID, string(PubSubMessage.Data))
+		log.Printf("pubsub_id %s ignored pubsub message: %s", global.PubSubID, string(PubSubMessage.Data))
 		return nil
 	}
 
 	var feedMessage feedMessage
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubSubMessage.Data cannot be UnMarshalled as a feed %s %s", global.pubsubID, string(PubSubMessage.Data), err)
+		log.Printf("pubsub_id %s NORETRY_ERROR pubSubMessage.Data cannot be UnMarshalled as a feed %s %s", global.PubSubID, string(PubSubMessage.Data), err)
 		return nil // NO RETRY
 	}
 	if feedMessage.Origin == "" {
@@ -121,15 +121,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	if feedMessage.Deleted == true {
 		_, err = global.firestoreClient.Doc(documentPath).Delete(global.ctx)
 		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT error when deleting %s %v", global.pubsubID, documentPath, err)
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT error when deleting %s %v", global.PubSubID, documentPath, err)
 		}
-		log.Printf("pubsub_id %s DELETED document: %s", global.pubsubID, documentPath)
+		log.Printf("pubsub_id %s DELETED document: %s", global.PubSubID, documentPath)
 	} else {
 		_, err = global.firestoreClient.Doc(documentPath).Set(global.ctx, feedMessage)
 		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT firestoreClient.Doc(documentPath).Set: %s %v", global.pubsubID, documentPath, err) // RETRY
+			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT firestoreClient.Doc(documentPath).Set: %s %v", global.PubSubID, documentPath, err) // RETRY
 		}
-		log.Printf("pubsub_id %s SET document: %s", global.pubsubID, documentPath)
+		log.Printf("pubsub_id %s SET document: %s", global.PubSubID, documentPath)
 	}
 	return nil
 }
