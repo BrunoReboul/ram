@@ -363,6 +363,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	complianceStatus.AssetInventoryOrigin = feedMessage.Origin
 	complianceStatus.RuleName = global.functionName
 	complianceStatus.RuleDeploymentTimeStamp = global.deploymentTime
+	complianceStatus.StepStack = global.stepStack
 	countViolations := 0
 	if feedMessage.Deleted == true {
 		complianceStatus.Deleted = feedMessage.Deleted
@@ -402,6 +403,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			complianceStatus.Compliant = false
 			for i, violation := range violations {
 				countViolations = i
+				violation.StepStack = global.stepStack
 				violationJSON, err := json.Marshal(violation)
 				if err != nil {
 					log.Println(logging.Entry{
