@@ -219,6 +219,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return err
 	}
+	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
@@ -329,8 +330,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		} else {
 			domain = settings.Domain
 			emailPrefix = settings.EmailPrefix
-			global.stepStack = settings.StepStack
-			global.stepStack = append(global.stepStack, global.step)
+			if settings.StepStack != nil {
+				global.stepStack = append(settings.StepStack, global.step)
+			} else {
+				global.stepStack = append(global.stepStack, global.step)
+			}
 			stepStack = global.stepStack // as a global variable used in the browse function
 
 			err = queryDirectory(settings.Domain, settings.EmailPrefix, global)

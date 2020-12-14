@@ -185,6 +185,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return err
 	}
+	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
@@ -238,7 +239,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return nil
 	}
-	global.stepStack = append(feedMessageGroup.StepStack, global.step)
+	if feedMessageGroup.StepStack != nil {
+		global.stepStack = append(feedMessageGroup.StepStack, global.step)
+	} else {
+		global.stepStack = append(global.stepStack, global.step)
+	}
 
 	var feedMessageGroupSettings cai.FeedMessageGroupSettings
 	feedMessageGroupSettings.Window.StartTime = metadata.Timestamp

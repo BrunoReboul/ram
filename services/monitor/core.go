@@ -289,6 +289,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return err
 	}
+	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
@@ -711,7 +712,7 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 	if feedMessage.StepStack != nil {
 		global.stepStack = append(feedMessage.StepStack, global.step)
 	} else {
-		global.stepStack = append(global.stepStack, global.step) // as originating event
+		global.stepStack = append(global.stepStack, global.step)
 	}
 
 	if feedMessage.Origin == "" {

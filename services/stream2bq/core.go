@@ -348,6 +348,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return err
 	}
+	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{

@@ -54,15 +54,15 @@ func GetPublishCallResult(ctx context.Context,
 	msgNumber := atomic.AddUint64(pubSubMsgNumber, 1)
 
 	// debug log
-	log.Println(logging.Entry{
-		MicroserviceName:   microserviceName,
-		InstanceName:       instanceName,
-		Environment:        environment,
-		Severity:           "INFO",
-		Message:            fmt.Sprintf("GetPublishCallResult %s pubSubMsgNumber %d", msgInfo, msgNumber),
-		Description:        fmt.Sprintf("id %s", id),
-		TriggeringPubsubID: pubSubID,
-	})
+	// log.Println(logging.Entry{
+	// 	MicroserviceName:   microserviceName,
+	// 	InstanceName:       instanceName,
+	// 	Environment:        environment,
+	// 	Severity:           "INFO",
+	// 	Message:            fmt.Sprintf("GetPublishCallResult %s pubSubMsgNumber %d", msgInfo, msgNumber),
+	// 	Description:        fmt.Sprintf("id %s", id),
+	// 	TriggeringPubsubID: pubSubID,
+	// })
 	// end debug log
 
 	if msgNumber%logEventEveryXPubSubMsg == 0 {

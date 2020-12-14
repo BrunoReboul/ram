@@ -275,13 +275,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return err
 	}
+	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
 	global.step = logging.Step{
 		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 		StepTimestamp: metadata.Timestamp,
 	}
-	global.stepStack = append(global.stepStack, global.step) // as the pubsub log entry is an initial step
+	global.stepStack = append(global.stepStack, global.step)
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
