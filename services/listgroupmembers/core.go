@@ -279,6 +279,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	stepStack = global.stepStack
 
 	pubSubMsgNumber = 0
+	pubSubErrNumber = 0
 	groupAssetName = feedMessageGroup.Asset.Name
 	groupEmail = feedMessageGroup.Asset.Resource.Email
 	// First ancestor is my parent
@@ -320,23 +321,43 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			return err
 		}
 	}
-	now = time.Now()
-	latency := now.Sub(global.step.StepTimestamp)
-	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-	log.Println(logging.Entry{
-		MicroserviceName:     global.microserviceName,
-		InstanceName:         global.instanceName,
-		Environment:          global.environment,
-		Severity:             "NOTICE",
-		Message:              fmt.Sprintf("finish %s %d", feedMessageGroup.Asset.Resource.Email, pubSubMsgNumber),
-		Description:          fmt.Sprintf("Group %s %s isDeleted %v Number of members published to pubsub topic %s: %d", feedMessageGroup.Asset.Resource.Email, feedMessageGroup.Asset.Resource.Id, feedMessageGroup.Deleted, outputTopicName, pubSubMsgNumber),
-		Now:                  &now,
-		TriggeringPubsubID:   global.PubSubID,
-		OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
-		LatencySeconds:       latency.Seconds(),
-		LatencyE2ESeconds:    latencyE2E.Seconds(),
-		StepStack:            global.stepStack,
-	})
+	if pubSubMsgNumber > 0 {
+		now = time.Now()
+		latency := now.Sub(global.step.StepTimestamp)
+		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:     global.microserviceName,
+			InstanceName:         global.instanceName,
+			Environment:          global.environment,
+			Severity:             "NOTICE",
+			Message:              fmt.Sprintf("finish %s %d members", feedMessageGroup.Asset.Resource.Email, pubSubMsgNumber),
+			Description:          fmt.Sprintf("Group %s %s isDeleted %v Number of members published to pubsub topic %s: %d", feedMessageGroup.Asset.Resource.Email, feedMessageGroup.Asset.Resource.Id, feedMessageGroup.Deleted, outputTopicName, pubSubMsgNumber),
+			Now:                  &now,
+			TriggeringPubsubID:   global.PubSubID,
+			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
+			LatencySeconds:       latency.Seconds(),
+			LatencyE2ESeconds:    latencyE2E.Seconds(),
+			StepStack:            global.stepStack,
+		})
+	} else {
+		now = time.Now()
+		latency := now.Sub(global.step.StepTimestamp)
+		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:     global.microserviceName,
+			InstanceName:         global.instanceName,
+			Environment:          global.environment,
+			Severity:             "NOTICE",
+			Message:              "cancel",
+			Description:          fmt.Sprintf("empty group %s", feedMessageGroup.Asset.Resource.Email),
+			Now:                  &now,
+			TriggeringPubsubID:   global.PubSubID,
+			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
+			LatencySeconds:       latency.Seconds(),
+			LatencyE2ESeconds:    latencyE2E.Seconds(),
+			StepStack:            global.stepStack,
+		})
+	}
 	return nil
 }
 
@@ -426,6 +447,7 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 			}
 		}
 	}
+	waitgroup.Wait()
 	return nil
 }
 
@@ -480,5 +502,6 @@ func browseMembers(members *admin.Members) error {
 				environment)
 		}
 	}
+	waitgroup.Wait()
 	return nil
 }

@@ -52,9 +52,21 @@ func GetPublishCallResult(ctx context.Context,
 		return
 	}
 	msgNumber := atomic.AddUint64(pubSubMsgNumber, 1)
+
+	// debug log
+	log.Println(logging.Entry{
+		MicroserviceName:   microserviceName,
+		InstanceName:       instanceName,
+		Environment:        environment,
+		Severity:           "INFO",
+		Message:            fmt.Sprintf("GetPublishCallResult %s pubSubMsgNumber %d", msgInfo, msgNumber),
+		Description:        fmt.Sprintf("id %s", id),
+		TriggeringPubsubID: pubSubID,
+	})
+	// end debug log
+
 	if msgNumber%logEventEveryXPubSubMsg == 0 {
 		// No retry on pubsub publish as already implemented in the GO client
-		log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
 		log.Println(logging.Entry{
 			MicroserviceName:   microserviceName,
 			InstanceName:       instanceName,
