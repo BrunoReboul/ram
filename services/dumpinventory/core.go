@@ -206,8 +206,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return err
 	}
-	log.Printf("pubsub_id %s gcloud asset operations describe %s %v", operation.Name(), global.PubSubID, global.request)
 	// do NOT wait for response to save function execution time, and avoid function timeout
+	log.Println(logging.Entry{
+		MicroserviceName:   global.microserviceName,
+		InstanceName:       global.instanceName,
+		Environment:        global.environment,
+		Severity:           "INFO",
+		Message:            fmt.Sprintf("gcloud asset operations describe %s", operation.Name()),
+		TriggeringPubsubID: global.PubSubID,
+	})
 	now = time.Now()
 	latency := now.Sub(metadata.Timestamp)
 	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
