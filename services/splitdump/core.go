@@ -285,7 +285,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
 			Severity:           "INFO",
-			Message:            fmt.Sprintf("created object %s", gcsEvent.Name),
+			Message:            fmt.Sprintf("new object tirgger %s", gcsEvent.Name),
 			Description:        fmt.Sprintf("size %s", gcsEvent.Size),
 			TriggeringPubsubID: global.PubSubID,
 		})
@@ -295,7 +295,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
 			Severity:           "INFO",
-			Message:            fmt.Sprintf("updated object %s", gcsEvent.Name),
+			Message:            fmt.Sprintf("updated object trigger %s", gcsEvent.Name),
 			Description:        fmt.Sprintf("size %s", gcsEvent.Size),
 			TriggeringPubsubID: global.PubSubID,
 		})
@@ -335,7 +335,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	var gcsStep logging.Step
 	parts = strings.Split(gcsEvent.Name, ".")
 	if strings.Contains(parts[len(parts)-2], "child") {
-		gcsStep.StepTimestamp, err = time.Parse(time.RFC3339, parts[len(parts)-3])
+		gcsStep.StepTimestamp, err = time.Parse(time.RFC3339, strings.Replace(parts[len(parts)-3], "_", ":", -1))
 		if err != nil {
 			log.Println(logging.Entry{
 				MicroserviceName:   global.microserviceName,
@@ -373,7 +373,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 		dumpLineNumber, childDumpNumber, duration, err = splitToChildDumps(buffer,
 			gcsEvent.Name,
 			gcsEvent.Generation,
-			gcsEvent.Updated.Format(time.RFC3339),
+			strings.Replace(gcsEvent.Updated.Format(time.RFC3339), ":", "_", -1),
 			childDumpNumber,
 			global)
 		if err != nil {
@@ -505,7 +505,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, parentGenerat
 
 			childDumpNumber++
 			childDumpLineNumber = 0
-			childDumpName = strings.Replace(parentDumpName, ".dump", fmt.Sprintf(".%d.dump", childDumpNumber), 1)
+			childDumpName = strings.Replace(parentDumpName, ".dump", fmt.Sprintf(".%s.%s.child%d.dump", parentGeneration, parentTimestamp, childDumpNumber), 1)
 			storageObject = global.storageBucket.Object(childDumpName)
 			storageObjectWriter = storageObject.NewWriter(global.ctx)
 			childDumpContent = scanner.Text() + "\n"
