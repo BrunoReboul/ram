@@ -348,7 +348,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 			})
 			return nil
 		}
-		gcsStep.StepID = strings.Replace(gcsEvent.ID, gcsEvent.Generation, parts[len(parts)-4], 1)
+		gcsStep.StepID = fmt.Sprintf("%s.dump/%s", parts[0], parts[len(parts)-4])
 		global.stepStack = append(global.stepStack, gcsStep)
 	}
 
