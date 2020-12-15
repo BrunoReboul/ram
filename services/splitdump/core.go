@@ -218,27 +218,27 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	var pubSubMsgNumber int64
 	var startTime time.Time
 
-	gcsEventJSON, err := json.Marshal(gcsEvent)
-	if err != nil {
-		log.Println(logging.Entry{
-			MicroserviceName:   global.microserviceName,
-			InstanceName:       global.instanceName,
-			Environment:        global.environment,
-			Severity:           "WARNING",
-			Message:            fmt.Sprintf("json.Marshal(gcsEvent) %v", err),
-			TriggeringPubsubID: global.PubSubID,
-		})
-	} else {
-		log.Println(logging.Entry{
-			MicroserviceName:   global.microserviceName,
-			InstanceName:       global.instanceName,
-			Environment:        global.environment,
-			Severity:           "INFO",
-			Message:            "gcsEventJSON",
-			Description:        string(gcsEventJSON),
-			TriggeringPubsubID: global.PubSubID,
-		})
-	}
+	// gcsEventJSON, err := json.Marshal(gcsEvent)
+	// if err != nil {
+	// 	log.Println(logging.Entry{
+	// 		MicroserviceName:   global.microserviceName,
+	// 		InstanceName:       global.instanceName,
+	// 		Environment:        global.environment,
+	// 		Severity:           "WARNING",
+	// 		Message:            fmt.Sprintf("json.Marshal(gcsEvent) %v", err),
+	// 		TriggeringPubsubID: global.PubSubID,
+	// 	})
+	// } else {
+	// 	log.Println(logging.Entry{
+	// 		MicroserviceName:   global.microserviceName,
+	// 		InstanceName:       global.instanceName,
+	// 		Environment:        global.environment,
+	// 		Severity:           "INFO",
+	// 		Message:            "gcsEventJSON",
+	// 		Description:        string(gcsEventJSON),
+	// 		TriggeringPubsubID: global.PubSubID,
+	// 	})
+	// }
 
 	if gcsEvent.ResourceState == "not_exists" {
 		log.Println(logging.Entry{
