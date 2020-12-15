@@ -208,8 +208,13 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	if feedMessage.StepStack != nil {
 		global.stepStack = append(feedMessage.StepStack, global.step)
 	} else {
+		var caiStep logging.Step
+		caiStep.StepTimestamp = feedMessage.Window.StartTime
+		caiStep.StepID = fmt.Sprintf("%s/%s", feedMessage.Asset.Name, caiStep.StepTimestamp.Format(time.RFC3339))
+		global.stepStack = append(global.stepStack, caiStep)
 		global.stepStack = append(global.stepStack, global.step)
 	}
+	feedMessage.StepStack = global.stepStack
 
 	documentID := str.RevertSlash(feedMessage.Asset.Name)
 	documentPath := global.collectionID + "/" + documentID
@@ -227,7 +232,6 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			})
 			return err
 		}
-		log.Printf("pubsub_id %s DELETED document: %s", global.PubSubID, documentPath)
 		now := time.Now()
 		latency := now.Sub(metadata.Timestamp)
 		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)

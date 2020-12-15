@@ -571,6 +571,10 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	if feedMessage.StepStack != nil {
 		global.stepStack = append(feedMessage.StepStack, global.step)
 	} else {
+		var caiStep logging.Step
+		caiStep.StepTimestamp = feedMessage.Window.StartTime
+		caiStep.StepID = fmt.Sprintf("%s/%s", feedMessage.Asset.Name, caiStep.StepTimestamp.Format(time.RFC3339))
+		global.stepStack = append(global.stepStack, caiStep)
 		global.stepStack = append(global.stepStack, global.step)
 	}
 
