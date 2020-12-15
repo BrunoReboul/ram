@@ -333,8 +333,27 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	}
 
 	var gcsStep logging.Step
+	parts = strings.Split(gcsEvent.Name, ".")
+	if strings.Contains(parts[len(parts)-2], "child") {
+		gcsStep.StepTimestamp, err = time.Parse(time.RFC3339, parts[len(parts)-3])
+		if err != nil {
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "noretry",
+				Description:        "time.Parse(time.RFC3339, parts[len(parts)-3]",
+				TriggeringPubsubID: global.PubSubID,
+			})
+			return nil
+		}
+		gcsStep.StepID = strings.Replace(gcsEvent.ID, gcsEvent.Generation, parts[len(parts)-4], 1)
+		global.stepStack = append(global.stepStack, gcsStep)
+	}
+
 	gcsStep.StepTimestamp = gcsEvent.Updated
-	gcsStep.StepID = fmt.Sprintf("gcsEventID/%s", gcsEvent.ID)
+	gcsStep.StepID = gcsEvent.ID
 	global.stepStack = append(global.stepStack, gcsStep)
 	global.stepStack = append(global.stepStack, global.step)
 
@@ -351,7 +370,12 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 
 	// log.Println("dumpLineNumber", dumpLineNumber, "splitThresholdLineNumber", splitThresholdLineNumber, "duration", duration)
 	if dumpLineNumber > global.splitThresholdLineNumber {
-		dumpLineNumber, childDumpNumber, duration, err = splitToChildDumps(buffer, gcsEvent.Name, childDumpNumber, global)
+		dumpLineNumber, childDumpNumber, duration, err = splitToChildDumps(buffer,
+			gcsEvent.Name,
+			gcsEvent.Generation,
+			gcsEvent.Updated.Format(time.RFC3339),
+			childDumpNumber,
+			global)
 		if err != nil {
 			log.Println(logging.Entry{
 				MicroserviceName:   global.microserviceName,
@@ -373,8 +397,8 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
 			Severity:             "NOTICE",
-			Message:              fmt.Sprintf("finish splitToChildDumps %s", gcsEvent.Name),
-			Description:          fmt.Sprintf("processed %d lines, created %d childdumps files generation %v duration %v", dumpLineNumber, childDumpNumber, gcsEvent.Generation, duration),
+			Message:              fmt.Sprintf("finish split to %d childDumps %s", childDumpNumber, gcsEvent.Name),
+			Description:          fmt.Sprintf("dumpLineNumber %d gcsEvent.Generation %s duration %v", dumpLineNumber, gcsEvent.Generation, duration),
 			Now:                  &now,
 			TriggeringPubsubID:   global.PubSubID,
 			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
@@ -392,8 +416,8 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
 			Severity:             "NOTICE",
-			Message:              fmt.Sprintf("finish splitToLines %s", gcsEvent.Name),
-			Description:          fmt.Sprintf("processed %d lines %d pubsub msg generation %v duration %v", dumpLineNumber, pubSubMsgNumber, gcsEvent.Generation, duration),
+			Message:              fmt.Sprintf("finish split to %d lines %s", dumpLineNumber, gcsEvent.Name),
+			Description:          fmt.Sprintf("pubSubMsgNumber %d gcsEvent.Generation %v duration %v", pubSubMsgNumber, gcsEvent.Generation, duration),
 			Now:                  &now,
 			TriggeringPubsubID:   global.PubSubID,
 			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
@@ -405,7 +429,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	return nil
 }
 
-func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumber int64, global *Global) (int64, int64, time.Duration, error) {
+func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, parentGeneration string, parentTimestamp string, childDumpNumber int64, global *Global) (int64, int64, time.Duration, error) {
 	var dumpLineNumber int64
 	var childDumpLineNumber int64
 	var err error
@@ -423,7 +447,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 
 	childDumpLineNumber = 0
 	childDumpContent = ""
-	childDumpName := strings.Replace(parentDumpName, ".dump", fmt.Sprintf(".%d.dump", childDumpNumber), 1)
+	childDumpName := strings.Replace(parentDumpName, ".dump", fmt.Sprintf(".%s.%s.child%d.dump", parentGeneration, parentTimestamp, childDumpNumber), 1)
 	storageObject := global.storageBucket.Object(childDumpName)
 	storageObjectWriter := storageObject.NewWriter(global.ctx)
 	// bufferedWriter := bufio.NewWriter(storageObjectWriter)
