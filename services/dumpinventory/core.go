@@ -267,7 +267,9 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 func recordDump(global *Global, retriesNumber time.Duration) (err error) {
 	var i time.Duration
-	documentPath := fmt.Sprintf("dumps/%s", strings.Replace(global.dumpName, ".", "_", -1))
+	parts := strings.Split(global.dumpName, "/")
+	dumpName := strings.Replace(parts[1], ".dump", "", 1)
+	documentPath := fmt.Sprintf("dumps/%s", dumpName)
 
 	for i = 0; i < retriesNumber; i++ {
 		_, err = global.firestoreClient.Doc(documentPath).Get(global.ctx)
