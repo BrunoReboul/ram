@@ -36,8 +36,13 @@ func RecordDump(ctx context.Context,
 	pubSubID string,
 	retriesNumber time.Duration) (err error) {
 	var i time.Duration
-	parts := strings.Split(dumpNameFull, "/")
-	dumpName := strings.Replace(parts[1], ".dump", "", 1)
+	if strings.Contains(dumpNameFull, "") {
+		parts := strings.Split(dumpNameFull, "/")
+		dumpName := strings.Replace(parts[1], ".dump", "", 1)
+	} else {
+		dumpName := strings.Replace(dumpNameFull, ".dump", "", 1)
+	}
+
 	documentPath := fmt.Sprintf("dumps/%s", dumpName)
 
 	for i = 0; i < retriesNumber; i++ {
