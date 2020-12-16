@@ -23,6 +23,7 @@ import (
 	"time"
 
 	asset "cloud.google.com/go/asset/apiv1"
+	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
 	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 
@@ -39,9 +40,11 @@ type Global struct {
 	ctx                 context.Context
 	dumpName            string
 	environment         string
+	firestoreClient     *firestore.Client
 	instanceName        string
 	microserviceName    string
 	PubSubID            string
+	projectID           string
 	request             *assetpb.ExportAssetsRequest
 	retryTimeOutSeconds int64
 	step                logging.Step
@@ -81,6 +84,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	})
 
 	global.retryTimeOutSeconds = instanceDeployment.Settings.Service.GCF.RetryTimeOutSeconds
+	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
 
 	global.dumpName = fmt.Sprintf("%s/%s.dump",
 		instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name,
@@ -130,6 +134,19 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 			Severity:         "CRITICAL",
 			Message:          "init_failed",
 			Description:      fmt.Sprintf("asset.NewClient(ctx) %v", err),
+			InitID:           initID,
+		})
+		return err
+	}
+	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
+	if err != nil {
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("firestore.NewClient %v", err),
 			InitID:           initID,
 		})
 		return err
@@ -215,6 +232,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Message:            fmt.Sprintf("gcloud asset operations describe %s", operation.Name()),
 		TriggeringPubsubID: global.PubSubID,
 	})
+
 	now = time.Now()
 	latency := now.Sub(metadata.Timestamp)
 	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
@@ -233,4 +251,82 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		StepStack:            global.stepStack,
 	})
 	return nil
+}
+
+func recordDump(global *Global, retriesNumber time.Duration) (err error) {
+	var i time.Duration
+	documentPath := fmt.Sprintf("dumps/%s", global.dumpName)
+	for i = 0; i < retriesNumber; i++ {
+		_, err = global.firestoreClient.Doc(documentPath).Get(global.ctx)
+		if err != nil {
+			if strings.Contains(strings.ToLower(strings.Replace(err.Error(), " ", "", -1)), "notfound") {
+				_, err = global.firestoreClient.Doc(documentPath).Set(global.ctx, map[string]interface{}{
+					"stepStack": global.stepStack,
+				})
+				if err != nil {
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "WARNING",
+						Message:            "recordDump cannot set firestore doc",
+						Description:        fmt.Sprintf("iteration %d global.firestoreClient.Doc(documentPath).Set %s %v", i, documentPath, err),
+						TriggeringPubsubID: global.PubSubID,
+					})
+					time.Sleep(i * 100 * time.Millisecond)
+				} else {
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "INFO",
+						Message:            fmt.Sprintf("dump stepStack recorded %s", documentPath),
+						TriggeringPubsubID: global.PubSubID,
+					})
+					return nil
+				}
+			} else {
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "WARNING",
+					Message:            "recordDump cannot get firestore doc",
+					Description:        fmt.Sprintf("iteration %d global.firestoreClient.Doc(documentPath).Get %s %v", i, documentPath, err),
+					TriggeringPubsubID: global.PubSubID,
+				})
+				time.Sleep(i * 100 * time.Millisecond)
+			}
+		} else {
+			_, err = global.firestoreClient.Doc(documentPath).Update(global.ctx, []firestore.Update{
+				{
+					Path:  "stepStack",
+					Value: global.stepStack,
+				},
+			})
+			if err != nil {
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "WARNING",
+					Message:            "recordDump cannot update firestore doc",
+					Description:        fmt.Sprintf("iteration %d global.firestoreClient.Doc(documentPath).Update %s %v", i, documentPath, err),
+					TriggeringPubsubID: global.PubSubID,
+				})
+				time.Sleep(i * 100 * time.Millisecond)
+			} else {
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "INFO",
+					Message:            fmt.Sprintf("dump stepStack updated %s", documentPath),
+					TriggeringPubsubID: global.PubSubID,
+				})
+				return nil
+			}
+		}
+	}
+	return err
 }
