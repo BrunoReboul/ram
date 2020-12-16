@@ -34,6 +34,9 @@ func (instanceDeployment *InstanceDeployment) Deploy() (err error) {
 		if err = instanceDeployment.deployIAMServiceAccount(); err != nil {
 			return err
 		}
+		if err = instanceDeployment.deployGRMProjectBindings(); err != nil {
+			return err
+		}
 		// Extended monitoring org
 		if err = instanceDeployment.deployIAMMonitoringOrgRole(); err != nil {
 			return err
