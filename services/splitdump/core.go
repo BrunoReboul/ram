@@ -764,7 +764,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 			})
 			time.Sleep(i * 100 * time.Millisecond)
 		} else {
-			stepStackInterface, err := documentSnap.DataAt("stepStack")
+			rawStepStackInterface, err := documentSnap.DataAt("stepStack")
 			if err != nil {
 				log.Println(logging.Entry{
 					MicroserviceName:   global.microserviceName,
@@ -776,28 +776,39 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 				})
 				time.Sleep(i * 100 * time.Millisecond)
 			} else {
-				if stepStack, ok := stepStackInterface.(logging.Steps); ok {
+				rawStepStack, ok := rawStepStackInterface.([]interface{})
+				if !ok {
 					log.Println(logging.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
-						Severity:           "INFO",
-						Message:            fmt.Sprintf("dump stepStack retrieved %s", documentPath),
-						Description:        fmt.Sprintf("stepStack %v", stepStack),
+						Severity:           "WARNING",
+						Message:            fmt.Sprintf("unexected type is %T", rawStepStackInterface),
 						TriggeringPubsubID: global.PubSubID,
 					})
-					return stepStack
+					return nil
 				}
-				log.Println(logging.Entry{
-					MicroserviceName:   global.microserviceName,
-					InstanceName:       global.instanceName,
-					Environment:        global.environment,
-					Severity:           "WARNING",
-					Message:            "value at path stepStack is not if expected type 'logging.Steps'",
-					Description:        fmt.Sprintf("type is %T", stepStackInterface),
-					TriggeringPubsubID: global.PubSubID,
-				})
+				for _, rawStepInterface := range rawStepStack {
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "WARNING",
+						Message:            fmt.Sprintf("unexected type is %T", rawStepInterface),
+						TriggeringPubsubID: global.PubSubID,
+					})
+				}
 				return nil
+				// log.Println(logging.Entry{
+				// 	MicroserviceName:   global.microserviceName,
+				// 	InstanceName:       global.instanceName,
+				// 	Environment:        global.environment,
+				// 	Severity:           "INFO",
+				// 	Message:            fmt.Sprintf("dump stepStack retrieved %s", documentPath),
+				// 	Description:        fmt.Sprintf("stepStack %v", stepStack),
+				// 	TriggeringPubsubID: global.PubSubID,
+				// })
+				// return stepStack
 			}
 		}
 	}
