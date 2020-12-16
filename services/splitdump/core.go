@@ -749,7 +749,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 					Environment:        global.environment,
 					Severity:           "WARNING",
 					Message:            "recordDump dump document does not exist",
-					Description:        fmt.Sprintf("iteration %d global.firestoreClient.Doc(documentPath).Get %s %v", i, documentPath, err),
+					Description:        fmt.Sprintf("global.firestoreClient.Doc(documentPath).Get %s %v", documentPath, err),
 					TriggeringPubsubID: global.PubSubID,
 				})
 				return nil
@@ -771,30 +771,34 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
 					Severity:           "WARNING",
-					Message:            fmt.Sprintf("stepStack, err := documentSnap.DataAt %s %v", documentPath, err),
+					Message:            fmt.Sprintf("iteration %d stepStack, err := documentSnap.DataAt %s %v", i, documentPath, err),
 					TriggeringPubsubID: global.PubSubID,
 				})
-			}
-			if stepStack, ok := stepStackInterface.(logging.Steps); ok {
+				time.Sleep(i * 100 * time.Millisecond)
+			} else {
+				if stepStack, ok := stepStackInterface.(logging.Steps); ok {
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "INFO",
+						Message:            fmt.Sprintf("dump stepStack retrieved %s", documentPath),
+						Description:        fmt.Sprintf("stepStack %v", stepStack),
+						TriggeringPubsubID: global.PubSubID,
+					})
+					return stepStack
+				}
 				log.Println(logging.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
-					Severity:           "INFO",
-					Message:            fmt.Sprintf("dump stepStack retrieved %s", documentPath),
-					Description:        fmt.Sprintf("stepStack %v", stepStack),
+					Severity:           "WARNING",
+					Message:            "value at path stepStack is not if expected type 'logging.Steps'",
+					Description:        fmt.Sprintf("type is %T", stepStackInterface),
 					TriggeringPubsubID: global.PubSubID,
 				})
-				return stepStack
+				return nil
 			}
-			log.Println(logging.Entry{
-				MicroserviceName:   global.microserviceName,
-				InstanceName:       global.instanceName,
-				Environment:        global.environment,
-				Severity:           "WARNING",
-				Message:            "value at path stepStack is not if expected type 'logging.Steps'",
-				TriggeringPubsubID: global.PubSubID,
-			})
 		}
 	}
 	return nil
