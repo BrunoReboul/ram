@@ -232,7 +232,19 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Message:            fmt.Sprintf("gcloud asset operations describe %s", operation.Name()),
 		TriggeringPubsubID: global.PubSubID,
 	})
-
+	err = recordDump(global, 5)
+	if err != nil {
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("recordDump(global,5) %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return nil
+	}
 	now = time.Now()
 	latency := now.Sub(metadata.Timestamp)
 	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
