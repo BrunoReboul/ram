@@ -28,6 +28,7 @@ import (
 	assetpb "google.golang.org/genproto/googleapis/cloud/asset/v1"
 
 	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/gfs"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
@@ -232,7 +233,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		Message:            fmt.Sprintf("gcloud asset operations describe %s", operation.Name()),
 		TriggeringPubsubID: global.PubSubID,
 	})
-	err = recordDump(global, 5)
+	err = gfs.RecordDump(global.ctx,
+		global.dumpName,
+		global.firestoreClient,
+		global.stepStack,
+		global.microserviceName,
+		global.instanceName,
+		global.environment,
+		global.PubSubID,
+		5)
 	if err != nil {
 		log.Println(logging.Entry{
 			MicroserviceName:   global.microserviceName,
@@ -240,7 +249,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			Environment:        global.environment,
 			Severity:           "CRITICAL",
 			Message:            "noretry",
-			Description:        fmt.Sprintf("recordDump(global,5) %v", err),
+			Description:        fmt.Sprintf("recordDump %v", err),
 			TriggeringPubsubID: global.PubSubID,
 		})
 		return nil
@@ -263,85 +272,4 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		StepStack:            global.stepStack,
 	})
 	return nil
-}
-
-func recordDump(global *Global, retriesNumber time.Duration) (err error) {
-	var i time.Duration
-	parts := strings.Split(global.dumpName, "/")
-	dumpName := strings.Replace(parts[1], ".dump", "", 1)
-	documentPath := fmt.Sprintf("dumps/%s", dumpName)
-
-	for i = 0; i < retriesNumber; i++ {
-		_, err = global.firestoreClient.Doc(documentPath).Get(global.ctx)
-		if err != nil {
-			if strings.Contains(strings.ToLower(strings.Replace(err.Error(), " ", "", -1)), "notfound") {
-				_, err = global.firestoreClient.Doc(documentPath).Set(global.ctx, map[string]interface{}{
-					"stepStack": global.stepStack,
-				})
-				if err != nil {
-					log.Println(logging.Entry{
-						MicroserviceName:   global.microserviceName,
-						InstanceName:       global.instanceName,
-						Environment:        global.environment,
-						Severity:           "WARNING",
-						Message:            "recordDump cannot set firestore doc",
-						Description:        fmt.Sprintf("iteration %d global.firestoreClient.Doc(documentPath).Set %s %v", i, documentPath, err),
-						TriggeringPubsubID: global.PubSubID,
-					})
-					time.Sleep(i * 100 * time.Millisecond)
-				} else {
-					log.Println(logging.Entry{
-						MicroserviceName:   global.microserviceName,
-						InstanceName:       global.instanceName,
-						Environment:        global.environment,
-						Severity:           "INFO",
-						Message:            fmt.Sprintf("dump stepStack recorded %s", documentPath),
-						TriggeringPubsubID: global.PubSubID,
-					})
-					return nil
-				}
-			} else {
-				log.Println(logging.Entry{
-					MicroserviceName:   global.microserviceName,
-					InstanceName:       global.instanceName,
-					Environment:        global.environment,
-					Severity:           "WARNING",
-					Message:            "recordDump cannot get firestore doc",
-					Description:        fmt.Sprintf("iteration %d global.firestoreClient.Doc(documentPath).Get %s %v", i, documentPath, err),
-					TriggeringPubsubID: global.PubSubID,
-				})
-				time.Sleep(i * 100 * time.Millisecond)
-			}
-		} else {
-			_, err = global.firestoreClient.Doc(documentPath).Update(global.ctx, []firestore.Update{
-				{
-					Path:  "stepStack",
-					Value: global.stepStack,
-				},
-			})
-			if err != nil {
-				log.Println(logging.Entry{
-					MicroserviceName:   global.microserviceName,
-					InstanceName:       global.instanceName,
-					Environment:        global.environment,
-					Severity:           "WARNING",
-					Message:            "recordDump cannot update firestore doc",
-					Description:        fmt.Sprintf("iteration %d global.firestoreClient.Doc(documentPath).Update %s %v", i, documentPath, err),
-					TriggeringPubsubID: global.PubSubID,
-				})
-				time.Sleep(i * 100 * time.Millisecond)
-			} else {
-				log.Println(logging.Entry{
-					MicroserviceName:   global.microserviceName,
-					InstanceName:       global.instanceName,
-					Environment:        global.environment,
-					Severity:           "INFO",
-					Message:            fmt.Sprintf("dump stepStack updated %s", documentPath),
-					TriggeringPubsubID: global.PubSubID,
-				})
-				return nil
-			}
-		}
-	}
-	return err
 }
