@@ -764,7 +764,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 			})
 			time.Sleep(i * 100 * time.Millisecond)
 		} else {
-			value, err := documentSnap.DataAt("stepStack")
+			stepStackInterface, err := documentSnap.DataAt("stepStack")
 			if err != nil {
 				log.Println(logging.Entry{
 					MicroserviceName:   global.microserviceName,
@@ -775,9 +775,26 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 					TriggeringPubsubID: global.PubSubID,
 				})
 			}
-			if stepStack, ok := value.(logging.Steps); ok {
+			if stepStack, ok := stepStackInterface.(logging.Steps); ok {
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "INFO",
+					Message:            fmt.Sprintf("dump stepStack retrieved %s", documentPath),
+					Description:        fmt.Sprintf("stepStack %v", stepStack),
+					TriggeringPubsubID: global.PubSubID,
+				})
 				return stepStack
 			}
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "WARNING",
+				Message:            "value at path stepStack is not if expected type 'logging.Steps'",
+				TriggeringPubsubID: global.PubSubID,
+			})
 		}
 	}
 	return nil
