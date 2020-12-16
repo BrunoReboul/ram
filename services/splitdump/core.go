@@ -783,32 +783,66 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
 						Severity:           "WARNING",
-						Message:            fmt.Sprintf("unexected type is %T", rawStepStackInterface),
+						Message:            fmt.Sprintf("rawStepStackInterface unexected type is %T", rawStepStackInterface),
 						TriggeringPubsubID: global.PubSubID,
 					})
 					return nil
 				}
+				stepStack = nil
+				var step logging.Step
 				for _, rawStepInterface := range rawStepStack {
-					log.Println(logging.Entry{
-						MicroserviceName:   global.microserviceName,
-						InstanceName:       global.instanceName,
-						Environment:        global.environment,
-						Severity:           "WARNING",
-						Message:            fmt.Sprintf("unexected type is %T", rawStepInterface),
-						TriggeringPubsubID: global.PubSubID,
-					})
+					rawStep, ok := rawStepInterface.(map[string]interface{})
+					if !ok {
+						log.Println(logging.Entry{
+							MicroserviceName:   global.microserviceName,
+							InstanceName:       global.instanceName,
+							Environment:        global.environment,
+							Severity:           "WARNING",
+							Message:            fmt.Sprintf("rawStepInterface unexected type is %T", rawStepInterface),
+							TriggeringPubsubID: global.PubSubID,
+						})
+						return nil
+					}
+					var stepIDInterface interface{} = rawStep["StepID"]
+					stepID, ok := stepIDInterface.(string)
+					if !ok {
+						log.Println(logging.Entry{
+							MicroserviceName:   global.microserviceName,
+							InstanceName:       global.instanceName,
+							Environment:        global.environment,
+							Severity:           "WARNING",
+							Message:            fmt.Sprintf("stepIDInterface unexected type is %T", stepIDInterface),
+							TriggeringPubsubID: global.PubSubID,
+						})
+						return nil
+					}
+					var stepTimestampInterface interface{} = rawStep["StepTimestamp"]
+					stepTimestamp, ok := stepTimestampInterface.(time.Time)
+					if !ok {
+						log.Println(logging.Entry{
+							MicroserviceName:   global.microserviceName,
+							InstanceName:       global.instanceName,
+							Environment:        global.environment,
+							Severity:           "WARNING",
+							Message:            fmt.Sprintf("stepTimestampInterface unexected type is %T", stepTimestampInterface),
+							TriggeringPubsubID: global.PubSubID,
+						})
+						return nil
+					}
+					step.StepID = stepID
+					step.StepTimestamp = stepTimestamp
+					stepStack = append(stepStack, step)
 				}
-				return nil
-				// log.Println(logging.Entry{
-				// 	MicroserviceName:   global.microserviceName,
-				// 	InstanceName:       global.instanceName,
-				// 	Environment:        global.environment,
-				// 	Severity:           "INFO",
-				// 	Message:            fmt.Sprintf("dump stepStack retrieved %s", documentPath),
-				// 	Description:        fmt.Sprintf("stepStack %v", stepStack),
-				// 	TriggeringPubsubID: global.PubSubID,
-				// })
-				// return stepStack
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "INFO",
+					Message:            fmt.Sprintf("dump stepStack retrieved %s", documentPath),
+					Description:        fmt.Sprintf("stepStack %v", stepStack),
+					TriggeringPubsubID: global.PubSubID,
+				})
+				return stepStack
 			}
 		}
 	}
