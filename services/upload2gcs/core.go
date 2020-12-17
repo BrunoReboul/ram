@@ -248,6 +248,10 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		return nil
 	}
 
+	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
+		log.Printf("pubsub_id %s ignored pubsub message: %s", global.PubSubID, string(PubSubMessage.Data))
+		return nil
+	}
 	var feedMessage feedMessage
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {

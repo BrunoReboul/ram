@@ -59,7 +59,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	var instanceDeployment InstanceDeployment
 
-	initID := fmt.Sprintf("%v", uuid.New())
+  initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
 		log.Println(logging.Entry{

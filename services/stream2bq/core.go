@@ -438,6 +438,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		// Description:          fmt.Sprintf("insert %s ok %s", global.tableName, insertID),
 	}
+	// log.Printf("pubsub_id %s exit nil", global.PubSubID)
 	return nil
 }
 
