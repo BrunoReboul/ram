@@ -95,6 +95,7 @@ type Global struct {
 	groupsSettingsService       *groupssettings.Service
 	instanceName                string
 	logEntry                    logEntry
+	logStep                     logging.Step
 	microserviceName            string
 	organizationID              string
 	projectID                   string
@@ -260,7 +261,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
-	log.Println(string(PubSubMessage.Data))
+	// log.Println(string(PubSubMessage.Data))
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
@@ -326,11 +327,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return nil
 	}
-	var logStep logging.Step
-	logStep.StepID = fmt.Sprintf("%s/%s", global.logEntry.Resource, global.logEntry.InsertID)
-	logStep.StepTimestamp = global.logEntry.ReceiveTimestamp
-	global.stepStack = append(global.stepStack, logStep)
-	global.stepStack = append(global.stepStack, global.step)
+	global.logStep.StepTimestamp = global.logEntry.Timestamp
 
 	switch global.logEntry.Resource.Type {
 	case "audited_resource":
@@ -397,6 +394,9 @@ func convertAdminActivityEvent(global *Global) (err error) {
 		})
 		return nil
 	}
+	global.logStep.StepID = fmt.Sprintf("%s/%s", protoPayload.ResourceName, global.logEntry.InsertID)
+	global.stepStack = append(global.stepStack, global.logStep)
+	global.stepStack = append(global.stepStack, global.step)
 
 	parts := strings.Split(protoPayload.ResourceName, "/")
 	global.organizationID = parts[1]
