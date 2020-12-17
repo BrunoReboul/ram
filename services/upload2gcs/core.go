@@ -25,6 +25,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -43,19 +44,25 @@ type Global struct {
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
 	ctx                           context.Context
+	environment                   string
 	firestoreClient               *firestore.Client
+	instanceName                  string
+	microserviceName              string
 	ownerLabelKeyName             string
 	PubSubID                      string
 	retryTimeOutSeconds           int64
+	step                          logging.Step
+	stepStack                     logging.Steps
 	violationResolverLabelKeyName string
 }
 
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
-	Asset   asset      `json:"asset"`
-	Window  cai.Window `json:"window"`
-	Deleted bool       `json:"deleted"`
-	Origin  string     `json:"origin"`
+	Asset     asset         `json:"asset"`
+	Window    cai.Window    `json:"window"`
+	Deleted   bool          `json:"deleted"`
+	Origin    string        `json:"origin"`
+	StepStack logging.Steps `json:"step_stack,omitempty" firestore:"step_stack,omitempty"`
 }
 
 // asset Cloud Asset Metadata
@@ -78,16 +85,36 @@ type asset struct {
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) (err error) {
+	log.SetFlags(0)
 	global.ctx = ctx
+
 	var instanceDeployment InstanceDeployment
 	var storageClient *storage.Client
 
-	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
-	log.Printf("%s function COLD START", logEntryPrefix)
+	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
+		log.Println(logging.Entry{
+			Severity:    "CRITICAL",
+			Message:     "init_failed",
+			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
+			InitID:      initID,
+		})
+		return err
 	}
+
+	global.environment = instanceDeployment.Core.EnvironmentName
+	global.instanceName = instanceDeployment.Core.InstanceName
+	global.microserviceName = instanceDeployment.Core.ServiceName
+
+	log.Println(logging.Entry{
+		MicroserviceName: global.microserviceName,
+		InstanceName:     global.instanceName,
+		Environment:      global.environment,
+		Severity:         "NOTICE",
+		Message:          "coldstart",
+		InitID:           initID,
+	})
 
 	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
 	global.ownerLabelKeyName = instanceDeployment.Core.SolutionSettings.Monitoring.LabelKeyNames.Owner
@@ -97,22 +124,58 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("%s storage.NewClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("storage.NewClient(ctx) %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	// bucketHandle must be evaluated after storateClient init
 	global.bucketHandle = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.AssetsJSONFile.Name)
 
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
-		return fmt.Errorf("%s cloudresourcemanager.NewService: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("cloudresourcemanager.NewService(ctx) %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(ctx)
 	if err != nil {
-		return fmt.Errorf("%s cloudresourcemanagerv2.NewService: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("cloudresourcemanagerv2.NewService(ctx) %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.firestoreClient, err = firestore.NewClient(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("firestore.NewClient(ctx, projectID) %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	return nil
 }
@@ -123,14 +186,65 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
+	global.stepStack = nil
 	global.PubSubID = metadata.EventID
+	parts := strings.Split(metadata.Resource.Name, "/")
+	global.step = logging.Step{
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepTimestamp: metadata.Timestamp,
+	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
+	log.Println(logging.Entry{
+		MicroserviceName:           global.microserviceName,
+		InstanceName:               global.instanceName,
+		Environment:                global.environment,
+		Severity:                   "NOTICE",
+		Message:                    "start",
+		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubAgeSeconds: d.Seconds(),
+		TriggeringPubsubTimestamp:  &metadata.Timestamp,
+		Now:                        &now,
+	})
+
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:           global.microserviceName,
+			InstanceName:               global.instanceName,
+			Environment:                global.environment,
+			Severity:                   "CRITICAL",
+			Message:                    "noretry",
+			Description:                "Pubsub message too old",
+			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubAgeSeconds: d.Seconds(),
+			TriggeringPubsubTimestamp:  &metadata.Timestamp,
+			Now:                        &now,
+		})
+		return nil
+	}
+
+	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "NOTICE",
+			Message:            "cancel",
+			Description:        fmt.Sprintf("ignored pubsub message: %s", string(PubSubMessage.Data)),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
 
@@ -141,12 +255,31 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	var feedMessage feedMessage
 	err = json.Unmarshal(PubSubMessage.Data, &feedMessage)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR PubSubMessage.Data cannot be UnMarshalled as a feed %s %v", global.PubSubID, string(PubSubMessage.Data), err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Unmarshal(PubSubMessage.Data, &feedMessage) %v %v", PubSubMessage.Data, err),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
 	if feedMessage.Origin == "" {
 		feedMessage.Origin = "real-time"
 	}
+	if feedMessage.StepStack != nil {
+		global.stepStack = append(feedMessage.StepStack, global.step)
+	} else {
+		var caiStep logging.Step
+		caiStep.StepTimestamp = feedMessage.Window.StartTime
+		caiStep.StepID = fmt.Sprintf("%s/%s", feedMessage.Asset.Name, caiStep.StepTimestamp.Format(time.RFC3339))
+		global.stepStack = append(global.stepStack, caiStep)
+		global.stepStack = append(global.stepStack, global.step)
+	}
+	feedMessage.StepStack = global.stepStack
+
 	feedMessage.Asset.Origin = feedMessage.Origin
 	feedMessage.Asset.AncestryPath = cai.BuildAncestryPath(feedMessage.Asset.Ancestors)
 	feedMessage.Asset.AncestorsDisplayName = cai.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
@@ -161,7 +294,15 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessage)", global.PubSubID)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Marshal(feedMessage) %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
 	// log.Printf("%s", string(feedMessageJSON))
@@ -182,28 +323,100 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		err = storageObject.Delete(global.ctx)
 		if err != nil {
 			if strings.Contains(err.Error(), "object doesn't exist") {
-				log.Printf("pubsub_id %s NORETRY_ERROR object doesn't exist, cannot delete %s %v", global.PubSubID, objectName, err)
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "WARNING",
+					Message:            fmt.Sprintf("object doesn't exist, cannot delete %s", objectName),
+					TriggeringPubsubID: global.PubSubID,
+				})
 				return nil
 			}
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT error when deleting %s %v", global.PubSubID, objectName, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "redo_on_transient",
+				Description:        fmt.Sprintf("storageObject.Delete(global.ctx) %s %v", objectName, err),
+				TriggeringPubsubID: global.PubSubID,
+			})
+			return err
 		}
-		log.Printf("pubsub_id %s DELETED object: %s", global.PubSubID, objectName)
+		now := time.Now()
+		latency := now.Sub(metadata.Timestamp)
+		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:     global.microserviceName,
+			InstanceName:         global.instanceName,
+			Environment:          global.environment,
+			Severity:             "NOTICE",
+			Message:              fmt.Sprintf("finish delete obj %s", objectName),
+			Now:                  &now,
+			TriggeringPubsubID:   global.PubSubID,
+			OriginEventTimestamp: &metadata.Timestamp,
+			LatencySeconds:       latency.Seconds(),
+			LatencyE2ESeconds:    latencyE2E.Seconds(),
+			StepStack:            global.stepStack,
+		})
 	} else {
 		content, err := json.MarshalIndent(feedMessage.Asset, "", "    ")
 		if err != nil {
-			log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessage.Asset): %v", global.PubSubID, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "noretry",
+				Description:        fmt.Sprintf("json.MarshalIndent(feedMessage.Asset %v", err),
+				TriggeringPubsubID: global.PubSubID,
+			})
 			return nil
 		}
 		storageObjectWriter := storageObject.NewWriter(global.ctx)
 		_, err = fmt.Fprint(storageObjectWriter, string(content))
 		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT fmt.Fprint(storageObjectWriter, string(content)): %s %v", global.PubSubID, objectName, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "redo_on_transient",
+				Description:        fmt.Sprintf("fmt.Fprint(storageObjectWriter, string(content)) %s %v", objectName, err),
+				TriggeringPubsubID: global.PubSubID,
+			})
+			return err
 		}
 		err = storageObjectWriter.Close()
 		if err != nil {
-			return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT storageObjectWriter.Close(): %s %v", global.PubSubID, objectName, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "redo_on_transient",
+				Description:        fmt.Sprintf("storageObjectWriter.Close() %s %v", objectName, err),
+				TriggeringPubsubID: global.PubSubID,
+			})
+			return err
 		}
-		log.Printf("pubsub_id %s WRITE object: %s", global.PubSubID, objectName)
+		now := time.Now()
+		latency := now.Sub(metadata.Timestamp)
+		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:     global.microserviceName,
+			InstanceName:         global.instanceName,
+			Environment:          global.environment,
+			Severity:             "NOTICE",
+			Message:              fmt.Sprintf("finish write obj %s", objectName),
+			Now:                  &now,
+			TriggeringPubsubID:   global.PubSubID,
+			OriginEventTimestamp: &metadata.Timestamp,
+			LatencySeconds:       latency.Seconds(),
+			LatencyE2ESeconds:    latencyE2E.Seconds(),
+			StepStack:            global.stepStack,
+		})
 	}
 	return nil
 }

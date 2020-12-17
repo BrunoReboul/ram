@@ -17,9 +17,11 @@ package aut
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 
+	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/str"
 	"google.golang.org/api/iam/v1"
 )
@@ -30,7 +32,10 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 	keyJSONFilePath string,
 	projectID string,
 	serviceAccountKeyNames []string,
-	logEntryPrefix string) (
+	initID string,
+	microserviceName string,
+	instanceName string,
+	environment string) (
 	keyRestAPIFormat keyRestAPIFormat,
 	err error) {
 	var keyJSONdata []byte
@@ -39,23 +44,55 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 
 	iamService, err = iam.NewService(ctx)
 	if err != nil {
-		log.Printf("%s ERROR - iam.NewService: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: microserviceName,
+			InstanceName:     instanceName,
+			Environment:      environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("iam.NewService %v", err),
+			InitID:           initID,
+		})
 		return keyRestAPIFormat, err
 	}
 	resource := "projects/-/serviceAccounts/" + serviceAccountEmail
 	listServiceAccountKeyResponse, err := iamService.Projects.ServiceAccounts.Keys.List(resource).Do()
 	if err != nil {
-		log.Printf("%s ERROR - iamService.Projects.ServiceAccounts.Keys.List: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: microserviceName,
+			InstanceName:     instanceName,
+			Environment:      environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("iamService.Projects.ServiceAccounts.Keys.List %v", err),
+			InitID:           initID,
+		})
 		return keyRestAPIFormat, err
 	}
 	keyJSONdata, err = ioutil.ReadFile(keyJSONFilePath)
 	if err != nil {
-		log.Printf("%s ERROR - ioutil.ReadFile(keyJSONFilePath): %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: microserviceName,
+			InstanceName:     instanceName,
+			Environment:      environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("ioutil.ReadFile(keyJSONFilePath) %v", err),
+			InitID:           initID,
+		})
 		return keyRestAPIFormat, err
 	}
 	err = json.Unmarshal(keyJSONdata, &keyRestAPIFormat)
 	if err != nil {
-		log.Printf("%s ERROR - json.Unmarshal(keyJSONdata, &keyRestAPIFormat): %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: microserviceName,
+			InstanceName:     instanceName,
+			Environment:      environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("json.Unmarshal(keyJSONdata, &keyRestAPIFormat) %v", err),
+			InitID:           initID,
+		})
 		return keyRestAPIFormat, err
 	}
 	currentKeyName = keyRestAPIFormat.Name
@@ -63,18 +100,58 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 	// Clean keys
 	for _, serviceAccountKey := range listServiceAccountKeyResponse.Keys {
 		if serviceAccountKey.Name == currentKeyName {
-			log.Printf("%s keep current key ValidAfterTime %s named %s", logEntryPrefix, serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
+			log.Println(logging.Entry{
+				MicroserviceName: microserviceName,
+				InstanceName:     instanceName,
+				Environment:      environment,
+				Severity:         "INFO",
+				Message:          "init_keep_current_key",
+				Description:      fmt.Sprintf("ValidAfterTime %s named %s", serviceAccountKey.ValidAfterTime, serviceAccountKey.Name),
+				InitID:           initID,
+			})
 		} else {
 			if str.Find(serviceAccountKeyNames, serviceAccountKey.Name) {
-				log.Printf("%s keep recorded key ValidAfterTime %s named %s", logEntryPrefix, serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
+				log.Println(logging.Entry{
+					MicroserviceName: microserviceName,
+					InstanceName:     instanceName,
+					Environment:      environment,
+					Severity:         "INFO",
+					Message:          "init_keep_recorded_key",
+					Description:      fmt.Sprintf("ValidAfterTime %s named %s", serviceAccountKey.ValidAfterTime, serviceAccountKey.Name),
+					InitID:           initID,
+				})
 			} else {
 				if serviceAccountKey.KeyType == "SYSTEM_MANAGED" {
-					log.Printf("%s ignore SYSTEM_MANAGED key named %s", logEntryPrefix, serviceAccountKey.Name)
+					log.Println(logging.Entry{
+						MicroserviceName: microserviceName,
+						InstanceName:     instanceName,
+						Environment:      environment,
+						Severity:         "INFO",
+						Message:          "init_ignore_system_managed_key",
+						Description:      fmt.Sprintf("named %s", serviceAccountKey.Name),
+						InitID:           initID,
+					})
 				} else {
-					log.Printf("%s delete KeyType %s ValidAfterTime %s key name %s", logEntryPrefix, serviceAccountKey.KeyType, serviceAccountKey.ValidAfterTime, serviceAccountKey.Name)
+					log.Println(logging.Entry{
+						MicroserviceName: microserviceName,
+						InstanceName:     instanceName,
+						Environment:      environment,
+						Severity:         "INFO",
+						Message:          "init_delete_key",
+						Description:      fmt.Sprintf("ValidAfterTime %s named %s", serviceAccountKey.ValidAfterTime, serviceAccountKey.Name),
+						InitID:           initID,
+					})
 					_, err = iamService.Projects.ServiceAccounts.Keys.Delete(serviceAccountKey.Name).Do()
 					if err != nil {
-						log.Printf("%s ERROR - iamService.Projects.ServiceAccounts.Keys.Delete: %v", logEntryPrefix, err)
+						log.Println(logging.Entry{
+							MicroserviceName: microserviceName,
+							InstanceName:     instanceName,
+							Environment:      environment,
+							Severity:         "CRITICAL",
+							Message:          "init_cannot_delete_key",
+							Description:      fmt.Sprintf("iamService.Projects.ServiceAccounts.Keys.Delete: %v", err),
+							InitID:           initID,
+						})
 						return keyRestAPIFormat, err
 					}
 				}

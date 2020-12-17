@@ -29,9 +29,12 @@ import (
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gcs"
+	"github.com/BrunoReboul/ram/utilities/gfs"
+	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 
+	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/functions/metadata"
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/storage"
@@ -42,13 +45,19 @@ import (
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	ctx                        context.Context
+	environment                string
+	firestoreClient            *firestore.Client
 	iamTopicName               string
+	instanceName               string
+	microserviceName           string
 	projectID                  string
 	PubSubID                   string
 	pubsubPublisherClient      *pubsub.PublisherClient
 	retryTimeOutSeconds        int64
 	scannerBufferSizeKiloBytes int
 	splitThresholdLineNumber   int64
+	step                       logging.Step
+	stepStack                  logging.Steps
 	storageBucket              *storage.BucketHandle
 }
 
@@ -63,9 +72,10 @@ type asset struct {
 
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
-	Asset  asset      `json:"asset"`
-	Window cai.Window `json:"window"`
-	Origin string     `json:"origin"`
+	Asset     asset         `json:"asset"`
+	Window    cai.Window    `json:"window"`
+	Origin    string        `json:"origin"`
+	StepStack logging.Steps `json:"step_stack,omitempty"`
 }
 
 // assetLegacy uses the CAI export legacy format, not the new CAI feed format
@@ -80,20 +90,40 @@ type assetLegacy struct {
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) (err error) {
+	log.SetFlags(0)
 	global.ctx = ctx
+
 	var instanceDeployment InstanceDeployment
 	var storageClient *storage.Client
 
-	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
-	log.Printf("%s function COLD START", logEntryPrefix)
+	initID := fmt.Sprintf("%v", uuid.New())
 	// err = ffo.ExploreFolder(solution.PathToFunctionCode)
 	// if err != nil {
 	// 	log.Printf("ffo.ExploreFolder %v", err)
 	// }
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
+		log.Println(logging.Entry{
+			Severity:    "CRITICAL",
+			Message:     "init_failed",
+			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
+			InitID:      initID,
+		})
+		return err
 	}
+
+	global.environment = instanceDeployment.Core.EnvironmentName
+	global.instanceName = instanceDeployment.Core.InstanceName
+	global.microserviceName = instanceDeployment.Core.ServiceName
+
+	log.Println(logging.Entry{
+		MicroserviceName: global.microserviceName,
+		InstanceName:     global.instanceName,
+		Environment:      global.environment,
+		Severity:         "NOTICE",
+		Message:          "coldstart",
+		InitID:           initID,
+	})
 
 	global.iamTopicName = instanceDeployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
 	global.projectID = instanceDeployment.Core.SolutionSettings.Hosting.ProjectID
@@ -103,30 +133,98 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("%s storage.NewClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("storage.NewClient(ctx) %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.storageBucket = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name)
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		return fmt.Errorf("%s global.pubsubPublisherClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("pubsub.NewPublisherClient(global.ctx) %v", err),
+			InitID:           initID,
+		})
+		return err
+	}
+	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
+	if err != nil {
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("firestore.NewClient %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	return nil
 }
 
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) error {
-	// log.Println(string(PubSubMessage.Data))
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
+	global.stepStack = nil
 	global.PubSubID = metadata.EventID
+	parts := strings.Split(metadata.Resource.Name, "/")
+	global.step = logging.Step{
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepTimestamp: metadata.Timestamp,
+	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
+	log.Println(logging.Entry{
+		MicroserviceName:           global.microserviceName,
+		InstanceName:               global.instanceName,
+		Environment:                global.environment,
+		Severity:                   "NOTICE",
+		Message:                    "start",
+		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubAgeSeconds: d.Seconds(),
+		TriggeringPubsubTimestamp:  &metadata.Timestamp,
+		Now:                        &now,
+	})
+
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:           global.microserviceName,
+			InstanceName:               global.instanceName,
+			Environment:                global.environment,
+			Severity:                   "CRITICAL",
+			Message:                    "noretry",
+			Description:                "Pubsub message too old",
+			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubAgeSeconds: d.Seconds(),
+			TriggeringPubsubTimestamp:  &metadata.Timestamp,
+			Now:                        &now,
+		})
 		return nil
 	}
 
@@ -136,30 +234,101 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	var pubSubMsgNumber int64
 	var startTime time.Time
 
+	// gcsEventJSON, err := json.Marshal(gcsEvent)
+	// if err != nil {
+	// 	log.Println(logging.Entry{
+	// 		MicroserviceName:   global.microserviceName,
+	// 		InstanceName:       global.instanceName,
+	// 		Environment:        global.environment,
+	// 		Severity:           "WARNING",
+	// 		Message:            fmt.Sprintf("json.Marshal(gcsEvent) %v", err),
+	// 		TriggeringPubsubID: global.PubSubID,
+	// 	})
+	// } else {
+	// 	log.Println(logging.Entry{
+	// 		MicroserviceName:   global.microserviceName,
+	// 		InstanceName:       global.instanceName,
+	// 		Environment:        global.environment,
+	// 		Severity:           "INFO",
+	// 		Message:            "gcsEventJSON",
+	// 		Description:        string(gcsEventJSON),
+	// 		TriggeringPubsubID: global.PubSubID,
+	// 	})
+	// }
+
 	if gcsEvent.ResourceState == "not_exists" {
-		log.Printf("pubsub_id %s object %v deleted.", global.PubSubID, gcsEvent.Name)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "NOTICE",
+			Message:            "cancel",
+			Description:        fmt.Sprintf("deleted object %v", gcsEvent.Name),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
 	if gcsEvent.Size == "0" {
-		log.Printf("pubsub_id %s object %v is empty, nothing to split, ignored", global.PubSubID, gcsEvent.Name)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "NOTICE",
+			Message:            "cancel",
+			Description:        fmt.Sprintf("empty object %v", gcsEvent.Name),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
 	matched, _ := regexp.Match(`dumpinventory.*.dump`, []byte(gcsEvent.Name))
 	if !matched {
-		log.Printf("pubsub_id %s object %v is not a CAI dump", global.PubSubID, gcsEvent.Name)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "NOTICE",
+			Message:            "cancel",
+			Description:        fmt.Sprintf("not a cai dump %v", gcsEvent.Name),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
 	if gcsEvent.Metageneration == "1" {
 		// The metageneration attribute is updated on metadata changes.
 		// The on create value is 1.
-		log.Printf("pubsub_id %s object %v created, size: %v bytes\n", global.PubSubID, gcsEvent.Name, gcsEvent.Size)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "INFO",
+			Message:            fmt.Sprintf("new object tirgger %s", gcsEvent.Name),
+			Description:        fmt.Sprintf("size %s", gcsEvent.Size),
+			TriggeringPubsubID: global.PubSubID,
+		})
 	} else {
-		log.Printf("pubsub_id %s object %v updated, size: %v bytes\n", global.PubSubID, gcsEvent.Name, gcsEvent.Size)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "INFO",
+			Message:            fmt.Sprintf("updated object trigger %s", gcsEvent.Name),
+			Description:        fmt.Sprintf("size %s", gcsEvent.Size),
+			TriggeringPubsubID: global.PubSubID,
+		})
 	}
 	storageObject := global.storageBucket.Object(gcsEvent.Name)
 	storageObjectReader, err := storageObject.NewReader(global.ctx)
 	if err != nil {
-		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT storageObject.NewReader: %v", global.PubSubID, err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("storageObject.NewReader(global.ctx) %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
 	defer storageObjectReader.Close()
 	teeStorageObjectReader := io.TeeReader(storageObjectReader, &buffer)
@@ -167,8 +336,28 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	var topicList []string
 	err = gps.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &topicList)
 	if err != nil {
-		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT getTopicList: %v", global.PubSubID, err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("gps.GetTopicList %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
+
+	dumpStepStack := getDumpStepStack(gcsEvent.Name, global, 5)
+	if dumpStepStack != nil {
+		global.stepStack = dumpStepStack
+	}
+
+	var gcsStep logging.Step
+	gcsStep.StepTimestamp = gcsEvent.Updated
+	gcsStep.StepID = gcsEvent.ID
+	global.stepStack = append(global.stepStack, gcsStep)
+	global.stepStack = append(global.stepStack, global.step)
 
 	startTime = gcsEvent.Updated
 	dumpLineNumber = 0
@@ -183,21 +372,66 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 
 	// log.Println("dumpLineNumber", dumpLineNumber, "splitThresholdLineNumber", splitThresholdLineNumber, "duration", duration)
 	if dumpLineNumber > global.splitThresholdLineNumber {
-		dumpLineNumber, childDumpNumber, duration, err = splitToChildDumps(buffer, gcsEvent.Name, childDumpNumber, global)
+		dumpLineNumber, childDumpNumber, duration, err = splitToChildDumps(buffer,
+			gcsEvent.Name,
+			gcsEvent.Generation,
+			strings.Replace(gcsEvent.Updated.Format(time.RFC3339), ":", "_", -1),
+			childDumpNumber,
+			global)
 		if err != nil {
-			log.Printf("pubsub_id %s NORETRY_ERROR splitToChildDumps %v", global.PubSubID, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "CRITICAL",
+				Message:            "noretry",
+				Description:        fmt.Sprintf("splitToChildDumps %v", err),
+				TriggeringPubsubID: global.PubSubID,
+			})
 			return nil
 		}
 		childDumpNumber++
-		log.Printf("pubsub_id %s processed %d lines, created %d childdumps files from %s generation %v duration %v\n", global.PubSubID, dumpLineNumber, childDumpNumber, gcsEvent.Name, gcsEvent.Generation, duration)
+		now := time.Now()
+		latency := now.Sub(global.step.StepTimestamp)
+		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:     global.microserviceName,
+			InstanceName:         global.instanceName,
+			Environment:          global.environment,
+			Severity:             "NOTICE",
+			Message:              fmt.Sprintf("finish split to %d childDumps %s", childDumpNumber, gcsEvent.Name),
+			Description:          fmt.Sprintf("dumpLineNumber %d gcsEvent.Generation %s duration %v", dumpLineNumber, gcsEvent.Generation, duration),
+			Now:                  &now,
+			TriggeringPubsubID:   global.PubSubID,
+			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
+			LatencySeconds:       latency.Seconds(),
+			LatencyE2ESeconds:    latencyE2E.Seconds(),
+			StepStack:            global.stepStack,
+		})
 	} else {
 		dumpLineNumber, duration = splitToLines(buffer, global, &pubSubMsgNumber, &topicList, startTime)
-		log.Printf("pubsub_id %s processed %d lines %d pubsub msg from %s generation %v duration %v\n", global.PubSubID, dumpLineNumber, pubSubMsgNumber, gcsEvent.Name, gcsEvent.Generation, duration)
+		now := time.Now()
+		latency := now.Sub(global.step.StepTimestamp)
+		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:     global.microserviceName,
+			InstanceName:         global.instanceName,
+			Environment:          global.environment,
+			Severity:             "NOTICE",
+			Message:              fmt.Sprintf("finish split to %d lines %s", dumpLineNumber, gcsEvent.Name),
+			Description:          fmt.Sprintf("pubSubMsgNumber %d gcsEvent.Generation %v duration %v", pubSubMsgNumber, gcsEvent.Generation, duration),
+			Now:                  &now,
+			TriggeringPubsubID:   global.PubSubID,
+			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
+			LatencySeconds:       latency.Seconds(),
+			LatencyE2ESeconds:    latencyE2E.Seconds(),
+			StepStack:            global.stepStack,
+		})
 	}
 	return nil
 }
 
-func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumber int64, global *Global) (int64, int64, time.Duration, error) {
+func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, parentGeneration string, parentTimestamp string, childDumpNumber int64, global *Global) (int64, int64, time.Duration, error) {
 	var dumpLineNumber int64
 	var childDumpLineNumber int64
 	var err error
@@ -215,7 +449,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 
 	childDumpLineNumber = 0
 	childDumpContent = ""
-	childDumpName := strings.Replace(parentDumpName, ".dump", fmt.Sprintf(".%d.dump", childDumpNumber), 1)
+	childDumpName := strings.Replace(parentDumpName, ".dump", fmt.Sprintf(".%s.%s.child%d.dump", parentGeneration, parentTimestamp, childDumpNumber), 1)
 	storageObject := global.storageBucket.Object(childDumpName)
 	storageObjectWriter := storageObject.NewWriter(global.ctx)
 	// bufferedWriter := bufio.NewWriter(storageObjectWriter)
@@ -229,7 +463,15 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 			for i = 0; i < 10; i++ {
 				_, err = fmt.Fprint(storageObjectWriter, childDumpContent)
 				if err != nil {
-					log.Printf("pubsub_id %s error iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", global.PubSubID, i, err)
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "WARNING",
+						Message:            "fmt.Fprint(storageObjectWriter, childDumpContent)",
+						Description:        fmt.Sprintf("iteration %d err %v", i, err),
+						TriggeringPubsubID: global.PubSubID,
+					})
 					time.Sleep(i * 100 * time.Millisecond)
 				} else {
 					done = true
@@ -244,7 +486,15 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 			for i = 0; i < 10; i++ {
 				err = storageObjectWriter.Close()
 				if err != nil {
-					log.Printf("pubsub_id %s error iteration %v storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", global.PubSubID, i, childDumpName, dumpLineNumber, childDumpLineNumber, err)
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "WARNING",
+						Message:            fmt.Sprintf("storageObjectWriter.Close() %s", childDumpName),
+						Description:        fmt.Sprintf("iteration %d dumpLineNumber %d childDumpLineNumber %d err %v", i, dumpLineNumber, childDumpLineNumber, err),
+						TriggeringPubsubID: global.PubSubID,
+					})
 					time.Sleep(i * 100 * time.Millisecond)
 				} else {
 					done = true
@@ -254,10 +504,29 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 			if !done {
 				return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
 			}
+			err = gfs.RecordDump(global.ctx,
+				childDumpName,
+				global.firestoreClient,
+				global.stepStack,
+				global.microserviceName,
+				global.instanceName,
+				global.environment,
+				global.PubSubID,
+				5)
+			if err != nil {
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "WARNING",
+					Message:            fmt.Sprintf("recordDump %v", err),
+					TriggeringPubsubID: global.PubSubID,
+				})
+			}
 
 			childDumpNumber++
 			childDumpLineNumber = 0
-			childDumpName = strings.Replace(parentDumpName, ".dump", fmt.Sprintf(".%d.dump", childDumpNumber), 1)
+			childDumpName = strings.Replace(parentDumpName, ".dump", fmt.Sprintf(".%s.%s.child%d.dump", parentGeneration, parentTimestamp, childDumpNumber), 1)
 			storageObject = global.storageBucket.Object(childDumpName)
 			storageObjectWriter = storageObject.NewWriter(global.ctx)
 			childDumpContent = scanner.Text() + "\n"
@@ -269,7 +538,15 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 	for i = 0; i < 10; i++ {
 		_, err = fmt.Fprint(storageObjectWriter, childDumpContent)
 		if err != nil {
-			log.Printf("pubsub_id %s error - iteration %v fmt.Fprint(storageObjectWriter, childDumpContent): %v", global.PubSubID, i, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "WARNING",
+				Message:            "fmt.Fprint(storageObjectWriter, childDumpContent)",
+				Description:        fmt.Sprintf("iteration %d err %v", i, err),
+				TriggeringPubsubID: global.PubSubID,
+			})
 			time.Sleep(i * 100 * time.Millisecond)
 		} else {
 			done = true
@@ -284,7 +561,15 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 	for i = 0; i < 10; i++ {
 		err = storageObjectWriter.Close()
 		if err != nil {
-			log.Printf("pubsub_id %s error - iteration %v storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", global.PubSubID, i, childDumpName, dumpLineNumber, childDumpLineNumber, err)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "WARNING",
+				Message:            fmt.Sprintf("storageObjectWriter.Close() %s", childDumpName),
+				Description:        fmt.Sprintf("iteration %d dumpLineNumber %d childDumpLineNumber %d err %v", i, dumpLineNumber, childDumpLineNumber, err),
+				TriggeringPubsubID: global.PubSubID,
+			})
 			time.Sleep(i * 100 * time.Millisecond)
 		} else {
 			done = true
@@ -294,6 +579,26 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, childDumpNumb
 	if !done {
 		return dumpLineNumber, childDumpNumber, duration, fmt.Errorf("storageObjectWriter.Close %s dumpLineNumber %d childDumpLineNumber %d %v", childDumpName, dumpLineNumber, childDumpLineNumber, err)
 	}
+	err = gfs.RecordDump(global.ctx,
+		childDumpName,
+		global.firestoreClient,
+		global.stepStack,
+		global.microserviceName,
+		global.instanceName,
+		global.environment,
+		global.PubSubID,
+		5)
+	if err != nil {
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "WARNING",
+			Message:            fmt.Sprintf("recordDump %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+	}
+
 	duration = time.Since(start)
 	return dumpLineNumber, childDumpNumber, duration, nil
 }
@@ -320,11 +625,27 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 	var topicName string
 	err := json.Unmarshal([]byte(dumpline), &assetLegacy)
 	if err != nil {
-		log.Println(err, dumpline)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "WARNING",
+			Message:            "json.Unmarshal([]byte(dumpline), &assetLegacy)",
+			Description:        fmt.Sprintf("err %v dumpline %s", err, dumpline),
+			TriggeringPubsubID: global.PubSubID,
+		})
 	} else {
 		asset := transposeAsset(assetLegacy)
 		if asset.IamPolicy == nil && asset.Resource == nil {
-			log.Printf("pubsub_id %s ignored dump line: no IamPolicy object nor Resource object %s", global.PubSubID, dumpline)
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "WARNING",
+				Message:            "ignored dump line: no IamPolicy object nor Resource object",
+				Description:        fmt.Sprintf("dumpline %s", dumpline),
+				TriggeringPubsubID: global.PubSubID,
+			})
 		} else {
 			if asset.IamPolicy != nil {
 				topicName = global.iamTopicName
@@ -333,11 +654,27 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 			}
 			// log.Println("topicName", topicName)
 			if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, topicListPointer, topicName, global.projectID); err != nil {
-				log.Printf("pubsub_id %s ignored dump line: no topic %s to publish %s %v", global.PubSubID, topicName, dumpline, err)
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "WARNING",
+					Message:            fmt.Sprintf("ignored dump line: no topic to publish %s", topicName),
+					Description:        fmt.Sprintf("err %v dumpline %s", err, dumpline),
+					TriggeringPubsubID: global.PubSubID,
+				})
 			} else {
-				feedMessageJSON, err := json.Marshal(getFeedMessage(asset, startTime))
+				feedMessageJSON, err := json.Marshal(getFeedMessage(asset, startTime, global))
 				if err != nil {
-					log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal %v", global.PubSubID, err)
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "CRITICAL",
+						Message:            "noretry",
+						Description:        fmt.Sprintf("json.Marshal(getFeedMessage(asset, startTime)) %v", err),
+						TriggeringPubsubID: global.PubSubID,
+					})
 					return err
 				}
 				var pubSubMessage pubsubpb.PubsubMessage
@@ -352,9 +689,24 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 
 				pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 				if err != nil {
-					log.Printf("pubsub_id %s NORETRY_ERROR global.pubsubPublisherClient.Publish: %v", global.PubSubID, err)
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "WARNING",
+						Message:            fmt.Sprintf("dump line not publihed to pubsub topic %v", err),
+						TriggeringPubsubID: global.PubSubID,
+					})
 				}
-				// log.Printf("Published to pubsub topic %s ids %v %s", topicName, pubsubResponse.MessageIds, string(feedMessageJSON))
+				// log.Println(logging.Entry{
+				// 	MicroserviceName:   global.microserviceName,
+				// 	InstanceName:       global.instanceName,
+				// 	Environment:        global.environment,
+				// 	Severity:           "INFO",
+				// 	Message:            fmt.Sprintf("dump line publihed to pubsub topic %s", topicName),
+				// 	Description:        fmt.Sprintf("MessageIds %v feedMessageJSON %s", pubsubResponse.MessageIds, string(feedMessageJSON)),
+				// 	TriggeringPubsubID: global.PubSubID,
+				// })
 				_ = pubsubResponse
 				*pointerTopubSubMsgNumber++
 			}
@@ -363,11 +715,12 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 	return nil
 }
 
-func getFeedMessage(asset asset, startTime time.Time) feedMessage {
+func getFeedMessage(asset asset, startTime time.Time, global *Global) feedMessage {
 	var feedMessage feedMessage
 	feedMessage.Asset = asset
 	feedMessage.Origin = "batch-export"
 	feedMessage.Window.StartTime = startTime
+	feedMessage.StepStack = global.stepStack
 	return feedMessage
 }
 
@@ -379,4 +732,119 @@ func transposeAsset(assetLegacy assetLegacy) asset {
 	asset.Resource = assetLegacy.Resource
 	asset.Ancestors = assetLegacy.Ancestors
 	return asset
+}
+
+func getDumpStepStack(objectName string, global *Global, retriesNumber time.Duration) (stepStack logging.Steps) {
+	var i time.Duration
+	documentPath := fmt.Sprintf("dumps/%s", strings.Replace(objectName, ".dump", "", 1))
+	var documentSnap *firestore.DocumentSnapshot
+	var err error
+	for i = 0; i < retriesNumber; i++ {
+		documentSnap, err = global.firestoreClient.Doc(documentPath).Get(global.ctx)
+		if err != nil {
+			if strings.Contains(strings.ToLower(strings.Replace(err.Error(), " ", "", -1)), "notfound") {
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "WARNING",
+					Message:            "recordDump dump document does not exist",
+					Description:        fmt.Sprintf("global.firestoreClient.Doc(documentPath).Get %s %v", documentPath, err),
+					TriggeringPubsubID: global.PubSubID,
+				})
+				return nil
+			}
+			log.Println(logging.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "WARNING",
+				Message:            fmt.Sprintf("iteration %d global.firestoreClient.Doc(documentPath).Get %s %v", i, documentPath, err),
+				TriggeringPubsubID: global.PubSubID,
+			})
+			time.Sleep(i * 100 * time.Millisecond)
+		} else {
+			rawStepStackInterface, err := documentSnap.DataAt("stepStack")
+			if err != nil {
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "WARNING",
+					Message:            fmt.Sprintf("iteration %d stepStack, err := documentSnap.DataAt %s %v", i, documentPath, err),
+					TriggeringPubsubID: global.PubSubID,
+				})
+				time.Sleep(i * 100 * time.Millisecond)
+			} else {
+				rawStepStack, ok := rawStepStackInterface.([]interface{})
+				if !ok {
+					log.Println(logging.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "WARNING",
+						Message:            fmt.Sprintf("rawStepStackInterface unexected type is %T", rawStepStackInterface),
+						TriggeringPubsubID: global.PubSubID,
+					})
+					return nil
+				}
+				stepStack = nil
+				var step logging.Step
+				for _, rawStepInterface := range rawStepStack {
+					rawStep, ok := rawStepInterface.(map[string]interface{})
+					if !ok {
+						log.Println(logging.Entry{
+							MicroserviceName:   global.microserviceName,
+							InstanceName:       global.instanceName,
+							Environment:        global.environment,
+							Severity:           "WARNING",
+							Message:            fmt.Sprintf("rawStepInterface unexected type is %T", rawStepInterface),
+							TriggeringPubsubID: global.PubSubID,
+						})
+						return nil
+					}
+					var stepIDInterface interface{} = rawStep["StepID"]
+					stepID, ok := stepIDInterface.(string)
+					if !ok {
+						log.Println(logging.Entry{
+							MicroserviceName:   global.microserviceName,
+							InstanceName:       global.instanceName,
+							Environment:        global.environment,
+							Severity:           "WARNING",
+							Message:            fmt.Sprintf("stepIDInterface unexected type is %T", stepIDInterface),
+							TriggeringPubsubID: global.PubSubID,
+						})
+						return nil
+					}
+					var stepTimestampInterface interface{} = rawStep["StepTimestamp"]
+					stepTimestamp, ok := stepTimestampInterface.(time.Time)
+					if !ok {
+						log.Println(logging.Entry{
+							MicroserviceName:   global.microserviceName,
+							InstanceName:       global.instanceName,
+							Environment:        global.environment,
+							Severity:           "WARNING",
+							Message:            fmt.Sprintf("stepTimestampInterface unexected type is %T", stepTimestampInterface),
+							TriggeringPubsubID: global.PubSubID,
+						})
+						return nil
+					}
+					step.StepID = stepID
+					step.StepTimestamp = stepTimestamp
+					stepStack = append(stepStack, step)
+				}
+				log.Println(logging.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "INFO",
+					Message:            fmt.Sprintf("dump stepStack retrieved %s", documentPath),
+					Description:        fmt.Sprintf("stepStack %v", stepStack),
+					TriggeringPubsubID: global.PubSubID,
+				})
+				return stepStack
+			}
+		}
+	}
+	return nil
 }

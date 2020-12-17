@@ -28,6 +28,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gbq"
 	"github.com/BrunoReboul/ram/utilities/gps"
+	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -43,11 +44,16 @@ type Global struct {
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
 	ctx                           context.Context
+	environment                   string
 	firestoreClient               *firestore.Client
 	inserter                      *bigquery.Inserter
+	instanceName                  string
+	microserviceName              string
 	ownerLabelKeyName             string
 	PubSubID                      string
 	retryTimeOutSeconds           int64
+	step                          logging.Step
+	stepStack                     logging.Steps
 	tableName                     string
 	violationResolverLabelKeyName string
 }
@@ -59,6 +65,7 @@ type violation struct {
 	ConstraintConfig constraintConfig `json:"constraintConfig"`
 	FeedMessage      feedMessage      `json:"feedMessage"`
 	RegoModules      json.RawMessage  `json:"regoModules"`
+	StepStack        logging.Steps    `json:"step_stack,omitempty"`
 }
 
 // violationBQ from the "audit" rego policy in "audit.rego" module
@@ -133,9 +140,10 @@ type specBQ struct {
 
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
-	Asset  asset      `json:"asset"`
-	Window cai.Window `json:"window"`
-	Origin string     `json:"origin"`
+	Asset     asset         `json:"asset"`
+	Window    cai.Window    `json:"window"`
+	Origin    string        `json:"origin"`
+	StepStack logging.Steps `json:"step_stack,omitempty"`
 }
 
 // feedMessageBQ format to persist in BQ
@@ -197,18 +205,37 @@ type assetAssetBQ struct {
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
 func Initialize(ctx context.Context, global *Global) (err error) {
+	log.SetFlags(0)
 	global.ctx = ctx
 
 	var instanceDeployment InstanceDeployment
 	var bigQueryClient *bigquery.Client
 	var table *bigquery.Table
 
-	logEntryPrefix := fmt.Sprintf("init_id %s", uuid.New())
-	log.Printf("%s function COLD START", logEntryPrefix)
+	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		return fmt.Errorf("%s ReadUnmarshalYAML %s %v", logEntryPrefix, solution.SettingsFileName, err)
+		log.Println(logging.Entry{
+			Severity:    "CRITICAL",
+			Message:     "init_failed",
+			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
+			InitID:      initID,
+		})
+		return err
 	}
+
+	global.environment = instanceDeployment.Core.EnvironmentName
+	global.instanceName = instanceDeployment.Core.InstanceName
+	global.microserviceName = instanceDeployment.Core.ServiceName
+
+	log.Println(logging.Entry{
+		MicroserviceName: global.microserviceName,
+		InstanceName:     global.instanceName,
+		Environment:      global.environment,
+		Severity:         "NOTICE",
+		Message:          "coldstart",
+		InitID:           initID,
+	})
 
 	datasetName := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Dataset.Name
 	global.assetsCollectionID = instanceDeployment.Core.SolutionSettings.Hosting.FireStore.CollectionIDs.Assets
@@ -220,31 +247,85 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	bigQueryClient, err = bigquery.NewClient(global.ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("%s bigquery.NewClient: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("bigquery.NewClient %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	dataset := bigQueryClient.Dataset(datasetName)
 	_, err = dataset.Metadata(ctx)
 	if err != nil {
-		return fmt.Errorf("%s dataset.Metadata: %v", logEntryPrefix, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("dataset.Metadata %v", err),
+			InitID:           initID,
+		})
+		return err
 	}
 	table = dataset.Table(global.tableName)
 	_, err = table.Metadata(ctx)
 	if err != nil {
-		return fmt.Errorf("%s missing table %s %v", logEntryPrefix, global.tableName, err)
+		log.Println(logging.Entry{
+			MicroserviceName: global.microserviceName,
+			InstanceName:     global.instanceName,
+			Environment:      global.environment,
+			Severity:         "CRITICAL",
+			Message:          "init_failed",
+			Description:      fmt.Sprintf("missing table %s %v", global.tableName, err),
+			InitID:           initID,
+		})
+		return err
 	}
 	global.inserter = table.Inserter()
 	if global.tableName == "assets" {
 		global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(global.ctx)
 		if err != nil {
-			return fmt.Errorf("%s cloudresourcemanager.NewService: %v", logEntryPrefix, err)
+			log.Println(logging.Entry{
+				MicroserviceName: global.microserviceName,
+				InstanceName:     global.instanceName,
+				Environment:      global.environment,
+				Severity:         "CRITICAL",
+				Message:          "init_failed",
+				Description:      fmt.Sprintf("cloudresourcemanager.NewService %v", err),
+				InitID:           initID,
+			})
+			return err
 		}
 		global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(global.ctx)
 		if err != nil {
-			return fmt.Errorf("%s cloudresourcemanagerv2.NewService: %v", logEntryPrefix, err)
+			log.Println(logging.Entry{
+				MicroserviceName: global.microserviceName,
+				InstanceName:     global.instanceName,
+				Environment:      global.environment,
+				Severity:         "CRITICAL",
+				Message:          "init_failed",
+				Description:      fmt.Sprintf("cloudresourcemanagerv2.NewService %v", err),
+				InitID:           initID,
+			})
+			return err
 		}
 		global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
 		if err != nil {
-			return fmt.Errorf("%s firestore.NewClient: %v", logEntryPrefix, err)
+			log.Println(logging.Entry{
+				MicroserviceName: global.microserviceName,
+				InstanceName:     global.instanceName,
+				Environment:      global.environment,
+				Severity:         "CRITICAL",
+				Message:          "init_failed",
+				Description:      fmt.Sprintf("firestore.NewClient %v", err),
+				InitID:           initID,
+			})
+			return err
 		}
 	}
 	return nil
@@ -256,62 +337,164 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		return fmt.Errorf("pubsub_id no available REDO_ON_TRANSIENT metadata.FromContext: %v", err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        fmt.Sprintf("pubsub_id no available metadata.FromContext: %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
 	}
+	global.stepStack = nil
 	global.PubSubID = metadata.EventID
+	parts := strings.Split(metadata.Resource.Name, "/")
+	global.step = logging.Step{
+		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
+		StepTimestamp: metadata.Timestamp,
+	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
+	log.Println(logging.Entry{
+		MicroserviceName:           global.microserviceName,
+		InstanceName:               global.instanceName,
+		Environment:                global.environment,
+		Severity:                   "NOTICE",
+		Message:                    "start",
+		TriggeringPubsubID:         global.PubSubID,
+		TriggeringPubsubAgeSeconds: d.Seconds(),
+		TriggeringPubsubTimestamp:  &metadata.Timestamp,
+		Now:                        &now,
+	})
+
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Printf("pubsub_id %s NORETRY_ERROR pubsub message too old. max age sec %d now %v event timestamp %s", global.PubSubID, global.retryTimeOutSeconds, now, metadata.Timestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:           global.microserviceName,
+			InstanceName:               global.instanceName,
+			Environment:                global.environment,
+			Severity:                   "CRITICAL",
+			Message:                    "noretry",
+			Description:                "Pubsub message too old",
+			TriggeringPubsubID:         global.PubSubID,
+			TriggeringPubsubAgeSeconds: d.Seconds(),
+			TriggeringPubsubTimestamp:  &metadata.Timestamp,
+			Now:                        &now,
+		})
 		return nil
 	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Printf("pubsub_id %s ignored pubsub message: %s", global.PubSubID, string(PubSubMessage.Data))
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "NOTICE",
+			Message:            "cancel",
+			Description:        fmt.Sprintf("ignored pubsub message: %s", string(PubSubMessage.Data)),
+			TriggeringPubsubID: global.PubSubID,
+		})
 		return nil
 	}
+	var insertID string
 	switch global.tableName {
 	case "complianceStatus":
-		err = persistComplianceStatus(PubSubMessage.Data, global)
+		insertID, err = persistComplianceStatus(PubSubMessage.Data, global)
 	case "violations":
-		err = persistViolation(PubSubMessage.Data, global)
+		insertID, err = persistViolation(PubSubMessage.Data, global)
 	case "assets":
-		err = persistAsset(PubSubMessage.Data, global)
+		insertID, err = persistAsset(PubSubMessage.Data, global)
 	}
 	if err != nil {
-		return fmt.Errorf("pubsub_id %s REDO_ON_TRANSIENT %v", global.PubSubID, err)
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "redo_on_transient",
+			Description:        err.Error(),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return err
+	}
+	if insertID != "" {
+		now := time.Now()
+		latency := now.Sub(metadata.Timestamp)
+		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
+		log.Println(logging.Entry{
+			MicroserviceName:     global.microserviceName,
+			InstanceName:         global.instanceName,
+			Environment:          global.environment,
+			Severity:             "NOTICE",
+			Message:              fmt.Sprintf("finish %s", insertID),
+			Now:                  &now,
+			TriggeringPubsubID:   global.PubSubID,
+			OriginEventTimestamp: &global.stepStack[0].StepTimestamp,
+			LatencySeconds:       latency.Seconds(),
+			LatencyE2ESeconds:    latencyE2E.Seconds(),
+			StepStack:            global.stepStack,
+		})
+		// Description:          fmt.Sprintf("insert %s ok %s", global.tableName, insertID),
 	}
 	// log.Printf("pubsub_id %s exit nil", global.PubSubID)
 	return nil
 }
 
-func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) error {
+func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) (insertID string, err error) {
 	var complianceStatus monitor.ComplianceStatus
-	err := json.Unmarshal(pubSubJSONDoc, &complianceStatus)
+	err = json.Unmarshal(pubSubJSONDoc, &complianceStatus)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &complianceStatus) %s %v", global.PubSubID, string(pubSubJSONDoc), err)
-		return nil
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubJSONDoc, &complianceStatus) %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
-	insertID := fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
+	if complianceStatus.StepStack != nil {
+		global.stepStack = append(complianceStatus.StepStack, global.step)
+	} else {
+		global.stepStack = append(global.stepStack, global.step)
+	}
+
+	insertID = fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
 	savers := []*bigquery.StructSaver{
 		{Struct: complianceStatus, Schema: gbq.GetComplianceStatusSchema(), InsertID: insertID},
 	}
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
-		return fmt.Errorf("inserter.Put %v %v", err, savers)
+		return "", fmt.Errorf("inserter.Put %v %v", err, savers)
 	}
-	log.Printf("pubsub_id %s insert complianceStatus ok %s", global.PubSubID, insertID)
-	return nil
+	return insertID, nil
 }
 
-func persistViolation(pubSubJSONDoc []byte, global *Global) error {
+func persistViolation(pubSubJSONDoc []byte, global *Global) (insertID string, err error) {
 	var violation violation
 	var violationBQ violationBQ
-	err := json.Unmarshal(pubSubJSONDoc, &violation)
+	err = json.Unmarshal(pubSubJSONDoc, &violation)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &violation): %s %v", global.PubSubID, string(pubSubJSONDoc), err)
-		return nil
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubJSONDoc, &violation) %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
+	if violation.StepStack != nil {
+		global.stepStack = append(violation.StepStack, global.step)
+	} else {
+		global.stepStack = append(global.stepStack, global.step)
+	}
+
 	violationBQ.NonCompliance.Message = violation.NonCompliance.Message
 	violationBQ.NonCompliance.Metadata = string(violation.NonCompliance.Metadata)
 	violationBQ.FunctionConfig = violation.FunctionConfig
@@ -335,40 +518,67 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) error {
 	violationBQ.FeedMessage.Asset.Resource = string(violation.FeedMessage.Asset.Resource)
 	violationBQ.RegoModules = string(violation.RegoModules)
 
-	// violationBQJSON, err := json.Marshal(violationBQ)
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// log.Println(string(violationBQJSON))
-
-	insertID := fmt.Sprintf("%s%v%s%v%s", violationBQ.FeedMessage.Asset.Name, violation.FeedMessage.Window.StartTime, violation.FunctionConfig.FunctionName, violation.FunctionConfig.DeploymentTime, violation.NonCompliance.Message)
+	insertID = fmt.Sprintf("%s%v%s%v%s", violationBQ.FeedMessage.Asset.Name, violation.FeedMessage.Window.StartTime, violation.FunctionConfig.FunctionName, violation.FunctionConfig.DeploymentTime, violation.NonCompliance.Message)
 	savers := []*bigquery.StructSaver{
 		{Struct: violationBQ, Schema: gbq.GetViolationsSchema(), InsertID: insertID},
 	}
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
-		return fmt.Errorf("inserter.Put %v", err)
+		return "", fmt.Errorf("inserter.Put %v", err)
 	}
-	log.Printf("pubsub_id %s insert violation ok %s", global.PubSubID, insertID)
-	return nil
+	return insertID, nil
 }
 
-func persistAsset(pubSubJSONDoc []byte, global *Global) error {
+func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err error) {
 	var feedMessage feedMessage
-	err := json.Unmarshal(pubSubJSONDoc, &feedMessage)
+	err = json.Unmarshal(pubSubJSONDoc, &feedMessage)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &feedMessage) %s %v", global.PubSubID, string(pubSubJSONDoc), err)
-		return nil
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubJSONDoc, &feedMessage) %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
 	var assetFeedMessageBQ assetFeedMessageBQ
 	err = json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)
 	if err != nil {
-		log.Printf("pubsub_id %s NORETRY_ERROR json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ): %v", global.PubSubID, err)
-		return nil
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        fmt.Sprintf("json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ) %v", err),
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
 	if assetFeedMessageBQ.Asset.Name == "" {
-		log.Printf("pubsub_id %s NORETRY_ERROR assetFeedMessageBQ.Asset.Name is empty", global.PubSubID)
-		return nil
+		log.Println(logging.Entry{
+			MicroserviceName:   global.microserviceName,
+			InstanceName:       global.instanceName,
+			Environment:        global.environment,
+			Severity:           "CRITICAL",
+			Message:            "noretry",
+			Description:        "assetFeedMessageBQ.Asset.Name is empty",
+			TriggeringPubsubID: global.PubSubID,
+		})
+		return "", nil
 	}
+	if feedMessage.StepStack != nil {
+		global.stepStack = append(feedMessage.StepStack, global.step)
+	} else {
+		var caiStep logging.Step
+		caiStep.StepTimestamp = feedMessage.Window.StartTime
+		caiStep.StepID = fmt.Sprintf("%s/%s", feedMessage.Asset.Name, caiStep.StepTimestamp.Format(time.RFC3339))
+		global.stepStack = append(global.stepStack, caiStep)
+		global.stepStack = append(global.stepStack, global.step)
+	}
+
 	assetFeedMessageBQ.Asset.Timestamp = feedMessage.Window.StartTime
 	assetFeedMessageBQ.Asset.Deleted = assetFeedMessageBQ.Deleted
 	assetFeedMessageBQ.Asset.AncestryPath = cai.BuildAncestryPath(assetFeedMessageBQ.Asset.Ancestors)
@@ -377,14 +587,13 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) error {
 	assetFeedMessageBQ.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)
 	assetFeedMessageBQ.Asset.ViolationResolver, _ = cai.GetAssetLabelValue(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
 
-	insertID := fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
+	insertID = fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
 	savers := []*bigquery.StructSaver{
 		{Struct: assetFeedMessageBQ.Asset, Schema: gbq.GetAssetsSchema(), InsertID: insertID},
 	}
 
 	if err := global.inserter.Put(global.ctx, savers); err != nil {
-		return fmt.Errorf("inserter.Put %v", err)
+		return "", fmt.Errorf("inserter.Put %v", err)
 	}
-	log.Printf("pubsub_id %s insert asset ok %s", global.PubSubID, insertID)
-	return nil
+	return insertID, nil
 }
