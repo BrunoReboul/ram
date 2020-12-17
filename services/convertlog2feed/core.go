@@ -676,6 +676,10 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 		Window  struct {
 			StartTime time.Time `firestore:"startTime" json:"startTime"`
 		} `firestore:"window" json:"window"`
+		StepStack []struct {
+			StepID        string    `firestore:"step_id" json:"step_id,omitempty"`
+			StepTimestamp time.Time `firestore:"step_timestamp" json:"step_timestamp,omitempty"`
+		} `firestore:"stepStack" json:"stepStack"`
 	}
 	var retreivedFeedMessageGroup cachedFeedMessageGroup
 	found := false
@@ -711,6 +715,15 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 			retreivedFeedMessageGroup.Window.StartTime = global.logEntry.Timestamp
 			retreivedFeedMessageGroup.Origin = "real-time-log-export"
 			retreivedFeedMessageGroup.Deleted = true
+			for _, step := range global.stepStack {
+				retreivedFeedMessageGroup.StepStack = append(retreivedFeedMessageGroup.StepStack, struct {
+					StepID        string    `firestore:"step_id" json:"step_id,omitempty"`
+					StepTimestamp time.Time `firestore:"step_timestamp" json:"step_timestamp,omitempty"`
+				}{
+					StepID:        step.StepID,
+					StepTimestamp: step.StepTimestamp,
+				})
+			}
 
 			err = publishGroup(retreivedFeedMessageGroup,
 				retreivedFeedMessageGroup.Deleted,
@@ -835,6 +848,7 @@ func publishGroupMemberCreationOrUpdate(groupEmail string, memberEmail string, g
 	feedMessage.Window.StartTime = global.logEntry.Timestamp
 	feedMessage.Origin = "real-time-log-export"
 	feedMessage.Deleted = false
+	feedMessage.StepStack = global.stepStack
 	return publishGroupMember(feedMessage, feedMessage.Deleted, groupEmail, memberEmail, feedMessage.Asset.Name, global)
 }
 
@@ -868,6 +882,10 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 		Window  struct {
 			StartTime time.Time `firestore:"startTime" json:"startTime"`
 		} `firestore:"window" json:"window"`
+		StepStack []struct {
+			StepID        string    `firestore:"step_id" json:"step_id,omitempty"`
+			StepTimestamp time.Time `firestore:"step_timestamp" json:"step_timestamp,omitempty"`
+		} `firestore:"stepStack" json:"stepStack"`
 	}
 	var retreivedFeedMessageGroupMember cachedFeedMessageGroupMember
 	found := false
@@ -903,6 +921,15 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 			retreivedFeedMessageGroupMember.Window.StartTime = global.logEntry.Timestamp
 			retreivedFeedMessageGroupMember.Origin = "real-time-log-export"
 			retreivedFeedMessageGroupMember.Deleted = true
+			for _, step := range global.stepStack {
+				retreivedFeedMessageGroupMember.StepStack = append(retreivedFeedMessageGroupMember.StepStack, struct {
+					StepID        string    `firestore:"step_id" json:"step_id,omitempty"`
+					StepTimestamp time.Time `firestore:"step_timestamp" json:"step_timestamp,omitempty"`
+				}{
+					StepID:        step.StepID,
+					StepTimestamp: step.StepTimestamp,
+				})
+			}
 
 			err = publishGroupMember(retreivedFeedMessageGroupMember,
 				retreivedFeedMessageGroupMember.Deleted,
@@ -987,6 +1014,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 	feedMessageGroupSettings.Origin = "real-time-log-export"
 	feedMessageGroupSettings.Asset.AssetType = "groupssettings.googleapis.com/groupSettings"
 	feedMessageGroupSettings.Deleted = false
+	feedMessageGroupSettings.StepStack = global.stepStack
 
 	var groupID string
 	groupSettings, err := global.groupsSettingsService.Groups.Get(groupEmail).Do()
