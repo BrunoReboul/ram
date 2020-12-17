@@ -260,7 +260,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 // EntryPoint is the function to be executed for each cloud function occurence
 func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, global *Global) error {
-	// log.Println(string(PubSubMessage.Data))
+	log.Println(string(PubSubMessage.Data))
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
@@ -282,7 +282,6 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 		StepTimestamp: metadata.Timestamp,
 	}
-	global.stepStack = append(global.stepStack, global.step)
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
@@ -327,6 +326,11 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		})
 		return nil
 	}
+	var logStep logging.Step
+	logStep.StepID = fmt.Sprintf("%s/%s", global.logEntry.Resource, global.logEntry.InsertID)
+	logStep.StepTimestamp = global.logEntry.ReceiveTimestamp
+	global.stepStack = append(global.stepStack, logStep)
+	global.stepStack = append(global.stepStack, global.step)
 
 	switch global.logEntry.Resource.Type {
 	case "audited_resource":
