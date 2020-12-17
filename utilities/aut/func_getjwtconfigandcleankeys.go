@@ -29,10 +29,21 @@ func getJWTConfigAndCleanKeys(ctx context.Context,
 	gciAdminUserToImpersonate string,
 	scopes []string,
 	serviceAccountKeyNames []string,
-	logEntryPrefix string) (
+	initID string,
+	microserviceName string,
+	instanceName string,
+	environment string) (
 	jwtConfig *jwt.Config,
 	err error) {
-	keyRestAPIFormat, err := getKeyJSONdataAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, serviceAccountKeyNames, logEntryPrefix)
+	keyRestAPIFormat, err := getKeyJSONdataAndCleanKeys(ctx,
+		serviceAccountEmail,
+		keyJSONFilePath,
+		projectID,
+		serviceAccountKeyNames,
+		initID,
+		microserviceName,
+		instanceName,
+		environment)
 	if err != nil {
 		return jwtConfig, err
 	}

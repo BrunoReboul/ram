@@ -16,25 +16,65 @@ package gps
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/BrunoReboul/ram/utilities/logging"
 )
 
 // GetPublishCallResult func to be used in go routine to scale pubsub event publish
-func GetPublishCallResult(ctx context.Context, publishResult *pubsub.PublishResult, waitgroup *sync.WaitGroup, msgInfo string, pubSubErrNumber *uint64, pubSubMsgNumber *uint64, logEventEveryXPubSubMsg uint64) {
+func GetPublishCallResult(ctx context.Context,
+	publishResult *pubsub.PublishResult,
+	waitgroup *sync.WaitGroup,
+	msgInfo string,
+	pubSubErrNumber *uint64,
+	pubSubMsgNumber *uint64,
+	logEventEveryXPubSubMsg uint64,
+	pubSubID string,
+	microserviceName string,
+	instanceName string,
+	environment string) {
 	defer waitgroup.Done()
 	id, err := publishResult.Get(ctx)
 	if err != nil {
-		log.Printf("ERROR count %d on %s: %v", atomic.AddUint64(pubSubErrNumber, 1), msgInfo, err)
+		log.Println(logging.Entry{
+			MicroserviceName:   microserviceName,
+			InstanceName:       instanceName,
+			Environment:        environment,
+			Severity:           "WARNING",
+			Message:            "publishResult.Get(ctx)",
+			Description:        fmt.Sprintf("count %d on %s: %v", atomic.AddUint64(pubSubErrNumber, 1), msgInfo, err),
+			TriggeringPubsubID: pubSubID,
+		})
 		return
 	}
 	msgNumber := atomic.AddUint64(pubSubMsgNumber, 1)
+
+	// debug log
+	// log.Println(logging.Entry{
+	// 	MicroserviceName:   microserviceName,
+	// 	InstanceName:       instanceName,
+	// 	Environment:        environment,
+	// 	Severity:           "INFO",
+	// 	Message:            fmt.Sprintf("GetPublishCallResult %s pubSubMsgNumber %d", msgInfo, msgNumber),
+	// 	Description:        fmt.Sprintf("id %s", id),
+	// 	TriggeringPubsubID: pubSubID,
+	// })
+	// end debug log
+
 	if msgNumber%logEventEveryXPubSubMsg == 0 {
 		// No retry on pubsub publish as already implemented in the GO client
-		log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
+		log.Println(logging.Entry{
+			MicroserviceName:   microserviceName,
+			InstanceName:       instanceName,
+			Environment:        environment,
+			Severity:           "INFO",
+			Message:            fmt.Sprintf("progression %d messages published", msgNumber),
+			Description:        fmt.Sprintf("now %s id %s", msgInfo, id),
+			TriggeringPubsubID: pubSubID,
+		})
 	}
-	// log.Printf("Progression %d messages published, now %s id %s", msgNumber, msgInfo, id)
 }

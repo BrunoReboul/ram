@@ -29,12 +29,25 @@ func GetClientOptionAndCleanKeys(ctx context.Context,
 	gciAdminUserToImpersonate string,
 	scopes []string,
 	serviceAccountKeyNames []string,
-	logEntryPrefix string) (
+	initID string,
+	microserviceName string,
+	instanceName string,
+	environment string) (
 	option.ClientOption, bool) {
 	var clientOption option.ClientOption
 	var jwtConfig *jwt.Config
 
-	jwtConfig, err := getJWTConfigAndCleanKeys(ctx, serviceAccountEmail, keyJSONFilePath, projectID, gciAdminUserToImpersonate, scopes, serviceAccountKeyNames, logEntryPrefix)
+	jwtConfig, err := getJWTConfigAndCleanKeys(ctx,
+		serviceAccountEmail,
+		keyJSONFilePath,
+		projectID,
+		gciAdminUserToImpersonate,
+		scopes,
+		serviceAccountKeyNames,
+		initID,
+		microserviceName,
+		instanceName,
+		environment)
 	if err != nil {
 		return clientOption, false
 	}
