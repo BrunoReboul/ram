@@ -181,6 +181,6 @@ func getLastComplianceStatusQuery(projectID string, datasetName string, interval
 	query = strings.Replace(lastComplianceStatusQuery, "<last_assets>", lastAssetsViewName, -1)
 	complianceStatusTableName := fmt.Sprintf("`%s.%s.complianceStatus`", projectID, datasetName)
 	query = strings.Replace(query, "<complianceStatus>", complianceStatusTableName, -1)
-	query = strings.Replace(query, "<intervalDays>", string(intervalDays), -1)
+	query = strings.Replace(query, "<intervalDays>", fmt.Sprintf("%d", intervalDays), -1)
 	return query
 }

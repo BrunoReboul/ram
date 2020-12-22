@@ -52,6 +52,6 @@ FROM
 func getLastAssetsQuery(projectID string, datasetName string, intervalDays int64) (query string) {
 	assetsTableName := fmt.Sprintf("`%s.%s.assets`", projectID, datasetName)
 	query = strings.Replace(lastAssetsQuery, "<assets>", assetsTableName, -1)
-	query = strings.Replace(query, "<intervalDays>", string(intervalDays), -1)
+	query = strings.Replace(query, "<intervalDays>", fmt.Sprintf("%d", intervalDays), -1)
 	return query
 }

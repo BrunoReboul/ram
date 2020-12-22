@@ -55,6 +55,6 @@ func getActiveViolationsQuery(projectID string, datasetName string, intervalDays
 	query = strings.Replace(activeViolationsQuery, "<last_compliancestatus>", lastComplianceStatusViewName, -1)
 	violationsTableName := fmt.Sprintf("`%s.%s.violations`", projectID, datasetName)
 	query = strings.Replace(query, "<violations>", violationsTableName, -1)
-	query = strings.Replace(query, "<intervalDays>", string(intervalDays), -1)
+	query = strings.Replace(query, "<intervalDays>", fmt.Sprintf("%d", intervalDays), -1)
 	return query
 }
