@@ -88,7 +88,7 @@ func createUpdateView(ctx context.Context, tableName string, dataset *bigquery.D
 		tableMetadataToUpdate.UseLegacySQL = false
 		tableMetadataRetreived, err = table.Update(ctx, tableMetadataToUpdate, "")
 		if err != nil {
-			return fmt.Errorf("ERROR when updating view %s %v", viewName, err)
+			return fmt.Errorf("ERROR when updating view %s %v \n%s", viewName, err, query)
 		}
 		log.Printf("View updated %s", tableMetadataRetreived.Name)
 	}

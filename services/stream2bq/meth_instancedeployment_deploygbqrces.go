@@ -16,6 +16,7 @@ package stream2bq
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/BrunoReboul/ram/utilities/gbq"
 )
@@ -29,6 +30,7 @@ func (instanceDeployment *InstanceDeployment) deployGBQRces() (err error) {
 	if intervalDays == 0 {
 		intervalDays = 365
 	}
+	log.Printf("gbq views intervalDays %d", intervalDays)
 
 	switch tableName {
 	case "complianceStatus":
