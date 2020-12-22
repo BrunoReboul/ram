@@ -60,6 +60,9 @@ type Settings struct {
 				Name     string `valid:"isNotZeroValue"`
 				Location string `valid:"isNotZeroValue"`
 			}
+			Views struct {
+				IntervalDays int64 `yaml:"intervalDays,omitempty"`
+			}
 		}
 		Pubsub struct {
 			TopicNames struct {

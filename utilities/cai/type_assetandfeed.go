@@ -35,11 +35,12 @@ type assetGroup struct {
 
 // assetGroupSettings CAI like format
 type assetGroupSettings struct {
-	Name      string                 `json:"name"`
-	AssetType string                 `json:"assetType"`
-	Ancestors []string               `json:"ancestors"`
-	IamPolicy json.RawMessage        `json:"iamPolicy"`
-	Resource  *groupssettings.Groups `json:"resource"`
+	Name         string                 `json:"name"`
+	AssetType    string                 `json:"assetType"`
+	Ancestors    []string               `json:"ancestors"`
+	AncestryPath string                 `json:"ancestryPath"`
+	IamPolicy    json.RawMessage        `json:"iamPolicy"`
+	Resource     *groupssettings.Groups `json:"resource"`
 }
 
 // assetMember CAI like format

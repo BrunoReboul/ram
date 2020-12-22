@@ -21,7 +21,7 @@ import (
 )
 
 // GetViolations provision violations table, view, and dependencies
-func GetViolations(ctx context.Context, bigQueryClient *bigquery.Client, location string, datasetName string) (table *bigquery.Table, err error) {
+func GetViolations(ctx context.Context, bigQueryClient *bigquery.Client, location string, datasetName string, intervalDays int64) (table *bigquery.Table, err error) {
 	dataset, err := getDataset(ctx, datasetName, location, bigQueryClient)
 	if err != nil {
 		return nil, err
@@ -31,11 +31,11 @@ func GetViolations(ctx context.Context, bigQueryClient *bigquery.Client, locatio
 		return nil, err
 	}
 	// Ensure lastCompliancestatus view exists
-	_, err = GetComplianceStatus(ctx, bigQueryClient, location, datasetName)
+	_, err = GetComplianceStatus(ctx, bigQueryClient, location, datasetName, intervalDays)
 	if err != nil {
 		return nil, err
 	}
-	err = createUpdateView(ctx, "violations", dataset)
+	err = createUpdateView(ctx, "violations", dataset, intervalDays)
 	if err != nil {
 		return nil, err
 	}

@@ -42,7 +42,7 @@ FROM
     FROM
       <violations>
     WHERE
-      DATE(_PARTITIONTIME) > DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR)
+      DATE(_PARTITIONTIME) > DATE_SUB(CURRENT_DATE(), INTERVAL <intervalDays> DAY)
       OR _PARTITIONTIME IS NULL
   ) AS violations ON violations.functionConfig.functionName = <last_compliancestatus>.ruleName
   AND violations.functionConfig.deploymentTime = <last_compliancestatus>.ruleDeploymentTimeStamp
@@ -50,10 +50,11 @@ FROM
   AND violations.feedMessage.window.startTime = <last_compliancestatus>.assetInventoryTimeStamp
 `
 
-func getActiveViolationsQuery(projectID string, datasetName string) (query string) {
+func getActiveViolationsQuery(projectID string, datasetName string, intervalDays int64) (query string) {
 	lastComplianceStatusViewName := fmt.Sprintf("`%s.%s.last_compliancestatus`", projectID, datasetName)
 	query = strings.Replace(activeViolationsQuery, "<last_compliancestatus>", lastComplianceStatusViewName, -1)
 	violationsTableName := fmt.Sprintf("`%s.%s.violations`", projectID, datasetName)
 	query = strings.Replace(query, "<violations>", violationsTableName, -1)
+	query = strings.Replace(query, "<intervalDays>", string(intervalDays), -1)
 	return query
 }

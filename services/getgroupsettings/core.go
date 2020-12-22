@@ -249,6 +249,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	feedMessageGroupSettings.Window.StartTime = metadata.Timestamp
 	feedMessageGroupSettings.Origin = feedMessageGroup.Origin
 	feedMessageGroupSettings.Asset.Ancestors = feedMessageGroup.Asset.Ancestors
+	feedMessageGroupSettings.Asset.AncestryPath = feedMessageGroup.Asset.AncestryPath
 	feedMessageGroupSettings.Asset.AssetType = "groupssettings.googleapis.com/groupSettings"
 	feedMessageGroupSettings.Asset.Name = feedMessageGroup.Asset.Name + "/groupSettings"
 	feedMessageGroupSettings.Deleted = feedMessageGroup.Deleted

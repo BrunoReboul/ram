@@ -23,18 +23,18 @@ import (
 	"cloud.google.com/go/bigquery"
 )
 
-func createUpdateView(ctx context.Context, tableName string, dataset *bigquery.Dataset) (err error) {
+func createUpdateView(ctx context.Context, tableName string, dataset *bigquery.Dataset, intervalDays int64) (err error) {
 	var viewName, query string
 	switch tableName {
 	case "complianceStatus":
 		viewName = "last_compliancestatus"
-		query = getLastComplianceStatusQuery(dataset.ProjectID, dataset.DatasetID)
+		query = getLastComplianceStatusQuery(dataset.ProjectID, dataset.DatasetID, intervalDays)
 	case "violations":
 		viewName = "active_violations"
-		query = getActiveViolationsQuery(dataset.ProjectID, dataset.DatasetID)
+		query = getActiveViolationsQuery(dataset.ProjectID, dataset.DatasetID, intervalDays)
 	case "assets":
 		viewName = "last_assets"
-		query = getLastAssetsQuery(dataset.ProjectID, dataset.DatasetID)
+		query = getLastAssetsQuery(dataset.ProjectID, dataset.DatasetID, intervalDays)
 	}
 	table := dataset.Table(viewName)
 	tableMetadataRetreived, err := table.Metadata(ctx)

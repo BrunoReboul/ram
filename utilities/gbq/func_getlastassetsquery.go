@@ -30,7 +30,7 @@ FROM
         FROM
             <assets>
         WHERE
-            DATE(_PARTITIONTIME) > DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR)
+            DATE(_PARTITIONTIME) > DATE_SUB(CURRENT_DATE(), INTERVAL <intervalDays> DAY)
             OR _PARTITIONTIME IS NULL
         GROUP BY
             name
@@ -43,13 +43,15 @@ FROM
         FROM
             <assets>
         WHERE
-            DATE(_PARTITIONTIME) > DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR)
+            DATE(_PARTITIONTIME) > DATE_SUB(CURRENT_DATE(), INTERVAL <intervalDays> DAY)
             OR _PARTITIONTIME IS NULL
     ) AS assets ON assets.name = latest_assets.name
     AND assets.timestamp = latest_assets.timestamp
 `
 
-func getLastAssetsQuery(projectID string, datasetName string) (query string) {
+func getLastAssetsQuery(projectID string, datasetName string, intervalDays int64) (query string) {
 	assetsTableName := fmt.Sprintf("`%s.%s.assets`", projectID, datasetName)
-	return strings.Replace(lastAssetsQuery, "<assets>", assetsTableName, -1)
+	query = strings.Replace(lastAssetsQuery, "<assets>", assetsTableName, -1)
+	query = strings.Replace(query, "<intervalDays>", string(intervalDays), -1)
+	return query
 }
