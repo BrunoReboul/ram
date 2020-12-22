@@ -48,8 +48,7 @@ FROM
     AND violations.functionConfig.deploymentTime = compliancestatus.ruleDeploymentTimeStamp
     AND violations.feedMessage.asset.name = compliancestatus.assetName
     AND violations.feedMessage.window.startTime = compliancestatus.assetInventoryTimeStamp
-WHERE
-    serviceName = "gci"`
+`
 
 func getActiveViolationsQuery(projectID string, datasetName string, intervalDays int64) (query string) {
 	lastComplianceStatusViewName := fmt.Sprintf("`%s.%s.last_compliancestatus`", projectID, datasetName)
