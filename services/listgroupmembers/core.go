@@ -43,6 +43,7 @@ import (
 // Global variable to deal with GroupsListCall Pages constraint: no possible to pass variable to the function in pages()
 // https://pkg.go.dev/google.golang.org/api/admin/directory/v1?tab=doc#GroupsListCall.Pages
 var ancestors []string
+var ancestryPath string
 var ctx context.Context
 var environment string
 var groupAssetName string
@@ -287,12 +288,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	pubSubErrNumber = 0
 	groupAssetName = feedMessageGroup.Asset.Name
 	groupEmail = feedMessageGroup.Asset.Resource.Email
-	// First ancestor is my parent
-	ancestors = []string{fmt.Sprintf("groups/%s", feedMessageGroup.Asset.Resource.Id)}
-	// Next ancestors are my parent ancestors
-	for _, ancestor := range feedMessageGroup.Asset.Ancestors {
-		ancestors = append(ancestors, ancestor)
-	}
+	ancestors = feedMessageGroup.Asset.Ancestors
+	ancestryPath = feedMessageGroup.Asset.AncestryPath
 	origin = feedMessageGroup.Origin
 	if feedMessageGroup.Deleted {
 		// retreive members from cache
@@ -468,7 +465,7 @@ func browseMembers(members *admin.Members) error {
 		feedMessageMember.Window.StartTime = timestamp
 		feedMessageMember.Origin = origin
 		feedMessageMember.Asset.Ancestors = ancestors
-		feedMessageMember.Asset.AncestryPath = groupAssetName
+		feedMessageMember.Asset.AncestryPath = ancestryPath
 		feedMessageMember.Asset.AssetType = "www.googleapis.com/admin/directory/members"
 		feedMessageMember.Asset.Name = groupAssetName + "/members/" + member.Id
 		feedMessageMember.Asset.Resource.GroupEmail = groupEmail
