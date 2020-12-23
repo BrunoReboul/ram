@@ -835,12 +835,9 @@ func publishGroupMemberCreationOrUpdate(groupEmail string, memberEmail string, g
 	groupID = group.Id
 
 	var feedMessage cai.FeedMessageMember
-	feedMessage.Asset.Ancestors = []string{
-		fmt.Sprintf("groups/%s", groupID),
-		fmt.Sprintf("directories/%s", global.directoryCustomerID)}
-
-	feedMessage.Asset.AncestryPath = fmt.Sprintf("directories/%s/groups/%s", global.directoryCustomerID, groupID)
-	feedMessage.Asset.Name = "//" + feedMessage.Asset.AncestryPath + "/members/" + groupMember.Id
+	feedMessage.Asset.Ancestors = []string{fmt.Sprintf("directories/%s", global.directoryCustomerID)}
+	feedMessage.Asset.AncestryPath = fmt.Sprintf("directories/%s", global.directoryCustomerID)
+	feedMessage.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s/members/%s", global.directoryCustomerID, groupID, groupMember.Id)
 	feedMessage.Asset.AssetType = "www.googleapis.com/admin/directory/members"
 	feedMessage.Asset.Resource.GroupEmail = groupEmail
 	feedMessage.Asset.Resource.MemberEmail = memberEmail
@@ -1033,6 +1030,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 	}
 	groupID = group.Id
 
+	feedMessageGroupSettings.Asset.AncestryPath = fmt.Sprintf("directories/%s", global.directoryCustomerID)
 	feedMessageGroupSettings.Asset.Ancestors = []string{fmt.Sprintf("directories/%s", global.directoryCustomerID)}
 	feedMessageGroupSettings.Asset.Name = fmt.Sprintf("//directories/%s/groups/%s/groupSettings", global.directoryCustomerID, groupID)
 

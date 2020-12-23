@@ -27,8 +27,8 @@ import (
 )
 
 // getDisplayName retrieive the friendly name of an ancestor
-func getDisplayName(ctx context.Context, name string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) string {
-	var displayName = "unknown"
+func getDisplayName(ctx context.Context, name string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) (displayName string) {
+	displayName = strings.Replace(name, "/", "_", -1)
 	ancestorType := strings.Split(name, "/")[0]
 	knownAncestorTypes := []string{"organizations", "folders", "projects"}
 	if !str.Find(knownAncestorTypes, ancestorType) {

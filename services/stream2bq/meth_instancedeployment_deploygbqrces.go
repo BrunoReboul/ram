@@ -16,6 +16,7 @@ package stream2bq
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/BrunoReboul/ram/utilities/gbq"
 )
@@ -25,20 +26,25 @@ func (instanceDeployment *InstanceDeployment) deployGBQRces() (err error) {
 	tableName := instanceDeployment.Settings.Instance.Bigquery.TableName
 	datasetLocation := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Dataset.Location
 	datasetName := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Dataset.Name
+	intervalDays := instanceDeployment.Core.SolutionSettings.Hosting.Bigquery.Views.IntervalDays
+	if intervalDays == 0 {
+		intervalDays = 365
+	}
+	log.Printf("gbq views intervalDays %d", intervalDays)
 
 	switch tableName {
 	case "complianceStatus":
-		_, err = gbq.GetComplianceStatus(instanceDeployment.Core.Ctx, instanceDeployment.Core.Services.BigqueryClient, datasetLocation, datasetName)
+		_, err = gbq.GetComplianceStatus(instanceDeployment.Core.Ctx, instanceDeployment.Core.Services.BigqueryClient, datasetLocation, datasetName, intervalDays)
 		if err != nil {
 			return fmt.Errorf("gbq.GetComplianceStatus %v", err)
 		}
 	case "violations":
-		_, err = gbq.GetViolations(instanceDeployment.Core.Ctx, instanceDeployment.Core.Services.BigqueryClient, datasetLocation, datasetName)
+		_, err = gbq.GetViolations(instanceDeployment.Core.Ctx, instanceDeployment.Core.Services.BigqueryClient, datasetLocation, datasetName, intervalDays)
 		if err != nil {
 			return fmt.Errorf("gbq.GetViolations %v", err)
 		}
 	case "assets":
-		_, err = gbq.GetAssets(instanceDeployment.Core.Ctx, instanceDeployment.Core.Services.BigqueryClient, datasetLocation, datasetName)
+		_, err = gbq.GetAssets(instanceDeployment.Core.Ctx, instanceDeployment.Core.Services.BigqueryClient, datasetLocation, datasetName, intervalDays)
 		if err != nil {
 			return fmt.Errorf("gbq.GetAssets %v", err)
 		}

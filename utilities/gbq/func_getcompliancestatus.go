@@ -21,7 +21,7 @@ import (
 )
 
 // GetComplianceStatus provision compliancestatus table, view, and dependencies
-func GetComplianceStatus(ctx context.Context, bigQueryClient *bigquery.Client, location string, datasetName string) (table *bigquery.Table, err error) {
+func GetComplianceStatus(ctx context.Context, bigQueryClient *bigquery.Client, location string, datasetName string, intervalDays int64) (table *bigquery.Table, err error) {
 	dataset, err := getDataset(ctx, datasetName, location, bigQueryClient)
 	if err != nil {
 		return nil, err
@@ -31,11 +31,11 @@ func GetComplianceStatus(ctx context.Context, bigQueryClient *bigquery.Client, l
 		return nil, err
 	}
 	// Ensure assets table and view exist
-	_, err = GetAssets(ctx, bigQueryClient, location, datasetName)
+	_, err = GetAssets(ctx, bigQueryClient, location, datasetName, intervalDays)
 	if err != nil {
 		return nil, err
 	}
-	err = createUpdateView(ctx, "complianceStatus", dataset)
+	err = createUpdateView(ctx, "complianceStatus", dataset, intervalDays)
 	if err != nil {
 		return nil, err
 	}

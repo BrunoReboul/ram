@@ -21,7 +21,7 @@ import (
 )
 
 // GetAssets provision assets table, view, and dependencies
-func GetAssets(ctx context.Context, bigQueryClient *bigquery.Client, location string, datasetName string) (table *bigquery.Table, err error) {
+func GetAssets(ctx context.Context, bigQueryClient *bigquery.Client, location string, datasetName string, intervalDays int64) (table *bigquery.Table, err error) {
 	tableName := "assets"
 	dataset, err := getDataset(ctx, datasetName, location, bigQueryClient)
 	if err != nil {
@@ -31,7 +31,7 @@ func GetAssets(ctx context.Context, bigQueryClient *bigquery.Client, location st
 	if err != nil {
 		return nil, err
 	}
-	err = createUpdateView(ctx, tableName, dataset)
+	err = createUpdateView(ctx, tableName, dataset, intervalDays)
 	if err != nil {
 		return nil, err
 	}
