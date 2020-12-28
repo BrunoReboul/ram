@@ -33,7 +33,8 @@ SELECT
     compliancestatus.level6,
     compliancestatus.level7,
     compliancestatus.level8,
-    compliancestatus.level9
+    compliancestatus.level9,
+    compliancestatus.projectID
 FROM
     <last_compliancestatus> AS compliancestatus
     INNER JOIN (
