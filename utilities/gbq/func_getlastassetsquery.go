@@ -39,7 +39,17 @@ FROM
     ) AS latest_assets
     INNER JOIN (
         SELECT
-            *
+            timestamp,
+            name,
+            owner,
+            violationResolver,
+            ancestryPathDisplayName,
+            ancestryPath,
+            ancestorsDisplayName,
+            ancestors,
+            assetType,
+            deleted,
+            projectID
         FROM
             <assets>
         WHERE
