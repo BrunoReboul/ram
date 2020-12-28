@@ -99,7 +99,7 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 		log.Printf("gbq need to update partition expiration on table %s", tableName)
 		needToUpdate = true
 	}
-	if reflect.DeepEqual(tableMetadata.Schema, schema) {
+	if !reflect.DeepEqual(tableMetadata.Schema, schema) {
 		tableMetadataToUpdate.Schema = schema
 		log.Printf("gbq need to update schema on table %s", tableName)
 		needToUpdate = true
