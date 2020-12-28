@@ -38,7 +38,8 @@ WITH complianceStatus0 AS (
       ancestryPath,
       ancestorsDisplayName,
       ancestors,
-      assetType
+      assetType,
+      projectID
     FROM
       <last_assets>
 ),
@@ -150,6 +151,7 @@ WITH complianceStatus0 AS (
         assets.assetType,
         complianceStatus1.directoryAssetType
       ) AS assetType,
+      assets.projectID,
     FROM
       complianceStatus1
       LEFT JOIN assets ON complianceStatus1.assetName = assets.name
