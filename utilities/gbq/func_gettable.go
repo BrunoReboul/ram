@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 	"time"
 
@@ -69,6 +70,7 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 	log.Printf("gbq found table %s", tableName)
 	needToUpdate := false
 	var tableMetadataToUpdate bigquery.TableMetadataToUpdate
+	// Labels
 	if tableMetadata.Labels != nil {
 		if value, ok := tableMetadata.Labels["name"]; ok {
 			if strings.ToLower(value) != strings.ToLower(tableMetadata.Name) {
@@ -86,8 +88,8 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 	if needToUpdate {
 		tableMetadataToUpdate.SetLabel("name", strings.ToLower(tableName))
 		log.Printf("gbq need to update table labels %s", tableName)
-
 	}
+	// Table partitioning
 	if tableMetadata.TimePartitioning.Expiration != time.Duration(0) {
 		var timePartitioning bigquery.TimePartitioning
 		timePartitioning.Expiration = time.Duration(0)
@@ -97,6 +99,12 @@ func getTable(ctx context.Context, tableName string, dataset *bigquery.Dataset) 
 		log.Printf("gbq need to update partition expiration on table %s", tableName)
 		needToUpdate = true
 	}
+	if !reflect.DeepEqual(tableMetadata.Schema, schema) {
+		tableMetadataToUpdate.Schema = schema
+		log.Printf("gbq need to update schema on table %s", tableName)
+		needToUpdate = true
+	}
+	// Update
 	if needToUpdate {
 		tableMetadata, err = table.Update(ctx, tableMetadataToUpdate, "")
 		if err != nil {

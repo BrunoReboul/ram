@@ -29,5 +29,6 @@ func GetAssetsSchema() bigquery.Schema {
 		{Name: "ancestors", Repeated: true, Type: bigquery.StringFieldType},
 		{Name: "assetType", Required: true, Type: bigquery.StringFieldType},
 		{Name: "deleted", Required: true, Type: bigquery.BooleanFieldType},
+		{Name: "projectID", Required: false, Type: bigquery.StringFieldType},
 	}
 }

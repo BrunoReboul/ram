@@ -201,6 +201,7 @@ type assetAssetBQ struct {
 	AssetType               string    `json:"assetType"`
 	Deleted                 bool      `json:"deleted"`
 	Timestamp               time.Time `json:"timestamp"`
+	ProjectID               string    `json:"projectID"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -582,7 +583,12 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	assetFeedMessageBQ.Asset.Timestamp = feedMessage.Window.StartTime
 	assetFeedMessageBQ.Asset.Deleted = assetFeedMessageBQ.Deleted
 	assetFeedMessageBQ.Asset.AncestryPath = cai.BuildAncestryPath(assetFeedMessageBQ.Asset.Ancestors)
-	assetFeedMessageBQ.Asset.AncestorsDisplayName = cai.BuildAncestorsDisplayName(global.ctx, assetFeedMessageBQ.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
+	assetFeedMessageBQ.Asset.AncestorsDisplayName, assetFeedMessageBQ.Asset.ProjectID = cai.BuildAncestorsDisplayName(global.ctx,
+		assetFeedMessageBQ.Asset.Ancestors,
+		global.assetsCollectionID,
+		global.firestoreClient,
+		global.cloudresourcemanagerService,
+		global.cloudresourcemanagerServiceV2)
 	assetFeedMessageBQ.Asset.AncestryPathDisplayName = cai.BuildAncestryPath(assetFeedMessageBQ.Asset.AncestorsDisplayName)
 	assetFeedMessageBQ.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)
 	assetFeedMessageBQ.Asset.ViolationResolver, _ = cai.GetAssetLabelValue(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
