@@ -93,6 +93,7 @@ type asset struct {
 	IamPolicy               json.RawMessage `json:"iamPolicy"`
 	IamPolicyLegacy         json.RawMessage `json:"iam_policy"`
 	Resource                json.RawMessage `json:"resource"`
+	ProjectID               string          `json:"projectID"`
 }
 
 // assets slice of asset
@@ -726,7 +727,12 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 	}
 
 	feedMessage.Asset.AncestryPath = cai.BuildAncestryPath(feedMessage.Asset.Ancestors)
-	feedMessage.Asset.AncestorsDisplayName = cai.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
+	feedMessage.Asset.AncestorsDisplayName, feedMessage.Asset.ProjectID = cai.BuildAncestorsDisplayName(global.ctx,
+		feedMessage.Asset.Ancestors,
+		global.assetsCollectionID,
+		global.firestoreClient,
+		global.cloudresourcemanagerService,
+		global.cloudresourcemanagerServiceV2)
 	feedMessage.Asset.AncestryPathDisplayName = cai.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
 
 	feedMessage.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)

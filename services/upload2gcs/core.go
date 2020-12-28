@@ -81,6 +81,7 @@ type asset struct {
 	Resource                json.RawMessage        `json:"resource"`
 	IamPolicy               map[string]interface{} `json:"iamPolicy"`
 	IamPolicyLegacy         map[string]interface{} `json:"iam_policy"`
+	ProjectID               string                 `json:"projectID"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -282,7 +283,12 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	feedMessage.Asset.Origin = feedMessage.Origin
 	feedMessage.Asset.AncestryPath = cai.BuildAncestryPath(feedMessage.Asset.Ancestors)
-	feedMessage.Asset.AncestorsDisplayName = cai.BuildAncestorsDisplayName(global.ctx, feedMessage.Asset.Ancestors, global.assetsCollectionID, global.firestoreClient, global.cloudresourcemanagerService, global.cloudresourcemanagerServiceV2)
+	feedMessage.Asset.AncestorsDisplayName, feedMessage.Asset.ProjectID = cai.BuildAncestorsDisplayName(global.ctx,
+		feedMessage.Asset.Ancestors,
+		global.assetsCollectionID,
+		global.firestoreClient,
+		global.cloudresourcemanagerService,
+		global.cloudresourcemanagerServiceV2)
 	feedMessage.Asset.AncestryPathDisplayName = cai.BuildAncestryPath(feedMessage.Asset.AncestorsDisplayName)
 	feedMessage.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)
 	feedMessage.Asset.ViolationResolver, _ = cai.GetAssetLabelValue(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)

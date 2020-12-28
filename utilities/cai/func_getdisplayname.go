@@ -27,12 +27,18 @@ import (
 )
 
 // getDisplayName retrieive the friendly name of an ancestor
-func getDisplayName(ctx context.Context, name string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) (displayName string) {
+func getDisplayName(ctx context.Context,
+	name string,
+	collectionID string,
+	firestoreClient *firestore.Client,
+	cloudresourcemanagerService *cloudresourcemanager.Service,
+	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) (displayName string, projectID string) {
 	displayName = strings.Replace(name, "/", "_", -1)
+	projectID = ""
 	ancestorType := strings.Split(name, "/")[0]
 	knownAncestorTypes := []string{"organizations", "folders", "projects"}
 	if !str.Find(knownAncestorTypes, ancestorType) {
-		return displayName
+		return displayName, projectID
 	}
 	documentID := "//cloudresourcemanager.googleapis.com/" + name
 	documentID = str.RevertSlash(documentID)
@@ -65,6 +71,10 @@ func getDisplayName(ctx context.Context, name string, collectionID string, fires
 						if dName, ok := dNameInterface.(string); ok {
 							displayName = dName
 						}
+						var dProjectIDInterface interface{} = data["projectId"]
+						if dProjectID, ok := dProjectIDInterface.(string); ok {
+							projectID = dProjectID
+						}
 					}
 				}
 			}
@@ -94,8 +104,9 @@ func getDisplayName(ctx context.Context, name string, collectionID string, fires
 				log.Printf("WARNING - cloudresourcemanagerService.Projects.Get %v", err)
 			} else {
 				displayName = resp.Name
+				projectID = resp.ProjectId
 			}
 		}
 	}
-	return displayName
+	return displayName, projectID
 }

@@ -23,12 +23,21 @@ import (
 )
 
 // BuildAncestorsDisplayName build a slice of Ancestor friendly name from a slice of ancestors
-func BuildAncestorsDisplayName(ctx context.Context, ancestors []string, collectionID string, firestoreClient *firestore.Client, cloudresourcemanagerService *cloudresourcemanager.Service, cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) []string {
+func BuildAncestorsDisplayName(ctx context.Context,
+	ancestors []string,
+	collectionID string,
+	firestoreClient *firestore.Client,
+	cloudresourcemanagerService *cloudresourcemanager.Service,
+	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service) (ancestorsDisplayName []string, projectID string) {
 	cnt := len(ancestors)
-	ancestorsDisplayName := make([]string, len(ancestors))
+	ancestorsDisplayName = make([]string, len(ancestors))
 	for idx := 0; idx < cnt; idx++ {
-		ancestorsDisplayName[idx] = getDisplayName(ctx,
+		displayName, p := getDisplayName(ctx,
 			ancestors[idx], collectionID, firestoreClient, cloudresourcemanagerService, cloudresourcemanagerServiceV2)
+		ancestorsDisplayName[idx] = displayName
+		if p != "" {
+			projectID = p
+		}
 	}
-	return ancestorsDisplayName
+	return ancestorsDisplayName, projectID
 }
