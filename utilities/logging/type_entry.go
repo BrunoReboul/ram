@@ -41,6 +41,7 @@ type Entry struct {
 	LatencySeconds             float64    `json:"latency_seconds,omitempty"`
 	LatencyE2ESeconds          float64    `json:"latency_e2e_seconds,omitempty"`
 	StepStack                  Steps      `json:"step_stack,omitempty"`
+	Compliant                  bool       `json:"compliant,omitempty"`
 }
 
 // Step defines a step in a serverless chain of events
