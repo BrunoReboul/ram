@@ -29,8 +29,8 @@ import (
 	pubsub "cloud.google.com/go/pubsub/apiv1"
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
+	"github.com/BrunoReboul/ram/utilities/glo"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"github.com/open-policy-agent/opa/rego"
@@ -62,19 +62,19 @@ type Global struct {
 	ramViolationTopicName         string
 	regoModulesFolderPath         string
 	retryTimeOutSeconds           int64
-	step                          logging.Step
-	stepStack                     logging.Steps
+	step                          glo.Step
+	stepStack                     glo.Steps
 	violationResolverLabelKeyName string
 	writabelOPAFolderPath         string
 }
 
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
-	Asset     asset         `json:"asset"`
-	Window    cai.Window    `json:"window"`
-	Deleted   bool          `json:"deleted"`
-	Origin    string        `json:"origin"`
-	StepStack logging.Steps `json:"step_stack,omitempty"`
+	Asset     asset      `json:"asset"`
+	Window    cai.Window `json:"window"`
+	Deleted   bool       `json:"deleted"`
+	Origin    string     `json:"origin"`
+	StepStack glo.Steps  `json:"step_stack,omitempty"`
 }
 
 // asset Cloud Asset Metadata
@@ -109,7 +109,7 @@ type violation struct {
 	ConstraintConfig constraintConfig  `json:"constraintConfig"`
 	FeedMessage      feedMessage       `json:"feedMessage"`
 	RegoModules      map[string]string `json:"regoModules"`
-	StepStack        logging.Steps     `json:"step_stack,omitempty"`
+	StepStack        glo.Steps         `json:"step_stack,omitempty"`
 }
 
 // nonCompliance form the "deny" rego policy in a <templateName>.rego module
@@ -155,14 +155,14 @@ type compliantLog struct {
 
 // ComplianceStatus by asset, by rule, true/false compliance status
 type ComplianceStatus struct {
-	AssetName               string        `json:"assetName"`
-	AssetInventoryTimeStamp time.Time     `json:"assetInventoryTimeStamp"`
-	AssetInventoryOrigin    string        `json:"assetInventoryOrigin"`
-	RuleName                string        `json:"ruleName"`
-	RuleDeploymentTimeStamp time.Time     `json:"ruleDeploymentTimeStamp"`
-	Compliant               bool          `json:"compliant"`
-	Deleted                 bool          `json:"deleted"`
-	StepStack               logging.Steps `json:"step_stack,omitempty"`
+	AssetName               string    `json:"assetName"`
+	AssetInventoryTimeStamp time.Time `json:"assetInventoryTimeStamp"`
+	AssetInventoryOrigin    string    `json:"assetInventoryOrigin"`
+	RuleName                string    `json:"ruleName"`
+	RuleDeploymentTimeStamp time.Time `json:"ruleDeploymentTimeStamp"`
+	Compliant               bool      `json:"compliant"`
+	Deleted                 bool      `json:"deleted"`
+	StepStack               glo.Steps `json:"step_stack,omitempty"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -175,7 +175,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			Severity:    "CRITICAL",
 			Message:     "init_failed",
 			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
@@ -188,7 +188,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	global.instanceName = instanceDeployment.Core.InstanceName
 	global.microserviceName = instanceDeployment.Core.ServiceName
 
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName: global.microserviceName,
 		InstanceName:     global.instanceName,
 		Environment:      global.environment,
@@ -220,7 +220,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	// persist between function invocations.
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -233,7 +233,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -246,7 +246,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -259,7 +259,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -279,7 +279,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -293,14 +293,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
-	global.step = logging.Step{
+	global.step = glo.Step{
 		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:           global.microserviceName,
 		InstanceName:               global.instanceName,
 		Environment:                global.environment,
@@ -313,7 +313,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	})
 
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:           global.microserviceName,
 			InstanceName:               global.instanceName,
 			Environment:                global.environment,
@@ -329,7 +329,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -346,7 +346,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	assetsJSONDocument, feedMessage, err := buildAssetsDocument(PubSubMessage, global)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -374,7 +374,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		complianceStatus.Deleted = false
 		resultSet, feedMessage, err := evalutateConstraints(assetsJSONDocument, feedMessage, global)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -387,7 +387,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		}
 		violations, err := inspectResultSet(resultSet, feedMessage, global)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -407,7 +407,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				violation.StepStack = global.stepStack
 				violationJSON, err := json.Marshal(violation)
 				if err != nil {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
@@ -418,7 +418,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 					})
 					return nil
 				}
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
@@ -429,7 +429,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				})
 				err = publishPubSubMessage(violationJSON, global.ramViolationTopicName, global)
 				if err != nil {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
@@ -445,7 +445,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	}
 	complianceStatusJSON, err := json.Marshal(complianceStatus)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -458,7 +458,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	}
 	err = publishPubSubMessage(complianceStatusJSON, global.ramComplianceStatusTopicName, global)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -474,7 +474,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	if complianceStatus.Compliant == true {
 		CompliantLogJSON, err := json.Marshal(compliantLog)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -486,7 +486,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			return nil
 		}
 		if complianceStatus.Deleted == true {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -496,7 +496,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 				TriggeringPubsubID: global.PubSubID,
 			})
 		} else {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -516,7 +516,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	now = time.Now()
 	latency := now.Sub(metadata.Timestamp)
 	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:     global.microserviceName,
 		InstanceName:         global.instanceName,
 		Environment:          global.environment,
@@ -550,7 +550,7 @@ func publishPubSubMessage(docJSON []byte, topicName string, global *Global) erro
 		return fmt.Errorf("global.pubsubPublisherClient.Publish: %v", err)
 	}
 
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:   global.microserviceName,
 		InstanceName:       global.instanceName,
 		Environment:        global.environment,
@@ -716,7 +716,7 @@ func buildAssetsDocument(pubSubMessage gps.PubSubMessage, global *Global) ([]byt
 	if feedMessage.StepStack != nil {
 		global.stepStack = append(feedMessage.StepStack, global.step)
 	} else {
-		var caiStep logging.Step
+		var caiStep glo.Step
 		caiStep.StepTimestamp = feedMessage.Window.StartTime
 		caiStep.StepID = fmt.Sprintf("%s/%s", feedMessage.Asset.Name, caiStep.StepTimestamp.Format(time.RFC3339))
 		global.stepStack = append(global.stepStack, caiStep)

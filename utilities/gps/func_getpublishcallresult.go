@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/BrunoReboul/ram/utilities/logging"
+	"github.com/BrunoReboul/ram/utilities/glo"
 )
 
 // GetPublishCallResult func to be used in go routine to scale pubsub event publish
@@ -40,7 +40,7 @@ func GetPublishCallResult(ctx context.Context,
 	defer waitgroup.Done()
 	id, err := publishResult.Get(ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   microserviceName,
 			InstanceName:       instanceName,
 			Environment:        environment,
@@ -54,7 +54,7 @@ func GetPublishCallResult(ctx context.Context,
 	msgNumber := atomic.AddUint64(pubSubMsgNumber, 1)
 
 	// debug log
-	// log.Println(logging.Entry{
+	// log.Println(glo.Entry{
 	// 	MicroserviceName:   microserviceName,
 	// 	InstanceName:       instanceName,
 	// 	Environment:        environment,
@@ -67,7 +67,7 @@ func GetPublishCallResult(ctx context.Context,
 
 	if msgNumber%logEventEveryXPubSubMsg == 0 {
 		// No retry on pubsub publish as already implemented in the GO client
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   microserviceName,
 			InstanceName:       instanceName,
 			Environment:        environment,

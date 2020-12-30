@@ -12,5 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package logging helps with Logging
-package logging
+/*
+Package setmetrics set cloud logging metrics from logs
+
+Instances
+
+Multiple: one per metric.
+
+Output
+
+Cloud logging metric configured.
+
+*/
+package setmetrics

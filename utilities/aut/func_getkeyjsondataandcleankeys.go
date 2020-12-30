@@ -21,7 +21,7 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/BrunoReboul/ram/utilities/logging"
+	"github.com/BrunoReboul/ram/utilities/glo"
 	"github.com/BrunoReboul/ram/utilities/str"
 	"google.golang.org/api/iam/v1"
 )
@@ -44,7 +44,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 
 	iamService, err = iam.NewService(ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: microserviceName,
 			InstanceName:     instanceName,
 			Environment:      environment,
@@ -58,7 +58,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 	resource := "projects/-/serviceAccounts/" + serviceAccountEmail
 	listServiceAccountKeyResponse, err := iamService.Projects.ServiceAccounts.Keys.List(resource).Do()
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: microserviceName,
 			InstanceName:     instanceName,
 			Environment:      environment,
@@ -71,7 +71,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 	}
 	keyJSONdata, err = ioutil.ReadFile(keyJSONFilePath)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: microserviceName,
 			InstanceName:     instanceName,
 			Environment:      environment,
@@ -84,7 +84,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 	}
 	err = json.Unmarshal(keyJSONdata, &keyRestAPIFormat)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: microserviceName,
 			InstanceName:     instanceName,
 			Environment:      environment,
@@ -100,7 +100,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 	// Clean keys
 	for _, serviceAccountKey := range listServiceAccountKeyResponse.Keys {
 		if serviceAccountKey.Name == currentKeyName {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName: microserviceName,
 				InstanceName:     instanceName,
 				Environment:      environment,
@@ -111,7 +111,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 			})
 		} else {
 			if str.Find(serviceAccountKeyNames, serviceAccountKey.Name) {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName: microserviceName,
 					InstanceName:     instanceName,
 					Environment:      environment,
@@ -122,7 +122,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 				})
 			} else {
 				if serviceAccountKey.KeyType == "SYSTEM_MANAGED" {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName: microserviceName,
 						InstanceName:     instanceName,
 						Environment:      environment,
@@ -132,7 +132,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 						InitID:           initID,
 					})
 				} else {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName: microserviceName,
 						InstanceName:     instanceName,
 						Environment:      environment,
@@ -143,7 +143,7 @@ func getKeyJSONdataAndCleanKeys(ctx context.Context,
 					})
 					_, err = iamService.Projects.ServiceAccounts.Keys.Delete(serviceAccountKey.Name).Do()
 					if err != nil {
-						log.Println(logging.Entry{
+						log.Println(glo.Entry{
 							MicroserviceName: microserviceName,
 							InstanceName:     instanceName,
 							Environment:      environment,

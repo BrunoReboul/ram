@@ -22,14 +22,14 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
-	"github.com/BrunoReboul/ram/utilities/logging"
+	"github.com/BrunoReboul/ram/utilities/glo"
 )
 
 // RecordDump record a dump stepStack in firestore
 func RecordDump(ctx context.Context,
 	dumpNameFull string,
 	firestoreClient *firestore.Client,
-	stepStack logging.Steps,
+	stepStack glo.Steps,
 	microserviceName string,
 	instanceName string,
 	environment string,
@@ -54,7 +54,7 @@ func RecordDump(ctx context.Context,
 					"stepStack": stepStack,
 				})
 				if err != nil {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   microserviceName,
 						InstanceName:       instanceName,
 						Environment:        environment,
@@ -65,7 +65,7 @@ func RecordDump(ctx context.Context,
 					})
 					time.Sleep(i * 100 * time.Millisecond)
 				} else {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   microserviceName,
 						InstanceName:       instanceName,
 						Environment:        environment,
@@ -76,7 +76,7 @@ func RecordDump(ctx context.Context,
 					return nil
 				}
 			} else {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   microserviceName,
 					InstanceName:       instanceName,
 					Environment:        environment,
@@ -95,7 +95,7 @@ func RecordDump(ctx context.Context,
 				},
 			})
 			if err != nil {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   microserviceName,
 					InstanceName:       instanceName,
 					Environment:        environment,
@@ -106,7 +106,7 @@ func RecordDump(ctx context.Context,
 				})
 				time.Sleep(i * 100 * time.Millisecond)
 			} else {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   microserviceName,
 					InstanceName:       instanceName,
 					Environment:        environment,

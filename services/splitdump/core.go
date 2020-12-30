@@ -30,7 +30,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gcs"
 	"github.com/BrunoReboul/ram/utilities/gfs"
-	"github.com/BrunoReboul/ram/utilities/logging"
+	"github.com/BrunoReboul/ram/utilities/glo"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 
@@ -56,8 +56,8 @@ type Global struct {
 	retryTimeOutSeconds        int64
 	scannerBufferSizeKiloBytes int
 	splitThresholdLineNumber   int64
-	step                       logging.Step
-	stepStack                  logging.Steps
+	step                       glo.Step
+	stepStack                  glo.Steps
 	storageBucket              *storage.BucketHandle
 }
 
@@ -72,10 +72,10 @@ type asset struct {
 
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
-	Asset     asset         `json:"asset"`
-	Window    cai.Window    `json:"window"`
-	Origin    string        `json:"origin"`
-	StepStack logging.Steps `json:"step_stack,omitempty"`
+	Asset     asset      `json:"asset"`
+	Window    cai.Window `json:"window"`
+	Origin    string     `json:"origin"`
+	StepStack glo.Steps  `json:"step_stack,omitempty"`
 }
 
 // assetLegacy uses the CAI export legacy format, not the new CAI feed format
@@ -103,7 +103,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	// }
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			Severity:    "CRITICAL",
 			Message:     "init_failed",
 			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
@@ -116,7 +116,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	global.instanceName = instanceDeployment.Core.InstanceName
 	global.microserviceName = instanceDeployment.Core.ServiceName
 
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName: global.microserviceName,
 		InstanceName:     global.instanceName,
 		Environment:      global.environment,
@@ -133,7 +133,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -147,7 +147,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	global.storageBucket = storageClient.Bucket(instanceDeployment.Core.SolutionSettings.Hosting.GCS.Buckets.CAIExport.Name)
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -160,7 +160,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -179,7 +179,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -193,14 +193,14 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
-	global.step = logging.Step{
+	global.step = glo.Step{
 		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:           global.microserviceName,
 		InstanceName:               global.instanceName,
 		Environment:                global.environment,
@@ -213,7 +213,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	})
 
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:           global.microserviceName,
 			InstanceName:               global.instanceName,
 			Environment:                global.environment,
@@ -236,7 +236,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 
 	// gcsEventJSON, err := json.Marshal(gcsEvent)
 	// if err != nil {
-	// 	log.Println(logging.Entry{
+	// 	log.Println(glo.Entry{
 	// 		MicroserviceName:   global.microserviceName,
 	// 		InstanceName:       global.instanceName,
 	// 		Environment:        global.environment,
@@ -245,7 +245,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	// 		TriggeringPubsubID: global.PubSubID,
 	// 	})
 	// } else {
-	// 	log.Println(logging.Entry{
+	// 	log.Println(glo.Entry{
 	// 		MicroserviceName:   global.microserviceName,
 	// 		InstanceName:       global.instanceName,
 	// 		Environment:        global.environment,
@@ -257,7 +257,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	// }
 
 	if gcsEvent.ResourceState == "not_exists" {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -269,7 +269,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 		return nil
 	}
 	if gcsEvent.Size == "0" {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -282,7 +282,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	}
 	matched, _ := regexp.Match(`dumpinventory.*.dump`, []byte(gcsEvent.Name))
 	if !matched {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -296,7 +296,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	if gcsEvent.Metageneration == "1" {
 		// The metageneration attribute is updated on metadata changes.
 		// The on create value is 1.
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -306,7 +306,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 			TriggeringPubsubID: global.PubSubID,
 		})
 	} else {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -319,7 +319,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	storageObject := global.storageBucket.Object(gcsEvent.Name)
 	storageObjectReader, err := storageObject.NewReader(global.ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -336,7 +336,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 	var topicList []string
 	err = gps.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &topicList)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -353,7 +353,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 		global.stepStack = dumpStepStack
 	}
 
-	var gcsStep logging.Step
+	var gcsStep glo.Step
 	gcsStep.StepTimestamp = gcsEvent.Updated
 	gcsStep.StepID = gcsEvent.ID
 	global.stepStack = append(global.stepStack, gcsStep)
@@ -379,7 +379,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 			childDumpNumber,
 			global)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -394,7 +394,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 		now := time.Now()
 		latency := now.Sub(global.step.StepTimestamp)
 		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
@@ -413,7 +413,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 		now := time.Now()
 		latency := now.Sub(global.step.StepTimestamp)
 		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
@@ -463,7 +463,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, parentGenerat
 			for i = 0; i < 10; i++ {
 				_, err = fmt.Fprint(storageObjectWriter, childDumpContent)
 				if err != nil {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
@@ -486,7 +486,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, parentGenerat
 			for i = 0; i < 10; i++ {
 				err = storageObjectWriter.Close()
 				if err != nil {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
@@ -514,7 +514,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, parentGenerat
 				global.PubSubID,
 				5)
 			if err != nil {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
@@ -538,7 +538,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, parentGenerat
 	for i = 0; i < 10; i++ {
 		_, err = fmt.Fprint(storageObjectWriter, childDumpContent)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -561,7 +561,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, parentGenerat
 	for i = 0; i < 10; i++ {
 		err = storageObjectWriter.Close()
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -589,7 +589,7 @@ func splitToChildDumps(buffer bytes.Buffer, parentDumpName string, parentGenerat
 		global.PubSubID,
 		5)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -625,7 +625,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 	var topicName string
 	err := json.Unmarshal([]byte(dumpline), &assetLegacy)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -637,7 +637,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 	} else {
 		asset := transposeAsset(assetLegacy)
 		if asset.IamPolicy == nil && asset.Resource == nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -654,7 +654,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 			}
 			// log.Println("topicName", topicName)
 			if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, topicListPointer, topicName, global.projectID); err != nil {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
@@ -666,7 +666,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 			} else {
 				feedMessageJSON, err := json.Marshal(getFeedMessage(asset, startTime, global))
 				if err != nil {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
@@ -689,7 +689,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 
 				pubsubResponse, err := global.pubsubPublisherClient.Publish(global.ctx, &publishRequest)
 				if err != nil {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
@@ -698,7 +698,7 @@ func processDumpLine(dumpline string, global *Global, pointerTopubSubMsgNumber *
 						TriggeringPubsubID: global.PubSubID,
 					})
 				}
-				// log.Println(logging.Entry{
+				// log.Println(glo.Entry{
 				// 	MicroserviceName:   global.microserviceName,
 				// 	InstanceName:       global.instanceName,
 				// 	Environment:        global.environment,
@@ -734,7 +734,7 @@ func transposeAsset(assetLegacy assetLegacy) asset {
 	return asset
 }
 
-func getDumpStepStack(objectName string, global *Global, retriesNumber time.Duration) (stepStack logging.Steps) {
+func getDumpStepStack(objectName string, global *Global, retriesNumber time.Duration) (stepStack glo.Steps) {
 	var i time.Duration
 	documentPath := fmt.Sprintf("dumps/%s", strings.Replace(objectName, ".dump", "", 1))
 	var documentSnap *firestore.DocumentSnapshot
@@ -743,7 +743,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 		documentSnap, err = global.firestoreClient.Doc(documentPath).Get(global.ctx)
 		if err != nil {
 			if strings.Contains(strings.ToLower(strings.Replace(err.Error(), " ", "", -1)), "notfound") {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
@@ -754,7 +754,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 				})
 				return nil
 			}
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -766,7 +766,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 		} else {
 			rawStepStackInterface, err := documentSnap.DataAt("stepStack")
 			if err != nil {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
@@ -778,7 +778,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 			} else {
 				rawStepStack, ok := rawStepStackInterface.([]interface{})
 				if !ok {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
@@ -789,11 +789,11 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 					return nil
 				}
 				stepStack = nil
-				var step logging.Step
+				var step glo.Step
 				for _, rawStepInterface := range rawStepStack {
 					rawStep, ok := rawStepInterface.(map[string]interface{})
 					if !ok {
-						log.Println(logging.Entry{
+						log.Println(glo.Entry{
 							MicroserviceName:   global.microserviceName,
 							InstanceName:       global.instanceName,
 							Environment:        global.environment,
@@ -806,7 +806,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 					var stepIDInterface interface{} = rawStep["StepID"]
 					stepID, ok := stepIDInterface.(string)
 					if !ok {
-						log.Println(logging.Entry{
+						log.Println(glo.Entry{
 							MicroserviceName:   global.microserviceName,
 							InstanceName:       global.instanceName,
 							Environment:        global.environment,
@@ -819,7 +819,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 					var stepTimestampInterface interface{} = rawStep["StepTimestamp"]
 					stepTimestamp, ok := stepTimestampInterface.(time.Time)
 					if !ok {
-						log.Println(logging.Entry{
+						log.Println(glo.Entry{
 							MicroserviceName:   global.microserviceName,
 							InstanceName:       global.instanceName,
 							Environment:        global.environment,
@@ -833,7 +833,7 @@ func getDumpStepStack(objectName string, global *Global, retriesNumber time.Dura
 					step.StepTimestamp = stepTimestamp
 					stepStack = append(stepStack, step)
 				}
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
