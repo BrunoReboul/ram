@@ -1,0 +1,41 @@
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+glo:
+  metric_id: ram_latency
+  description: RAM latency by component
+  filter: 'resource.type="cloud_function" severity=NOTICE jsonPayload.message=~"^finish"'
+  valueExtractor: EXTRACT(jsonPayload.latency_seconds)
+  bucketOptions:
+    exponentialBuckets:
+      growthFactor: 1.4142135623731
+      numFiniteBuckets: 64
+      scale: 0.01
+  labels:
+    - name: environment
+      extractor: EXTRACT(jsonPayload.environment)
+      description: dev, prd...
+      valueType: string
+    - name: instance_name
+      extractor: EXTRACT(jsonPayload.instance_name)
+      description: instance name
+      valueType: string
+    - name: microservice_name
+      extractor: EXTRACT(jsonPayload.microservice_name)
+      description: microservice name
+      valueType: string
+  metricDescriptor:
+    metricKind: DELTA
+    unit: s
+    valueType: DISTRIBUTION

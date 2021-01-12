@@ -25,7 +25,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/solution"
 )
 
-// configureLogSinksOrganizations
+// configureSetDashboards
 func (deployment *Deployment) configureSetDashboards() (err error) {
 	serviceName := "setdashboards"
 	serviceFolderPath := fmt.Sprintf("%s/%s/%s",

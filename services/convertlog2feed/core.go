@@ -26,8 +26,8 @@ import (
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gfs"
+	"github.com/BrunoReboul/ram/utilities/glo"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/BrunoReboul/ram/utilities/str"
 	"github.com/google/uuid"
@@ -95,7 +95,7 @@ type Global struct {
 	groupsSettingsService       *groupssettings.Service
 	instanceName                string
 	logEntry                    logEntry
-	logStep                     logging.Step
+	logStep                     glo.Step
 	microserviceName            string
 	organizationID              string
 	projectID                   string
@@ -103,8 +103,8 @@ type Global struct {
 	pubsubPublisherClient       *pubsub.PublisherClient
 	retriesNumber               time.Duration
 	retryTimeOutSeconds         int64
-	step                        logging.Step
-	stepStack                   logging.Steps
+	step                        glo.Step
+	stepStack                   glo.Steps
 	topicList                   []string
 }
 
@@ -120,7 +120,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			Severity:    "CRITICAL",
 			Message:     "init_failed",
 			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
@@ -133,7 +133,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	global.instanceName = instanceDeployment.Core.InstanceName
 	global.microserviceName = instanceDeployment.Core.ServiceName
 
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName: global.microserviceName,
 		InstanceName:     global.instanceName,
 		Environment:      global.environment,
@@ -156,7 +156,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	global.firestoreClient, err = firestore.NewClient(global.ctx, global.projectID)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -170,7 +170,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -197,7 +197,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -210,7 +210,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.groupsSettingsService, err = groupssettings.NewService(ctx, clientOption)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -222,7 +222,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.pubsubPublisherClient, err = pubsub.NewPublisherClient(global.ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -234,7 +234,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -246,7 +246,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	err = gps.GetTopicList(global.ctx, global.pubsubPublisherClient, global.projectID, &global.topicList)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -265,7 +265,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -279,14 +279,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
-	global.step = logging.Step{
+	global.step = glo.Step{
 		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:           global.microserviceName,
 		InstanceName:               global.instanceName,
 		Environment:                global.environment,
@@ -299,7 +299,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	})
 
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:           global.microserviceName,
 			InstanceName:               global.instanceName,
 			Environment:                global.environment,
@@ -316,7 +316,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	err = json.Unmarshal(PubSubMessage.Data, &global.logEntry)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -343,7 +343,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			now := time.Now()
 			latency := now.Sub(global.step.StepTimestamp)
 			latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:     global.microserviceName,
 				InstanceName:         global.instanceName,
 				Environment:          global.environment,
@@ -363,7 +363,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		now := time.Now()
 		latency := now.Sub(global.step.StepTimestamp)
 		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
@@ -387,7 +387,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 
 	err = json.Unmarshal(global.logEntry.ProtoPayload, &protoPayload)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -406,7 +406,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 	global.organizationID = parts[1]
 	getCustomerID(global)
 	if global.directoryCustomerID == "" {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -426,7 +426,7 @@ func convertAdminActivityEvent(global *Global) (err error) {
 			now := time.Now()
 			latency := now.Sub(global.step.StepTimestamp)
 			latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:     global.microserviceName,
 				InstanceName:         global.instanceName,
 				Environment:          global.environment,
@@ -457,7 +457,7 @@ func getCustomerID(global *Global) {
 		assetMap := documentSnap.Data()
 		assetMapJSON, err := json.Marshal(assetMap)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -490,7 +490,7 @@ func getCustomerID(global *Global) {
 		}
 	} else {
 		log.Printf("pubsub_id %s WARNING not found in firestore %s", global.PubSubID, documentPath)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -502,7 +502,7 @@ func getCustomerID(global *Global) {
 		//try resourcemamager API
 		resp, err := global.cloudresourcemanagerService.Organizations.Get(global.organizationID).Context(global.ctx).Do()
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -523,7 +523,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 	var parameters groupSettingsParameters
 	err = json.Unmarshal(event.Parameter, &parameters)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -543,7 +543,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		}
 	}
 	if groupEmail == "" {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -591,7 +591,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		}
 		if memberEmail == "" {
 			log.Printf("pubsub_id %s NORETRY_ERROR ADD_GROUP_MEMBER expected parameter USER_EMAIL aka member, not found, insertId %s", global.PubSubID, global.logEntry.InsertID)
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -610,7 +610,7 @@ func convertGroupSettings(event *event, global *Global) (err error) {
 		now := time.Now()
 		latency := now.Sub(global.step.StepTimestamp)
 		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
@@ -690,7 +690,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 	var i int64
 	for {
 		if i > 0 {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -742,7 +742,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 		}
 	}
 	if !found {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -758,7 +758,7 @@ func publishGroupDeletion(groupEmail string, global *Global) (err error) {
 func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, assetName string, global *Global) (err error) {
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -778,7 +778,7 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 	var publishRequest pubsubpb.PublishRequest
 	topicShortName := fmt.Sprintf("gci-groups-%s", global.directoryCustomerID)
 	if err = gps.CreateTopic(global.ctx, global.pubsubPublisherClient, &global.topicList, topicShortName, global.projectID); err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -801,7 +801,7 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 	now := time.Now()
 	latency := now.Sub(global.step.StepTimestamp)
 	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:     global.microserviceName,
 		InstanceName:         global.instanceName,
 		Environment:          global.environment,
@@ -893,7 +893,7 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 	var i int64
 	for {
 		if i > 0 {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -947,7 +947,7 @@ func publishGroupMemberDeletion(groupEmail string, memberEmail string, global *G
 	}
 	if !found {
 		log.Printf("pubsub_id %s NORETRY_ERROR deleted groupMember not found in cache, cannot clean up RAM data member %s group %s", global.PubSubID, memberEmail, groupEmail)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -964,7 +964,7 @@ func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail stri
 	feedMessageJSON, err := json.Marshal(feedMessage)
 	if err != nil {
 		log.Printf("pubsub_id %s NORETRY_ERROR %s json.Marshal(feedMessage): %v", global.PubSubID, assetName, err)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -992,7 +992,7 @@ func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail stri
 	now := time.Now()
 	latency := now.Sub(global.step.StepTimestamp)
 	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:     global.microserviceName,
 		InstanceName:         global.instanceName,
 		Environment:          global.environment,
@@ -1037,7 +1037,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 	feedMessageGroupSettingsJSON, err := json.Marshal(feedMessageGroupSettings)
 	if err != nil {
 		log.Printf("pubsub_id %s NORETRY_ERROR json.Marshal(feedMessageGroupSettings)", global.PubSubID)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -1066,7 +1066,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 	now := time.Now()
 	latency := now.Sub(global.step.StepTimestamp)
 	latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:     global.microserviceName,
 		InstanceName:         global.instanceName,
 		Environment:          global.environment,

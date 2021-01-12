@@ -27,8 +27,8 @@ import (
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gbq"
+	"github.com/BrunoReboul/ram/utilities/glo"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -52,8 +52,8 @@ type Global struct {
 	ownerLabelKeyName             string
 	PubSubID                      string
 	retryTimeOutSeconds           int64
-	step                          logging.Step
-	stepStack                     logging.Steps
+	step                          glo.Step
+	stepStack                     glo.Steps
 	tableName                     string
 	violationResolverLabelKeyName string
 }
@@ -65,7 +65,7 @@ type violation struct {
 	ConstraintConfig constraintConfig `json:"constraintConfig"`
 	FeedMessage      feedMessage      `json:"feedMessage"`
 	RegoModules      json.RawMessage  `json:"regoModules"`
-	StepStack        logging.Steps    `json:"step_stack,omitempty"`
+	StepStack        glo.Steps        `json:"step_stack,omitempty"`
 }
 
 // violationBQ from the "audit" rego policy in "audit.rego" module
@@ -140,10 +140,10 @@ type specBQ struct {
 
 // feedMessage Cloud Asset Inventory feed message
 type feedMessage struct {
-	Asset     asset         `json:"asset"`
-	Window    cai.Window    `json:"window"`
-	Origin    string        `json:"origin"`
-	StepStack logging.Steps `json:"step_stack,omitempty"`
+	Asset     asset      `json:"asset"`
+	Window    cai.Window `json:"window"`
+	Origin    string     `json:"origin"`
+	StepStack glo.Steps  `json:"step_stack,omitempty"`
 }
 
 // feedMessageBQ format to persist in BQ
@@ -216,7 +216,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			Severity:    "CRITICAL",
 			Message:     "init_failed",
 			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
@@ -229,7 +229,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	global.instanceName = instanceDeployment.Core.InstanceName
 	global.microserviceName = instanceDeployment.Core.ServiceName
 
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName: global.microserviceName,
 		InstanceName:     global.instanceName,
 		Environment:      global.environment,
@@ -248,7 +248,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	bigQueryClient, err = bigquery.NewClient(global.ctx, projectID)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -262,7 +262,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	dataset := bigQueryClient.Dataset(datasetName)
 	_, err = dataset.Metadata(ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -276,7 +276,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	table = dataset.Table(global.tableName)
 	_, err = table.Metadata(ctx)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -291,7 +291,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	if global.tableName == "assets" {
 		global.cloudresourcemanagerService, err = cloudresourcemanager.NewService(global.ctx)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName: global.microserviceName,
 				InstanceName:     global.instanceName,
 				Environment:      global.environment,
@@ -304,7 +304,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		}
 		global.cloudresourcemanagerServiceV2, err = cloudresourcemanagerv2.NewService(global.ctx)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName: global.microserviceName,
 				InstanceName:     global.instanceName,
 				Environment:      global.environment,
@@ -317,7 +317,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 		}
 		global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName: global.microserviceName,
 				InstanceName:     global.instanceName,
 				Environment:      global.environment,
@@ -338,7 +338,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -352,14 +352,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
-	global.step = logging.Step{
+	global.step = glo.Step{
 		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:           global.microserviceName,
 		InstanceName:               global.instanceName,
 		Environment:                global.environment,
@@ -372,7 +372,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	})
 
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:           global.microserviceName,
 			InstanceName:               global.instanceName,
 			Environment:                global.environment,
@@ -388,7 +388,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	}
 
 	if strings.Contains(string(PubSubMessage.Data), "You have successfully configured real time feed") {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -409,7 +409,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		insertID, err = persistAsset(PubSubMessage.Data, global)
 	}
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -424,7 +424,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		now := time.Now()
 		latency := now.Sub(metadata.Timestamp)
 		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
@@ -447,7 +447,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) (insertID str
 	var complianceStatus monitor.ComplianceStatus
 	err = json.Unmarshal(pubSubJSONDoc, &complianceStatus)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -479,7 +479,7 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) (insertID string, er
 	var violationBQ violationBQ
 	err = json.Unmarshal(pubSubJSONDoc, &violation)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -533,7 +533,7 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	var feedMessage feedMessage
 	err = json.Unmarshal(pubSubJSONDoc, &feedMessage)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -547,7 +547,7 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	var assetFeedMessageBQ assetFeedMessageBQ
 	err = json.Unmarshal(pubSubJSONDoc, &assetFeedMessageBQ)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -559,7 +559,7 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 		return "", nil
 	}
 	if assetFeedMessageBQ.Asset.Name == "" {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -573,7 +573,7 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	if feedMessage.StepStack != nil {
 		global.stepStack = append(feedMessage.StepStack, global.step)
 	} else {
-		var caiStep logging.Step
+		var caiStep glo.Step
 		caiStep.StepTimestamp = feedMessage.Window.StartTime
 		caiStep.StepID = fmt.Sprintf("%s/%s", feedMessage.Asset.Name, caiStep.StepTimestamp.Format(time.RFC3339))
 		global.stepStack = append(global.stepStack, caiStep)

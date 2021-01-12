@@ -12,5 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package logging helps with Logging
-package logging
+package glo
+
+import (
+	"github.com/BrunoReboul/ram/utilities/deploy"
+	"google.golang.org/api/logging/v2"
+)
+
+// LogMetricDeployment struct
+type LogMetricDeployment struct {
+	Artifacts struct {
+		LogMetric logging.LogMetric
+	}
+	Core     *deploy.Core
+	Settings struct {
+		Instance struct {
+			GLO LogMetricParameters
+		}
+	}
+}
+
+// NewLogMetricDeployment create deployment structure
+func NewLogMetricDeployment() *LogMetricDeployment {
+	return &LogMetricDeployment{}
+}

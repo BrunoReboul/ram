@@ -27,8 +27,8 @@ import (
 	"github.com/BrunoReboul/ram/utilities/cai"
 	"github.com/BrunoReboul/ram/utilities/ffo"
 	"github.com/BrunoReboul/ram/utilities/gfs"
+	"github.com/BrunoReboul/ram/utilities/glo"
 	"github.com/BrunoReboul/ram/utilities/gps"
-	"github.com/BrunoReboul/ram/utilities/logging"
 	"github.com/BrunoReboul/ram/utilities/solution"
 	"github.com/google/uuid"
 	"google.golang.org/api/option"
@@ -54,7 +54,7 @@ var pubSubClient *pubsub.Client
 var pubSubErrNumber uint64
 var pubSubID string
 var pubSubMsgNumber uint64
-var stepStack logging.Steps
+var stepStack glo.Steps
 var timestamp time.Time
 
 // Global structure for global variables to optimize the cloud function performances
@@ -73,16 +73,16 @@ type Global struct {
 	pubSubClient            *pubsub.Client
 	PubSubID                string
 	retryTimeOutSeconds     int64
-	step                    logging.Step
-	stepStack               logging.Steps
+	step                    glo.Step
+	stepStack               glo.Steps
 }
 
 // Settings from PubSub triggering event
 type Settings struct {
-	DirectoryCustomerID string        `json:"directoryCustomerID"`
-	Domain              string        `json:"domain"`
-	EmailPrefix         string        `json:"emailPrefix"`
-	StepStack           logging.Steps `json:"step_stack,omitempty"`
+	DirectoryCustomerID string    `json:"directoryCustomerID"`
+	Domain              string    `json:"domain"`
+	EmailPrefix         string    `json:"emailPrefix"`
+	StepStack           glo.Steps `json:"step_stack,omitempty"`
 }
 
 // Initialize is to be executed in the init() function of the cloud function to optimize the cold start
@@ -97,7 +97,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	initID := fmt.Sprintf("%v", uuid.New())
 	err = ffo.ReadUnmarshalYAML(solution.PathToFunctionCode+solution.SettingsFileName, &instanceDeployment)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			Severity:    "CRITICAL",
 			Message:     "init_failed",
 			Description: fmt.Sprintf("ReadUnmarshalYAML %s %v", solution.SettingsFileName, err),
@@ -110,7 +110,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	global.instanceName = instanceDeployment.Core.InstanceName
 	global.microserviceName = instanceDeployment.Core.ServiceName
 
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName: global.microserviceName,
 		InstanceName:     global.instanceName,
 		Environment:      global.environment,
@@ -134,7 +134,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	global.firestoreClient, err = firestore.NewClient(global.ctx, projectID)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -148,7 +148,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 
 	serviceAccountKeyNames, err := gfs.ListKeyNames(ctx, global.firestoreClient, instanceDeployment.Core.ServiceName)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -175,7 +175,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.dirAdminService, err = admin.NewService(ctx, clientOption)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -188,7 +188,7 @@ func Initialize(ctx context.Context, global *Global) (err error) {
 	}
 	global.pubSubClient, err = pubsub.NewClient(ctx, projectID)
 	if err != nil {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName: global.microserviceName,
 			InstanceName:     global.instanceName,
 			Environment:      global.environment,
@@ -208,7 +208,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	metadata, err := metadata.FromContext(ctxEvent)
 	if err != nil {
 		// Assume an error on the function invoker and try again.
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -222,14 +222,14 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	global.stepStack = nil
 	global.PubSubID = metadata.EventID
 	parts := strings.Split(metadata.Resource.Name, "/")
-	global.step = logging.Step{
+	global.step = glo.Step{
 		StepID:        fmt.Sprintf("%s/%s", parts[len(parts)-1], global.PubSubID),
 		StepTimestamp: metadata.Timestamp,
 	}
 
 	now := time.Now()
 	d := now.Sub(metadata.Timestamp)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:           global.microserviceName,
 		InstanceName:               global.instanceName,
 		Environment:                global.environment,
@@ -242,7 +242,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	})
 
 	if d.Seconds() > float64(global.retryTimeOutSeconds) {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:           global.microserviceName,
 			InstanceName:               global.instanceName,
 			Environment:                global.environment,
@@ -274,7 +274,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 		err = initiateQueries(global)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -288,7 +288,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		now := time.Now()
 		latency := now.Sub(metadata.Timestamp)
 		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
@@ -306,7 +306,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		var settings Settings
 		err = json.Unmarshal(PubSubMessage.Data, &settings)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -318,7 +318,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			return nil
 		}
 		if settings.DirectoryCustomerID != directoryCustomerID {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
 				Environment:        global.environment,
@@ -339,7 +339,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 			err = queryDirectory(settings.Domain, settings.EmailPrefix, global)
 			if err != nil {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
@@ -360,7 +360,7 @@ func initiateQueries(global *Global) error {
 	alphabetLower := getByteSet('a', 26)
 
 	emailAuthorizedByteSet := append(figures, alphabetLower...)
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:   global.microserviceName,
 		InstanceName:       global.instanceName,
 		Environment:        global.environment,
@@ -383,7 +383,7 @@ func initiateQueries(global *Global) error {
 			settings.StepStack = global.stepStack
 			settingsJSON, err := json.Marshal(settings)
 			if err != nil {
-				log.Println(logging.Entry{
+				log.Println(glo.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,
 					Environment:        global.environment,
@@ -399,7 +399,7 @@ func initiateQueries(global *Global) error {
 				topic := global.pubSubClient.Topic(global.inputTopicName)
 				id, err := topic.Publish(global.ctx, pubSubMessage).Get(global.ctx)
 				if err != nil {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
@@ -409,7 +409,7 @@ func initiateQueries(global *Global) error {
 						TriggeringPubsubID: global.PubSubID,
 					})
 				} else {
-					log.Println(logging.Entry{
+					log.Println(glo.Entry{
 						MicroserviceName:   global.microserviceName,
 						InstanceName:       global.instanceName,
 						Environment:        global.environment,
@@ -426,7 +426,7 @@ func initiateQueries(global *Global) error {
 }
 
 func queryDirectory(domain string, emailPrefix string, global *Global) error {
-	log.Println(logging.Entry{
+	log.Println(glo.Entry{
 		MicroserviceName:   global.microserviceName,
 		InstanceName:       global.instanceName,
 		Environment:        global.environment,
@@ -445,7 +445,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 			now := time.Now()
 			latency := now.Sub(global.step.StepTimestamp)
 			latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:     global.microserviceName,
 				InstanceName:         global.instanceName,
 				Environment:          global.environment,
@@ -467,7 +467,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 		now := time.Now()
 		latency := now.Sub(global.step.StepTimestamp)
 		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
@@ -485,7 +485,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 		now := time.Now()
 		latency := now.Sub(global.step.StepTimestamp)
 		latencyE2E := now.Sub(global.stepStack[0].StepTimestamp)
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:     global.microserviceName,
 			InstanceName:         global.instanceName,
 			Environment:          global.environment,
@@ -501,7 +501,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 		})
 	}
 	if pubSubErrNumber > 0 {
-		log.Println(logging.Entry{
+		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,
 			Environment:        global.environment,
@@ -535,7 +535,7 @@ func browseGroups(groups *admin.Groups) error {
 		feedMessage.StepStack = stepStack
 		feedMessageJSON, err := json.Marshal(feedMessage)
 		if err != nil {
-			log.Println(logging.Entry{
+			log.Println(glo.Entry{
 				MicroserviceName:   microserviceName,
 				InstanceName:       instanceName,
 				Environment:        environment,
