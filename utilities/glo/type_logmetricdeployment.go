@@ -12,16 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package setmetrics set cloud logging metrics from logs
+package glo
 
-Instances
+import (
+	"github.com/BrunoReboul/ram/utilities/deploy"
+	"google.golang.org/api/logging/v2"
+)
 
-Multiple: one per metric.
+// LogMetricDeployment struct
+type LogMetricDeployment struct {
+	Artifacts struct {
+		LogMetric logging.LogMetric
+	}
+	Core     *deploy.Core
+	Settings struct {
+		Instance struct {
+			GLO LogMetricParameters
+		}
+	}
+}
 
-Output
-
-Cloud logging metric configured.
-
-*/
-package setmetrics
+// NewLogMetricDeployment create deployment structure
+func NewLogMetricDeployment() *LogMetricDeployment {
+	return &LogMetricDeployment{}
+}

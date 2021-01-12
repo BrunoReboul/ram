@@ -12,25 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setmetrics
+package setlogmetrics
 
 import (
 	"time"
+
+	"github.com/BrunoReboul/ram/utilities/glo"
 
 	"github.com/BrunoReboul/ram/utilities/deploy"
 	"github.com/BrunoReboul/ram/utilities/gcb"
 	"github.com/BrunoReboul/ram/utilities/gsu"
 	"github.com/BrunoReboul/ram/utilities/iamgt"
-	"github.com/BrunoReboul/ram/utilities/mon"
 	"google.golang.org/api/iam/v1"
-	"google.golang.org/api/monitoring/v1"
+	"google.golang.org/api/logging/v2"
 )
 
 // InstanceDeployment settings and artifacts structure
 type InstanceDeployment struct {
 	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
 	Artifacts     struct {
-		Widgets []*monitoring.Widget
+		LogMetric logging.LogMetric
 	}
 	Core     *deploy.Core
 	Settings struct {
@@ -40,7 +41,7 @@ type InstanceDeployment struct {
 			GCB gcb.Parameters
 		}
 		Instance struct {
-			MON mon.DashboardParameters
+			GLO glo.LogMetricParameters
 		}
 	}
 }
@@ -64,8 +65,8 @@ func NewInstanceDeployment() *InstanceDeployment {
 }
 
 func projectDeployExtendedRole() (role iam.Role) {
-	role.Title = "ram_setdashboards_deploy_extended"
-	role.Description = "Real-time Asset Monitor set monitoring dashboards microservice extended permissions to deploy"
+	role.Title = "ram_setlogmetrics_deploy_extended"
+	role.Description = "Real-time Asset Monitor set log based metrics microservice extended permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
 		"serviceusage.services.list",
@@ -74,13 +75,12 @@ func projectDeployExtendedRole() (role iam.Role) {
 }
 
 func projectDeployCoreRole() (role iam.Role) {
-	role.Title = "ram_setdashboards_deploy_core"
-	role.Description = "Real-time Asset Monitor set monitoring dashboards microservice core permissions to deploy"
+	role.Title = "ram_setlogmetrics_deploy_core"
+	role.Description = "Real-time Asset Monitor set log based metrics microservice core permissions to deploy"
 	role.Stage = "GA"
 	role.IncludedPermissions = []string{
-		"monitoring.dashboards.list",
-		"monitoring.dashboards.create",
-		"monitoring.dashboards.get",
-		"monitoring.dashboards.update"}
+		"logging.logMetrics.get",
+		"logging.logMetrics.create",
+		"logging.logMetrics.update"}
 	return role
 }
