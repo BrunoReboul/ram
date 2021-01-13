@@ -44,16 +44,42 @@ func (deployment *Deployment) configureSetDashboards() (err error) {
 		os.Mkdir(instancesFolderPath, 0755)
 	}
 
-	var dashboards = map[string][]string{
-		"RAM core microservices":   []string{"dumpinventory", "splitdump", "monitor", "stream2bq", "publish2fs", "upload2gcs"},
-		"RAM groups microservices": []string{"convertlog2feed", "listgroups", "getgroupsettings", "listgroupmembers"},
-	}
-	setDashboardsInstance.MON.Columns = 4
-	setDashboardsInstance.MON.WidgetTypeList = []string{"widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"}
+	// var dashboards = map[string][]string{
+	// 	"RAM core microservices":   []string{"dumpinventory", "splitdump", "monitor", "stream2bq", "publish2fs", "upload2gcs"},
+	// 	"RAM groups microservices": []string{"convertlog2feed", "listgroups", "getgroupsettings", "listgroupmembers"},
+	// }
+	// setDashboardsInstance.MON.Columns = 4
+	// setDashboardsInstance.MON.WidgetTypeList = []string{"widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"}
 
-	for displayName, microServiceNameList := range dashboards {
+	type dboard struct {
+		columns              int64
+		microServiceNameList []string
+		widgetTypeList       []string
+	}
+	type dboards map[string]dboard
+
+	var dashboard dboard
+	var dashboards dboards
+	dashboards = make(dboards)
+
+	dashboard.columns = 4
+	dashboard.widgetTypeList = []string{"widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"}
+	dashboard.microServiceNameList = []string{"dumpinventory", "splitdump", "monitor", "stream2bq", "publish2fs", "upload2gcs"}
+	dashboards["RAM core microservices"] = dashboard
+
+	dashboard.microServiceNameList = []string{"convertlog2feed", "listgroups", "getgroupsettings", "listgroupmembers"}
+	dashboards["RAM groups microservices"] = dashboard
+
+	dashboard.columns = 3
+	dashboard.widgetTypeList = []string{"widgetRAMe2eLatency", "widgetRAMLatency", "widgetRAMTriggerAge"}
+	dashboard.microServiceNameList = []string{"stream2bq", "monitor", "upload2gcs", "publish2fs", "splitdump", "dumpinventory", "listgroupmembers", "getgroupsettings", "listgroups", "convertlog2feed"}
+	dashboards["RAM latency"] = dashboard
+
+	for displayName, dashboard := range dashboards {
 		setDashboardsInstance.MON.DisplayName = displayName
-		setDashboardsInstance.MON.MicroServiceNameList = microServiceNameList
+		setDashboardsInstance.MON.Columns = dashboard.columns
+		setDashboardsInstance.MON.WidgetTypeList = dashboard.widgetTypeList
+		setDashboardsInstance.MON.MicroServiceNameList = dashboard.microServiceNameList
 		instanceFolderPath := fmt.Sprintf("%s/%s_%s",
 			instancesFolderPath,
 			serviceName,

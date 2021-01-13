@@ -34,6 +34,12 @@ func GetGCFWidget(microserviceName string, widgetType string) (widget monitoring
 		widgetTypeJSON = widgetGCFExecutionTime
 	case "widgetGCFMemoryUsage":
 		widgetTypeJSON = widgetGCFMemoryUsage
+	case "widgetRAMe2eLatency":
+		widgetTypeJSON = widgetRAMe2eLatency
+	case "widgetRAMLatency":
+		widgetTypeJSON = widgetRAMLatency
+	case "widgetRAMTriggerAge":
+		widgetTypeJSON = widgetRAMTriggerAge
 	default:
 		return widget, fmt.Errorf("Unsupported widgetType")
 	}
