@@ -16,7 +16,7 @@ package mon
 
 const widgetRAMe2eLatency = `
 {
-  "title": "microservice_name end to end latency",
+  "title": "mservice_name end to end latency",
   "xyChart": {
     "chartOptions": {
       "mode": "COLOR"
@@ -31,7 +31,7 @@ const widgetRAMe2eLatency = `
               "crossSeriesReducer": "REDUCE_SUM",
               "perSeriesAligner": "ALIGN_DELTA"
             },
-            "filter": "metric.type=\"logging.googleapis.com/user/ram_latency_e2e\" resource.type=\"cloud_function\" metric.label.\"microservice_name\"=\"microservice_name\"",
+            "filter": "metric.type=\"logging.googleapis.com/user/ram_latency_e2e\" resource.type=\"cloud_function\" metric.label.\"microservice_name\"=\"mservice_name\"",
             "secondaryAggregation": {}
           }
         }

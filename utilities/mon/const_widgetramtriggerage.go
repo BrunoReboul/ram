@@ -16,7 +16,7 @@ package mon
 
 const widgetRAMTriggerAge = `
 {
-  "title": "microservice_name trigger age",
+  "title": "mservice_name trigger age",
   "xyChart": {
     "chartOptions": {
       "mode": "COLOR"
@@ -31,7 +31,7 @@ const widgetRAMTriggerAge = `
               "crossSeriesReducer": "REDUCE_SUM",
               "perSeriesAligner": "ALIGN_DELTA"
             },
-            "filter": "metric.type=\"logging.googleapis.com/user/ram_trigger_age\" resource.type=\"cloud_function\" metric.label.\"microservice_name\"=\"microservice_name\"",
+            "filter": "metric.type=\"logging.googleapis.com/user/ram_trigger_age\" resource.type=\"cloud_function\" metric.label.\"microservice_name\"=\"mservice_name\"",
             "secondaryAggregation": {}
           }
         }

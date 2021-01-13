@@ -46,7 +46,7 @@ func GetGCFWidget(microserviceName string, widgetType string) (widget monitoring
 	if microserviceName == "" {
 		return widget, fmt.Errorf("microserviceName can NOT be a zero value")
 	}
-	widgetTypeJSON = strings.Replace(widgetTypeJSON, "microservice_name", microserviceName, -1)
+	widgetTypeJSON = strings.Replace(widgetTypeJSON, "mservice_name", microserviceName, -1)
 	err = json.Unmarshal([]byte(widgetTypeJSON), &widget)
 	if err != nil {
 		return widget, fmt.Errorf("json.Unmarshal %s %s %v", microserviceName, widgetType, err)

@@ -16,7 +16,7 @@ package mon
 
 const widgetRAMLatency = `
 {
-  "title": "microservice_name latency",
+  "title": "mservice_name latency",
   "xyChart": {
     "chartOptions": {
       "mode": "COLOR"
@@ -31,7 +31,7 @@ const widgetRAMLatency = `
               "crossSeriesReducer": "REDUCE_SUM",
               "perSeriesAligner": "ALIGN_DELTA"
             },
-            "filter": "metric.type=\"logging.googleapis.com/user/ram_latency\" resource.type=\"cloud_function\" metric.label.\"microservice_name\"=\"microservice_name\"",
+            "filter": "metric.type=\"logging.googleapis.com/user/ram_latency\" resource.type=\"cloud_function\" metric.label.\"microservice_name\"=\"mservice_name\"",
             "secondaryAggregation": {}
           }
         }

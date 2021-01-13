@@ -16,7 +16,7 @@ package mon
 
 const widgetGCFMemoryUsage = `
 {
-	"title": "microservice_name Memory usage",
+	"title": "mservice_name Memory usage",
 	"xyChart": {
 	  "chartOptions": {
 		"mode": "COLOR"
@@ -31,7 +31,7 @@ const widgetGCFMemoryUsage = `
 				"crossSeriesReducer": "REDUCE_MAX",
 				"perSeriesAligner": "ALIGN_PERCENTILE_99"
 			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
+			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
 			  "secondaryAggregation": {}
 			}
 		  }
@@ -45,7 +45,7 @@ const widgetGCFMemoryUsage = `
 				"crossSeriesReducer": "REDUCE_MIN",
 				"perSeriesAligner": "ALIGN_PERCENTILE_99"
 			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
+			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
 			  "secondaryAggregation": {}
 			}
 		  }
@@ -59,7 +59,7 @@ const widgetGCFMemoryUsage = `
 				"crossSeriesReducer": "REDUCE_MEAN",
 				"perSeriesAligner": "ALIGN_DELTA"
 			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
+			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
 			  "secondaryAggregation": {}
 			}
 		  }

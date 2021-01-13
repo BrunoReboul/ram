@@ -16,7 +16,7 @@ package mon
 
 const widgetGCFExecutionTime = `
 {
-	"title": "microservice_name execution time",
+	"title": "mservice_name execution time",
 	"xyChart": {
 	  "chartOptions": {
 		"mode": "COLOR"
@@ -31,7 +31,7 @@ const widgetGCFExecutionTime = `
 				"crossSeriesReducer": "REDUCE_PERCENTILE_99",
 				"perSeriesAligner": "ALIGN_DELTA"
 			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
+			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
 			  "secondaryAggregation": {}
 			}
 		  }
@@ -45,7 +45,7 @@ const widgetGCFExecutionTime = `
 				"crossSeriesReducer": "REDUCE_PERCENTILE_50",
 				"perSeriesAligner": "ALIGN_DELTA"
 			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
+			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
 			  "secondaryAggregation": {}
 			}
 		  }
@@ -59,7 +59,7 @@ const widgetGCFExecutionTime = `
 				"crossSeriesReducer": "REDUCE_PERCENTILE_05",
 				"perSeriesAligner": "ALIGN_DELTA"
 			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
+			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
 			  "secondaryAggregation": {}
 			}
 		  }
