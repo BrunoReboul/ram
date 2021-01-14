@@ -16,60 +16,32 @@ package mon
 
 const widgetGCFMemoryUsage = `
 {
-	"title": "mservice_name Memory usage",
-	"xyChart": {
-	  "chartOptions": {
-		"mode": "COLOR"
-	  },
-	  "dataSets": [
-		{
-		  "minAlignmentPeriod": "60s",
-		  "plotType": "LINE",
-		  "timeSeriesQuery": {
-			"timeSeriesFilter": {
-			  "aggregation": {
-				"crossSeriesReducer": "REDUCE_MAX",
-				"perSeriesAligner": "ALIGN_PERCENTILE_99"
-			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
-			  "secondaryAggregation": {}
-			}
-		  }
-		},
-		{
-		  "minAlignmentPeriod": "60s",
-		  "plotType": "LINE",
-		  "timeSeriesQuery": {
-			"timeSeriesFilter": {
-			  "aggregation": {
-				"crossSeriesReducer": "REDUCE_MIN",
-				"perSeriesAligner": "ALIGN_PERCENTILE_99"
-			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
-			  "secondaryAggregation": {}
-			}
-		  }
-		},
-		{
-		  "minAlignmentPeriod": "60s",
-		  "plotType": "LINE",
-		  "timeSeriesQuery": {
-			"timeSeriesFilter": {
-			  "aggregation": {
-				"crossSeriesReducer": "REDUCE_MEAN",
-				"perSeriesAligner": "ALIGN_DELTA"
-			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
-			  "secondaryAggregation": {}
-			}
-		  }
-		}
-	  ],
-	  "timeshiftDuration": "0s",
-	  "yAxis": {
-		"label": "y1Axis",
-		"scale": "LINEAR"
-	  }
-	}
+  "title": "mservice_name memory usage",
+  "xyChart": {
+    "chartOptions": {
+      "mode": "COLOR"
+    },
+    "dataSets": [
+      {
+        "minAlignmentPeriod": "60s",
+        "plotType": "HEATMAP",
+        "timeSeriesQuery": {
+          "timeSeriesFilter": {
+            "aggregation": {
+              "crossSeriesReducer": "REDUCE_SUM",
+              "perSeriesAligner": "ALIGN_DELTA"
+            },
+            "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
+            "secondaryAggregation": {}
+          }
+        }
+      }
+    ],
+    "timeshiftDuration": "0s",
+    "yAxis": {
+      "label": "y1Axis",
+      "scale": "LINEAR"
+    }
+  }
 }
 `
