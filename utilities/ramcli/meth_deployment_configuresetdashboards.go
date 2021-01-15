@@ -76,7 +76,7 @@ func (deployment *Deployment) configureSetDashboards() (err error) {
 	// dashboards["RAM latency"] = dashboard
 
 	dashboard.columns = 3
-	dashboard.widgetTypeList = []string{"widgetRAMe2eLatency", "widgetRAMLatency", "widgetRAMTriggerAge", "widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"}
+	dashboard.widgetTypeList = []string{"widgetRAMe2eLatency", "widgetRAMLatency", "widgetRAMTriggerAge", "widgetSubOldestUnackedMsg", "widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"}
 	for _, microServiceName := range []string{"stream2bq", "monitor", "upload2gcs", "publish2fs", "splitdump", "dumpinventory", "listgroupmembers", "getgroupsettings", "listgroups", "convertlog2feed"} {
 		dashboard.microServiceNameList = []string{microServiceName}
 		dashboards[fmt.Sprintf("RAM %s", microServiceName)] = dashboard
