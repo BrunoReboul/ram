@@ -45,6 +45,31 @@ func (deployment *Deployment) configureSetLogMetrics() (err error) {
 	}
 	logMetricListYAML := []byte(`
 - glo:
+    metric_id: ram_execution_status
+    description: RAM execution status
+    filter: resource.type="cloud_function" jsonPayload.message="noretry" OR jsonPayload.message=~"^finish"
+    labels:
+      - name: environment
+        extractor: EXTRACT(jsonPayload.environment)
+        description: dev, prd...
+        valueType: string
+      - name: instance_name
+        extractor: EXTRACT(jsonPayload.instance_name)
+        description: instance name
+        valueType: string
+      - name: microservice_name
+        extractor: EXTRACT(jsonPayload.microservice_name)
+        description: microservice name
+        valueType: string
+      - name: status
+        extractor: REGEXP_EXTRACT(jsonPayload.message, "^([\\w\\-]+)")
+        description: finish means success, noretry means failure
+        valueType: string
+    metricDescriptor:
+      metricKind: DELTA
+      unit: '1'
+      valueType: INT64
+- glo:
     metric_id: ram_latency
     description: RAM latency by component
     filter: resource.type="cloud_function" severity=NOTICE jsonPayload.message=~"^finish"
