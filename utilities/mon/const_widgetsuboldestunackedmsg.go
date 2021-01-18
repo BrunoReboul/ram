@@ -14,9 +14,9 @@
 
 package mon
 
-const widgetGCFActiveInstances = `
+const widgetSubOldestUnackedMsg = `
 {
-	"title": "mservice_name active instances",
+	"title": "mservice_name pubsub oldest unacked msg",
 	"xyChart": {
 	  "chartOptions": {
 		"mode": "COLOR"
@@ -30,7 +30,7 @@ const widgetGCFActiveInstances = `
 			  "aggregation": {
 				"perSeriesAligner": "ALIGN_MEAN"
 			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/active_instances\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
+			  "filter": "metric.type=\"pubsub.googleapis.com/subscription/oldest_unacked_message_age\" resource.type=\"pubsub_subscription\" resource.label.\"subscription_id\"=monitoring.regex.full_match(\".*mservice_name.*\")",
 			  "secondaryAggregation": {}
 			}
 		  }

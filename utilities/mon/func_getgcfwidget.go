@@ -34,13 +34,21 @@ func GetGCFWidget(microserviceName string, widgetType string) (widget monitoring
 		widgetTypeJSON = widgetGCFExecutionTime
 	case "widgetGCFMemoryUsage":
 		widgetTypeJSON = widgetGCFMemoryUsage
+	case "widgetRAMe2eLatency":
+		widgetTypeJSON = widgetRAMe2eLatency
+	case "widgetRAMLatency":
+		widgetTypeJSON = widgetRAMLatency
+	case "widgetRAMTriggerAge":
+		widgetTypeJSON = widgetRAMTriggerAge
+	case "widgetSubOldestUnackedMsg":
+		widgetTypeJSON = widgetSubOldestUnackedMsg
 	default:
 		return widget, fmt.Errorf("Unsupported widgetType")
 	}
 	if microserviceName == "" {
 		return widget, fmt.Errorf("microserviceName can NOT be a zero value")
 	}
-	widgetTypeJSON = strings.Replace(widgetTypeJSON, "microservice_name", microserviceName, -1)
+	widgetTypeJSON = strings.Replace(widgetTypeJSON, "mservice_name", microserviceName, -1)
 	err = json.Unmarshal([]byte(widgetTypeJSON), &widget)
 	if err != nil {
 		return widget, fmt.Errorf("json.Unmarshal %s %s %v", microserviceName, widgetType, err)

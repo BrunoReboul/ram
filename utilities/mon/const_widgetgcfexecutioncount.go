@@ -16,7 +16,7 @@ package mon
 
 const widgetGCFExecutionCount = `
 {
-	"title": "microservice_name execution count",
+	"title": "mservice_name execution count",
 	"xyChart": {
 	  "chartOptions": {
 		"mode": "COLOR"
@@ -30,7 +30,7 @@ const widgetGCFExecutionCount = `
 			  "aggregation": {
 				"perSeriesAligner": "ALIGN_RATE"
 			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_count\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
+			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_count\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
 			  "secondaryAggregation": {}
 			}
 		  }

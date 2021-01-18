@@ -29,11 +29,13 @@ func (logMetricDeployment LogMetricDeployment) Deploy() (err error) {
 
 	metricFound := true
 	// GET
-	// ffo.MarshalYAMLWrite("./metric.yaml", logMetricDeployment.Artifacts.LogMetric)
-	retrievedLogMetric, err := projectMetricsService.Get(logMetricDeployment.Artifacts.LogMetric.Name).Context(logMetricDeployment.Core.Ctx).Do()
+	metricName := fmt.Sprintf("projects/%s/metrics/%s",
+		logMetricDeployment.Core.SolutionSettings.Hosting.ProjectID,
+		logMetricDeployment.Settings.Instance.GLO.MetricID)
+
+	retrievedLogMetric, err := projectMetricsService.Get(metricName).Context(logMetricDeployment.Core.Ctx).Do()
 
 	if err != nil {
-		fmt.Println(err.Error())
 		if strings.Contains(strings.ToLower(err.Error()), "notfound") {
 			metricFound = false
 		} else {
@@ -47,22 +49,25 @@ func (logMetricDeployment LogMetricDeployment) Deploy() (err error) {
 		}
 		log.Printf("%s glo create metric start", logMetricDeployment.Core.InstanceName)
 		parent := fmt.Sprintf("projects/%s", logMetricDeployment.Core.SolutionSettings.Hosting.ProjectID)
+		// ffo.YAMLMarshalPrint(&logMetricDeployment.Artifacts.LogMetric)
 		createdLogMetric, err := projectMetricsService.Create(parent, &logMetricDeployment.Artifacts.LogMetric).Context(logMetricDeployment.Core.Ctx).Do()
 		if err != nil {
 			return fmt.Errorf("projectMetricsService.Create %v", err)
 		}
+		// ffo.YAMLMarshalPrint(&createdLogMetric)
 		log.Printf("%s glo metric created %s", logMetricDeployment.Core.InstanceName, createdLogMetric.Name)
 	} else {
 		log.Printf("%s glo found log metric %s",
 			logMetricDeployment.Core.InstanceName,
 			retrievedLogMetric.Name)
+		// ffo.YAMLMarshalPrint(&retrievedLogMetric)
 		err = checkLogMetric(&logMetricDeployment.Artifacts.LogMetric, retrievedLogMetric)
 		if err != nil {
 			if logMetricDeployment.Core.Commands.Check {
 				return err
 			}
 			log.Printf("%s glo metric meed to be updated", logMetricDeployment.Core.InstanceName)
-			updatedLogMetric, err := projectMetricsService.Update(logMetricDeployment.Artifacts.LogMetric.Name, &logMetricDeployment.Artifacts.LogMetric).Context(logMetricDeployment.Core.Ctx).Do()
+			updatedLogMetric, err := projectMetricsService.Update(metricName, &logMetricDeployment.Artifacts.LogMetric).Context(logMetricDeployment.Core.Ctx).Do()
 			if err != nil {
 				return fmt.Errorf("projectMetricsService.Update %v", err)
 			}

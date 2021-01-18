@@ -108,7 +108,7 @@ func checkLogMetric(logMetric, retrievedLogMetric *logging.LogMetric) (err error
 				}
 			}
 		} else {
-			s = fmt.Sprintf("%snot found retrievedLogMetric.BucketOptions\n", s)
+			// s = fmt.Sprintf("%snot found retrievedLogMetric.BucketOptions\n", s)
 		}
 	}
 	if logMetric.MetricDescriptor != nil {
@@ -118,11 +118,11 @@ func checkLogMetric(logMetric, retrievedLogMetric *logging.LogMetric) (err error
 					logMetric.MetricDescriptor.Type,
 					retrievedLogMetric.MetricDescriptor.Type)
 			}
-			if logMetric.MetricDescriptor.Name != retrievedLogMetric.MetricDescriptor.Name {
-				s = fmt.Sprintf("%sMetricDescriptor.Name\nwant %s\nhave %s\n", s,
-					logMetric.MetricDescriptor.Name,
-					retrievedLogMetric.MetricDescriptor.Name)
-			}
+			// if logMetric.MetricDescriptor.Name != retrievedLogMetric.MetricDescriptor.Name {
+			// 	s = fmt.Sprintf("%sMetricDescriptor.Name\nwant %s\nhave %s\n", s,
+			// 		logMetric.MetricDescriptor.Name,
+			// 		retrievedLogMetric.MetricDescriptor.Name)
+			// }
 			if logMetric.MetricDescriptor.Description != retrievedLogMetric.MetricDescriptor.Description {
 				s = fmt.Sprintf("%sMetricDescriptor.Description\nwant %s\nhave %s\n", s,
 					logMetric.MetricDescriptor.Description,

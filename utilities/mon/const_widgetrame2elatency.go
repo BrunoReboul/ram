@@ -14,9 +14,9 @@
 
 package mon
 
-const widgetGCFMemoryUsage = `
+const widgetRAMe2eLatency = `
 {
-  "title": "mservice_name memory usage",
+  "title": "mservice_name end to end latency",
   "xyChart": {
     "chartOptions": {
       "mode": "COLOR"
@@ -31,7 +31,7 @@ const widgetGCFMemoryUsage = `
               "crossSeriesReducer": "REDUCE_SUM",
               "perSeriesAligner": "ALIGN_DELTA"
             },
-            "filter": "metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
+            "filter": "metric.type=\"logging.googleapis.com/user/ram_latency_e2e\" resource.type=\"cloud_function\" metric.label.\"microservice_name\"=\"mservice_name\"",
             "secondaryAggregation": {}
           }
         }

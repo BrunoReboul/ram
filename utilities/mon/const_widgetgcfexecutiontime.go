@@ -16,60 +16,32 @@ package mon
 
 const widgetGCFExecutionTime = `
 {
-	"title": "microservice_name execution time",
-	"xyChart": {
-	  "chartOptions": {
-		"mode": "COLOR"
-	  },
-	  "dataSets": [
-		{
-		  "minAlignmentPeriod": "60s",
-		  "plotType": "STACKED_BAR",
-		  "timeSeriesQuery": {
-			"timeSeriesFilter": {
-			  "aggregation": {
-				"crossSeriesReducer": "REDUCE_PERCENTILE_99",
-				"perSeriesAligner": "ALIGN_DELTA"
-			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
-			  "secondaryAggregation": {}
-			}
-		  }
-		},
-		{
-		  "minAlignmentPeriod": "60s",
-		  "plotType": "STACKED_BAR",
-		  "timeSeriesQuery": {
-			"timeSeriesFilter": {
-			  "aggregation": {
-				"crossSeriesReducer": "REDUCE_PERCENTILE_50",
-				"perSeriesAligner": "ALIGN_DELTA"
-			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
-			  "secondaryAggregation": {}
-			}
-		  }
-		},
-		{
-		  "minAlignmentPeriod": "60s",
-		  "plotType": "STACKED_BAR",
-		  "timeSeriesQuery": {
-			"timeSeriesFilter": {
-			  "aggregation": {
-				"crossSeriesReducer": "REDUCE_PERCENTILE_05",
-				"perSeriesAligner": "ALIGN_DELTA"
-			  },
-			  "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"microservice_name.*\")",
-			  "secondaryAggregation": {}
-			}
-		  }
-		}
-	  ],
-	  "timeshiftDuration": "0s",
-	  "yAxis": {
-		"label": "y1Axis",
-		"scale": "LINEAR"
-	  }
-	}
+  "title": "mservice_name execution time",
+  "xyChart": {
+    "chartOptions": {
+      "mode": "COLOR"
+    },
+    "dataSets": [
+      {
+        "minAlignmentPeriod": "60s",
+        "plotType": "HEATMAP",
+        "timeSeriesQuery": {
+          "timeSeriesFilter": {
+            "aggregation": {
+              "crossSeriesReducer": "REDUCE_SUM",
+              "perSeriesAligner": "ALIGN_DELTA"
+            },
+            "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" resource.type=\"cloud_function\" resource.label.\"function_name\"=monitoring.regex.full_match(\"mservice_name.*\")",
+            "secondaryAggregation": {}
+          }
+        }
+      }
+    ],
+    "timeshiftDuration": "0s",
+    "yAxis": {
+      "label": "y1Axis",
+      "scale": "LINEAR"
+    }
+  }
 }
 `
