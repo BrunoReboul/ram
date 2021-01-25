@@ -814,6 +814,7 @@ func publishGroup(feedMessage interface{}, isDeleted bool, groupEmail string, as
 		LatencySeconds:       latency.Seconds(),
 		LatencyE2ESeconds:    latencyE2E.Seconds(),
 		StepStack:            global.stepStack,
+		AssetInventoryOrigin: "real-time-log-export",
 	})
 	return nil
 }
@@ -1005,6 +1006,7 @@ func publishGroupMember(feedMessage interface{}, isDeleted bool, groupEmail stri
 		LatencySeconds:       latency.Seconds(),
 		LatencyE2ESeconds:    latencyE2E.Seconds(),
 		StepStack:            global.stepStack,
+		AssetInventoryOrigin: "real-time-log-export",
 	})
 	return nil
 }
@@ -1079,6 +1081,7 @@ func publishGroupSettings(groupEmail string, global *Global) (err error) {
 		LatencySeconds:       latency.Seconds(),
 		LatencyE2ESeconds:    latencyE2E.Seconds(),
 		StepStack:            global.stepStack,
+		AssetInventoryOrigin: "real-time-log-export",
 	})
 
 	return nil

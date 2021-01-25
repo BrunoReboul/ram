@@ -530,6 +530,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 		LatencyE2ESeconds:    latencyE2E.Seconds(),
 		StepStack:            global.stepStack,
 		Compliant:            complianceStatus.Compliant,
+		AssetInventoryOrigin: feedMessage.Origin,
 	})
 	return nil
 }
