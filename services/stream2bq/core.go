@@ -40,6 +40,7 @@ import (
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
+	assetInventoryOrigin          string
 	assetsCollectionID            string
 	cloudresourcemanagerService   *cloudresourcemanager.Service
 	cloudresourcemanagerServiceV2 *cloudresourcemanagerv2.Service // v2 is needed for folders
@@ -436,6 +437,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
 			StepStack:            global.stepStack,
+			AssetInventoryOrigin: global.assetInventoryOrigin,
 		})
 		// Description:          fmt.Sprintf("insert %s ok %s", global.tableName, insertID),
 	}
@@ -463,6 +465,7 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) (insertID str
 	} else {
 		global.stepStack = append(global.stepStack, global.step)
 	}
+	global.assetInventoryOrigin = complianceStatus.AssetInventoryOrigin
 
 	insertID = fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
 	savers := []*bigquery.StructSaver{
@@ -495,6 +498,7 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) (insertID string, er
 	} else {
 		global.stepStack = append(global.stepStack, global.step)
 	}
+	global.assetInventoryOrigin = violation.FeedMessage.Origin
 
 	violationBQ.NonCompliance.Message = violation.NonCompliance.Message
 	violationBQ.NonCompliance.Metadata = string(violation.NonCompliance.Metadata)
@@ -592,6 +596,8 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 	assetFeedMessageBQ.Asset.AncestryPathDisplayName = cai.BuildAncestryPath(assetFeedMessageBQ.Asset.AncestorsDisplayName)
 	assetFeedMessageBQ.Asset.Owner, _ = cai.GetAssetLabelValue(global.ownerLabelKeyName, feedMessage.Asset.Resource)
 	assetFeedMessageBQ.Asset.ViolationResolver, _ = cai.GetAssetLabelValue(global.violationResolverLabelKeyName, feedMessage.Asset.Resource)
+
+	global.assetInventoryOrigin = assetFeedMessageBQ.Origin
 
 	insertID = fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
 	savers := []*bigquery.StructSaver{
