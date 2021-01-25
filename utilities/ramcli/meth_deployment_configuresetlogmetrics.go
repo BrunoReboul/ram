@@ -92,6 +92,10 @@ func (deployment *Deployment) configureSetLogMetrics() (err error) {
         extractor: EXTRACT(jsonPayload.microservice_name)
         description: microservice name
         valueType: string
+      - name: origin
+        extractor: EXTRACT(jsonPayload.assetInventoryOrigin)
+        description: real-time, batch-export, real-time-log-export, batch-listgroups
+        valueType: string
     metricDescriptor:
       metricKind: DELTA
       unit: s
@@ -118,6 +122,10 @@ func (deployment *Deployment) configureSetLogMetrics() (err error) {
       - name: microservice_name
         extractor: EXTRACT(jsonPayload.microservice_name)
         description: microservice name
+        valueType: string
+      - name: origin
+        extractor: EXTRACT(jsonPayload.assetInventoryOrigin)
+        description: real-time, batch-export, real-time-log-export, batch-listgroups
         valueType: string
     metricDescriptor:
       metricKind: DELTA
