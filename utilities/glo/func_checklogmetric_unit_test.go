@@ -134,13 +134,6 @@ func TestUnitCheckLogMetrics(t *testing.T) {
   retreivedLogMetric:
     labelextractors:
       environment: B
-- name: BucketOptions
-  wantErr: true
-  logMetric:
-    bucketoptions:
-      exponentialbuckets:
-        growthfactor: 2
-  retreivedLogMetric:
 - name: ExplicitBuckets
   wantErr: true
   logMetric:
@@ -187,7 +180,7 @@ func TestUnitCheckLogMetrics(t *testing.T) {
     bucketoptions:
       exponentialbuckets:
         growthfactor: 10
-- name:  expo numfinitebuckets
+- name: expo numfinitebuckets
   wantErr: true
   logMetric:
     bucketoptions:
@@ -197,7 +190,7 @@ func TestUnitCheckLogMetrics(t *testing.T) {
     bucketoptions:
       exponentialbuckets:
          numfinitebuckets: 10
-- name:  scale
+- name: scale
   wantErr: true
   logMetric:
     bucketoptions:
@@ -262,14 +255,6 @@ func TestUnitCheckLogMetrics(t *testing.T) {
   retreivedLogMetric:
     metricdescriptor:
       type: B
-- name: MetricDescriptor name
-  wantErr: true
-  logMetric:
-    metricdescriptor:
-      name: A
-  retreivedLogMetric:
-    metricdescriptor:
-      name: B
 - name: MetricDescriptor description
   wantErr: true
   logMetric:
