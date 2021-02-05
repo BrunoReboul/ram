@@ -407,6 +407,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
 			StepStack:            global.stepStack,
+			AssetInventoryOrigin: "batch-export",
 		})
 	} else {
 		dumpLineNumber, duration = splitToLines(buffer, global, &pubSubMsgNumber, &topicList, startTime)
@@ -426,6 +427,7 @@ func EntryPoint(ctxEvent context.Context, gcsEvent gcs.Event, global *Global) er
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
 			StepStack:            global.stepStack,
+			AssetInventoryOrigin: "batch-export",
 		})
 	}
 	return nil
