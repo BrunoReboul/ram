@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	cloud.google.com/go v0.76.0
-	cloud.google.com/go/bigquery v1.13.0
+	cloud.google.com/go/bigquery v1.15.0
 	cloud.google.com/go/firestore v1.3.0
 	cloud.google.com/go/logging v1.1.2
 	cloud.google.com/go/pubsub v1.8.3
