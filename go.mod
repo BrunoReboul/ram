@@ -4,15 +4,15 @@ go 1.13
 
 require (
 	cloud.google.com/go v0.76.0
-	cloud.google.com/go/bigquery v1.13.0
-	cloud.google.com/go/firestore v1.3.0
-	cloud.google.com/go/logging v1.1.2
-	cloud.google.com/go/pubsub v1.8.3
-	cloud.google.com/go/storage v1.12.0
-	github.com/google/uuid v1.1.2
-	github.com/open-policy-agent/opa v0.24.0
-	golang.org/x/oauth2 v0.0.0-20210113205817-d3ed898aa8a3
-	google.golang.org/api v0.38.0
-	google.golang.org/genproto v0.0.0-20210202153253-cf70463f6119
+	cloud.google.com/go/bigquery v1.15.0
+	cloud.google.com/go/firestore v1.4.0
+	cloud.google.com/go/logging v1.2.0
+	cloud.google.com/go/pubsub v1.9.1
+	cloud.google.com/go/storage v1.13.0
+	github.com/google/uuid v1.2.0
+	github.com/open-policy-agent/opa v0.26.0
+	golang.org/x/oauth2 v0.0.0-20210201163806-010130855d6c
+	google.golang.org/api v0.39.0
+	google.golang.org/genproto v0.0.0-20210204154452-deb828366460
 	gopkg.in/yaml.v2 v2.4.0
 )
