@@ -9,7 +9,7 @@ require (
 	cloud.google.com/go/logging v1.1.2
 	cloud.google.com/go/pubsub v1.8.3
 	cloud.google.com/go/storage v1.12.0
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.2.0
 	github.com/open-policy-agent/opa v0.24.0
 	golang.org/x/oauth2 v0.0.0-20210113205817-d3ed898aa8a3
 	google.golang.org/api v0.38.0
