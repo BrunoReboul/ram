@@ -301,6 +301,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
 			StepStack:            global.stepStack,
+			AssetInventoryOrigin: "batch-listgroups",
 		})
 	} else {
 		var settings Settings
@@ -480,6 +481,7 @@ func queryDirectory(domain string, emailPrefix string, global *Global) error {
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
 			StepStack:            global.stepStack,
+			AssetInventoryOrigin: "batch-listgroups",
 		})
 	} else {
 		now := time.Now()

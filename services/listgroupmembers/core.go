@@ -340,6 +340,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			LatencySeconds:       latency.Seconds(),
 			LatencyE2ESeconds:    latencyE2E.Seconds(),
 			StepStack:            global.stepStack,
+			AssetInventoryOrigin: feedMessageGroup.Origin,
 		})
 	} else {
 		now = time.Now()
