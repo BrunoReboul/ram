@@ -16,7 +16,6 @@ package cai
 
 import (
 	"context"
-	"log"
 	"strings"
 
 	"cloud.google.com/go/firestore"
@@ -81,32 +80,34 @@ func getDisplayName(ctx context.Context,
 		}
 		// log.Printf("name %s displayName %s", name, displayName)
 	} else {
-		log.Printf("WARNING - Not found in firestore %s", documentPath)
-		//try resourcemamager API
-		switch strings.Split(name, "/")[0] {
-		case "organizations":
-			resp, err := cloudresourcemanagerService.Organizations.Get(name).Context(ctx).Do()
-			if err != nil {
-				log.Printf("WARNING - cloudresourcemanagerService.Organizations.Get %v", err)
-			} else {
-				displayName = resp.DisplayName
-			}
-		case "folders":
-			resp, err := cloudresourcemanagerServiceV2.Folders.Get(name).Context(ctx).Do()
-			if err != nil {
-				log.Printf("WARNING - cloudresourcemanagerServiceV2.Folders.Get %v", err)
-			} else {
-				displayName = resp.DisplayName
-			}
-		case "projects":
-			resp, err := cloudresourcemanagerService.Projects.Get(strings.Split(name, "/")[1]).Context(ctx).Do()
-			if err != nil {
-				log.Printf("WARNING - cloudresourcemanagerService.Projects.Get %v", err)
-			} else {
-				displayName = resp.Name
-				projectID = resp.ProjectId
-			}
-		}
+		// log.Printf("WARNING - Not found in firestore %s", documentPath)
+
+		//Do not fallback on resourcemamager API see https://github.com/BrunoReboul/ram/issues/126
+
+		// switch strings.Split(name, "/")[0] {
+		// case "organizations":
+		// 	resp, err := cloudresourcemanagerService.Organizations.Get(name).Context(ctx).Do()
+		// 	if err != nil {
+		// 		log.Printf("WARNING - cloudresourcemanagerService.Organizations.Get %v", err)
+		// 	} else {
+		// 		displayName = resp.DisplayName
+		// 	}
+		// case "folders":
+		// 	resp, err := cloudresourcemanagerServiceV2.Folders.Get(name).Context(ctx).Do()
+		// 	if err != nil {
+		// 		log.Printf("WARNING - cloudresourcemanagerServiceV2.Folders.Get %v", err)
+		// 	} else {
+		// 		displayName = resp.DisplayName
+		// 	}
+		// case "projects":
+		// 	resp, err := cloudresourcemanagerService.Projects.Get(strings.Split(name, "/")[1]).Context(ctx).Do()
+		// 	if err != nil {
+		// 		log.Printf("WARNING - cloudresourcemanagerService.Projects.Get %v", err)
+		// 	} else {
+		// 		displayName = resp.Name
+		// 		projectID = resp.ProjectId
+		// 	}
+		// }
 	}
 	return displayName, projectID
 }
