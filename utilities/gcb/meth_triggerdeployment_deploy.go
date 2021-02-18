@@ -209,28 +209,33 @@ func (triggerDeployment *TriggerDeployment) situate() {
 
 func (triggerDeployment *TriggerDeployment) getInstanceDeploymentBuild() *cloudbuild.Build {
 	var steps []*cloudbuild.BuildStep
-	var step1, step2, step3 cloudbuild.BuildStep
+	var step1, step2, step3, step4 cloudbuild.BuildStep
 
-	step1.Id = "build a fresh ram cli"
+	step1.Id = "display go language version"
 	step1.Name = "golang"
-	step1.Args = []string{"go", "build", "ram.go"}
+	step1.Args = []string{"go", "version"}
 	steps = append(steps, &step1)
 
-	step2.Id = "display ram executable info"
-	step2.Name = "gcr.io/cloud-builders/gcloud"
-	step2.Entrypoint = "bash"
-	step2.Args = []string{"-c", "ls -al ram"}
+	step2.Id = "build a fresh ram cli"
+	step2.Name = "golang"
+	step2.Args = []string{"go", "build", "-mod=mod", "ram.go"}
 	steps = append(steps, &step2)
+
+	step3.Id = "display ram executable info"
+	step3.Name = "gcr.io/cloud-builders/gcloud"
+	step3.Entrypoint = "bash"
+	step3.Args = []string{"-c", "ls -al ram"}
+	steps = append(steps, &step3)
 
 	ramDeploymentCommand := fmt.Sprintf("./ram -deploy -environment=%s -service=%s -instance=%s",
 		triggerDeployment.Core.EnvironmentName,
 		triggerDeployment.Core.ServiceName,
 		triggerDeployment.Core.InstanceName)
-	step3.Id = fmt.Sprintf("deploy instance %s", triggerDeployment.Core.InstanceName)
-	step3.Name = "gcr.io/cloud-builders/gcloud"
-	step3.Entrypoint = "bash"
-	step3.Args = []string{"-c", ramDeploymentCommand}
-	steps = append(steps, &step3)
+	step4.Id = fmt.Sprintf("deploy instance %s", triggerDeployment.Core.InstanceName)
+	step4.Name = "gcr.io/cloud-builders/gcloud"
+	step4.Entrypoint = "bash"
+	step4.Args = []string{"-c", ramDeploymentCommand}
+	steps = append(steps, &step4)
 
 	var build cloudbuild.Build
 	build.Steps = steps
