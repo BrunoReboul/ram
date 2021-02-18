@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -35,13 +36,22 @@ func GetDoc(ctx context.Context,
 	for i = 0; i < retriesNumber; i++ {
 		documentSnap, err = firestoreClient.Doc(documentPath).Get(ctx)
 		if err != nil {
+			// Retry are for transient, not for doc not found
+			if strings.Contains("notfound", strings.ToLower(err.Error())) {
+				log.Println(glo.Entry{
+					Severity: "WARNING",
+					Message:  "no_found_in_cache",
+				})
+				return documentSnap, false
+			}
 			log.Println(glo.Entry{
-				Severity:    "WARNING",
-				Message:     "no_found_in_cache",
+				Severity:    "CRITICAL",
+				Message:     "redo_on_transient",
 				Description: fmt.Sprintf("iteration %d firestoreClient.Doc(documentPath).Get(ctx) %v", i, err),
 			})
 			time.Sleep(i * 100 * time.Millisecond)
 		} else {
+			// Found
 			return documentSnap, documentSnap.Exists()
 		}
 	}
