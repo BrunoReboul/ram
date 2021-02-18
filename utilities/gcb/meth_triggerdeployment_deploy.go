@@ -218,7 +218,7 @@ func (triggerDeployment *TriggerDeployment) getInstanceDeploymentBuild() *cloudb
 
 	step2.Id = "build a fresh ram cli"
 	step2.Name = "golang"
-	step2.Args = []string{"go", "build", "'-mod=mod'", "ram.go"}
+	step2.Args = []string{"go", "build", "-mod=mod", "ram.go"}
 	steps = append(steps, &step2)
 
 	step3.Id = "display ram executable info"
