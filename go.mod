@@ -3,16 +3,16 @@ module github.com/BrunoReboul/ram
 go 1.13
 
 require (
-	cloud.google.com/go v0.76.0
+	cloud.google.com/go v0.78.0
 	cloud.google.com/go/bigquery v1.15.0
 	cloud.google.com/go/firestore v1.4.0
 	cloud.google.com/go/logging v1.2.0
-	cloud.google.com/go/pubsub v1.10.0
+	cloud.google.com/go/pubsub v1.10.1
 	cloud.google.com/go/storage v1.13.0
 	github.com/google/uuid v1.2.0
 	github.com/open-policy-agent/opa v0.26.0
-	golang.org/x/oauth2 v0.0.0-20210201163806-010130855d6c
+	golang.org/x/oauth2 v0.0.0-20210220000619-9bb904979d93
 	google.golang.org/api v0.40.0
-	google.golang.org/genproto v0.0.0-20210207032614-bba0dbe2a9ea
+	google.golang.org/genproto v0.0.0-20210302174412-5ede27ff9881
 	gopkg.in/yaml.v2 v2.4.0
 )
