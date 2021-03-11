@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/BrunoReboul/ram/services/setlogsinks"
 	"github.com/BrunoReboul/ram/utilities/ffo"
@@ -50,12 +49,10 @@ func (deployment *Deployment) configureLogSinksOrganizations() (err error) {
 		setlogsinksInstance.LSK.Filter = filter
 		setlogsinksInstance.LSK.TopicName = fmt.Sprintf("log-org%s-%s", organizationID, sinkNameSuffix)
 
-		instanceFolderPath := strings.Replace(
-			fmt.Sprintf("%s/%s_org%s_%s",
-				instancesFolderPath,
-				serviceName,
-				organizationID,
-				sinkNameSuffix), "-", "_", -1)
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_org%s_%s",
+			serviceName,
+			organizationID,
+			sinkNameSuffix))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}

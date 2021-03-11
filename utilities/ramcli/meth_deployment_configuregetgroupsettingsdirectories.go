@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/BrunoReboul/ram/services/getgroupsettings"
 	"github.com/BrunoReboul/ram/utilities/ffo"
@@ -44,11 +43,9 @@ func (deployment *Deployment) configureGetGroupSettingsDirectories() (err error)
 		getgroupsettingsInstance.GCI.SuperAdminEmail = directorySettings.SuperAdminEmail
 		getgroupsettingsInstance.GCF.TriggerTopic = fmt.Sprintf("gci-groups-%s", directoryCustomerID)
 
-		instanceFolderPath := strings.Replace(
-			fmt.Sprintf("%s/%s_directory_%s",
-				instancesFolderPath,
-				serviceName,
-				directoryCustomerID), "-", "_", -1)
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_directory_%s",
+			serviceName,
+			directoryCustomerID))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}

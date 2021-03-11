@@ -87,10 +87,9 @@ func (deployment *Deployment) configureSetDashboards() (err error) {
 		setDashboardsInstance.MON.Columns = dashboard.columns
 		setDashboardsInstance.MON.WidgetTypeList = dashboard.widgetTypeList
 		setDashboardsInstance.MON.MicroServiceNameList = dashboard.microServiceNameList
-		instanceFolderPath := fmt.Sprintf("%s/%s_%s",
-			instancesFolderPath,
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_%s",
 			serviceName,
-			strings.ToLower(strings.Replace(displayName, " ", "_", -1)))
+			strings.ToLower(strings.Replace(displayName, " ", "_", -1))))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
