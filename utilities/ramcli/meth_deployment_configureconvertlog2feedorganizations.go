@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/BrunoReboul/ram/services/convertlog2feed"
 	"github.com/BrunoReboul/ram/utilities/ffo"
@@ -55,12 +54,10 @@ func (deployment *Deployment) configureConvertlog2feedOrganizations() (err error
 		}
 		convertlog2feedInstance.GCI.SuperAdminEmail = deployment.Core.SolutionSettings.Monitoring.DirectoryCustomerIDs[directoryCustomerID].SuperAdminEmail
 
-		instanceFolderPath := strings.Replace(
-			fmt.Sprintf("%s/%s_org%s_%s",
-				instancesFolderPath,
-				serviceName,
-				organizationID,
-				sinkNameSuffix), "-", "_", -1)
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_org%s_%s",
+			serviceName,
+			organizationID,
+			sinkNameSuffix))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}

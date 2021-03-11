@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/BrunoReboul/ram/services/dumpinventory"
 	"github.com/BrunoReboul/ram/utilities/cai"
@@ -48,7 +47,9 @@ func (deployment *Deployment) configureDumpInventoryAssetTypes() (err error) {
 		// one and only one iam policy feed for all asset types
 		dumpinventoryInstance.CAI.ContentType = "IAM_POLICY"
 		dumpinventoryInstance.CAI.AssetTypes = deployment.Core.SolutionSettings.Monitoring.AssetTypes.IAMPolicies
-		instanceFolderPath := fmt.Sprintf("%s/%s_org%s_iam_policies", instancesFolderPath, serviceName, organizationID)
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_org%s_iam_policies",
+			serviceName,
+			organizationID))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
@@ -61,12 +62,10 @@ func (deployment *Deployment) configureDumpInventoryAssetTypes() (err error) {
 		for _, assetType := range deployment.Core.SolutionSettings.Monitoring.AssetTypes.Resources {
 			dumpinventoryInstance.CAI.ContentType = "RESOURCE"
 			dumpinventoryInstance.CAI.AssetTypes = []string{assetType}
-			instanceFolderPath := strings.Replace(
-				fmt.Sprintf("%s/%s_org%s_%s",
-					instancesFolderPath,
-					serviceName,
-					organizationID,
-					cai.GetAssetShortTypeName(assetType)), "-", "_", -1)
+			instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_org%s_%s",
+				serviceName,
+				organizationID,
+				cai.GetAssetShortTypeName(assetType)))
 			if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 				os.Mkdir(instanceFolderPath, 0755)
 			}

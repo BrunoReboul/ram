@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/BrunoReboul/ram/services/splitdump"
 	"github.com/BrunoReboul/ram/utilities/ffo"
@@ -44,10 +43,8 @@ func (deployment *Deployment) configureSplitDumpSingleInstance() (err error) {
 	splitdumpInstance.SplitThresholdLineNumber = 1000
 	splitdumpInstance.ScannerBufferSizeKiloBytes = 128
 
-	instanceFolderPath := strings.Replace(
-		fmt.Sprintf("%s/%s_single_instance",
-			instancesFolderPath,
-			serviceName), "-", "_", -1)
+	instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_single_instance",
+		serviceName))
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
