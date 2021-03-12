@@ -37,7 +37,7 @@ func GetDoc(ctx context.Context,
 		documentSnap, err = firestoreClient.Doc(documentPath).Get(ctx)
 		if err != nil {
 			// Retry are for transient, not for doc not found
-			if strings.Contains("notfound", strings.ToLower(err.Error())) {
+			if strings.Contains(strings.ToLower(err.Error()), "notfound") {
 				log.Println(glo.Entry{
 					Severity: "WARNING",
 					Message:  "no_found_in_cache",
