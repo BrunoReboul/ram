@@ -10,7 +10,7 @@ require (
 	cloud.google.com/go/pubsub v1.10.1
 	cloud.google.com/go/storage v1.14.0
 	github.com/google/uuid v1.2.0
-	github.com/open-policy-agent/opa v0.27.0
+	github.com/open-policy-agent/opa v0.27.1
 	golang.org/x/oauth2 v0.0.0-20210220000619-9bb904979d93
 	google.golang.org/api v0.41.0
 	google.golang.org/genproto v0.0.0-20210310155132-4ce2db91004e
