@@ -30,6 +30,7 @@ import (
 	"github.com/BrunoReboul/ram/utilities/glo"
 	"github.com/BrunoReboul/ram/utilities/gps"
 	"github.com/BrunoReboul/ram/utilities/solution"
+	"github.com/BrunoReboul/ram/utilities/str"
 	"github.com/google/uuid"
 	"google.golang.org/api/cloudresourcemanager/v1"
 
@@ -467,7 +468,11 @@ func persistComplianceStatus(pubSubJSONDoc []byte, global *Global) (insertID str
 	}
 	global.assetInventoryOrigin = complianceStatus.AssetInventoryOrigin
 
-	insertID = fmt.Sprintf("%s%v%s%v", complianceStatus.AssetName, complianceStatus.AssetInventoryTimeStamp, complianceStatus.RuleName, complianceStatus.RuleDeploymentTimeStamp)
+	insertID = str.Hash(fmt.Sprintf("%s%v%s%v",
+		complianceStatus.AssetName,
+		complianceStatus.AssetInventoryTimeStamp,
+		complianceStatus.RuleName,
+		complianceStatus.RuleDeploymentTimeStamp))
 	savers := []*bigquery.StructSaver{
 		{Struct: complianceStatus, Schema: gbq.GetComplianceStatusSchema(), InsertID: insertID},
 	}
@@ -523,7 +528,12 @@ func persistViolation(pubSubJSONDoc []byte, global *Global) (insertID string, er
 	violationBQ.FeedMessage.Asset.Resource = string(violation.FeedMessage.Asset.Resource)
 	violationBQ.RegoModules = string(violation.RegoModules)
 
-	insertID = fmt.Sprintf("%s%v%s%v%s", violationBQ.FeedMessage.Asset.Name, violation.FeedMessage.Window.StartTime, violation.FunctionConfig.FunctionName, violation.FunctionConfig.DeploymentTime, violation.NonCompliance.Message)
+	insertID = str.Hash(fmt.Sprintf("%s%v%s%v%s",
+		violationBQ.FeedMessage.Asset.Name,
+		violation.FeedMessage.Window.StartTime,
+		violation.FunctionConfig.FunctionName,
+		violation.FunctionConfig.DeploymentTime,
+		violation.NonCompliance.Message))
 	savers := []*bigquery.StructSaver{
 		{Struct: violationBQ, Schema: gbq.GetViolationsSchema(), InsertID: insertID},
 	}
@@ -599,7 +609,9 @@ func persistAsset(pubSubJSONDoc []byte, global *Global) (insertID string, err er
 
 	global.assetInventoryOrigin = assetFeedMessageBQ.Origin
 
-	insertID = fmt.Sprintf("%s%v", assetFeedMessageBQ.Asset.Name, assetFeedMessageBQ.Asset.Timestamp)
+	insertID = str.Hash(fmt.Sprintf("%s%v",
+		assetFeedMessageBQ.Asset.Name,
+		assetFeedMessageBQ.Asset.Timestamp))
 	savers := []*bigquery.StructSaver{
 		{Struct: assetFeedMessageBQ.Asset, Schema: gbq.GetAssetsSchema(), InsertID: insertID},
 	}
