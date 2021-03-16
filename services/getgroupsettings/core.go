@@ -39,6 +39,8 @@ import (
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 )
 
+const waitSecOnQuotaExceeded = 70
+
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	ctx                   context.Context
@@ -256,6 +258,19 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	if !feedMessageGroup.Deleted {
 		groupSettings, err := global.groupsSettingsService.Groups.Get(feedMessageGroup.Asset.Resource.Email).Do()
 		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "quota") {
+				log.Println(glo.Entry{
+					MicroserviceName:   global.microserviceName,
+					InstanceName:       global.instanceName,
+					Environment:        global.environment,
+					Severity:           "WARNING",
+					Message:            fmt.Sprintf("waiting_on_quota_exceeded"),
+					Description:        fmt.Sprintf("GetGroupSettings quota is gone, wait for %d seconds then retry", waitSecOnQuotaExceeded),
+					TriggeringPubsubID: global.PubSubID,
+				})
+				time.Sleep(waitSecOnQuotaExceeded * time.Second)
+				return err
+			}
 			log.Println(glo.Entry{
 				MicroserviceName:   global.microserviceName,
 				InstanceName:       global.instanceName,
