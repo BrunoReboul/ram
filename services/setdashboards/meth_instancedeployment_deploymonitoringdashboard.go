@@ -20,6 +20,6 @@ func (instanceDeployment *InstanceDeployment) deployMonitoringDashboard() (err e
 	dashboardDeployment := mon.NewDashboardDeployment()
 	dashboardDeployment.Core = instanceDeployment.Core
 	dashboardDeployment.Settings.Instance.MON = instanceDeployment.Settings.Instance.MON
-	dashboardDeployment.Artifacts.Widgets = instanceDeployment.Artifacts.Widgets
+	dashboardDeployment.Artifacts = instanceDeployment.Artifacts
 	return dashboardDeployment.Deploy()
 }

@@ -37,19 +37,54 @@ func (deployment *Deployment) configureSetDashboards() (err error) {
 	}
 
 	log.Printf("configure %s", serviceName)
-	var setDashboardsInstanceDeployment setdashboards.InstanceDeployment
-	setDashboardsInstance := setDashboardsInstanceDeployment.Settings.Instance
 	instancesFolderPath := fmt.Sprintf("%s/%s", serviceFolderPath, solution.InstancesFolderName)
 	if _, err := os.Stat(instancesFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instancesFolderPath, 0755)
 	}
 
-	// var dashboards = map[string][]string{
-	// 	"RAM core microservices":   []string{"dumpinventory", "splitdump", "monitor", "stream2bq", "publish2fs", "upload2gcs"},
-	// 	"RAM groups microservices": []string{"convertlog2feed", "listgroups", "getgroupsettings", "listgroupmembers"},
-	// }
-	// setDashboardsInstance.MON.Columns = 4
-	// setDashboardsInstance.MON.WidgetTypeList = []string{"widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"}
+	var setSLOFreshnessInstanceDeployment setdashboards.InstanceDeployment
+	setSLOFreshnessInstance := setSLOFreshnessInstanceDeployment.Settings.Instance
+	setSLOFreshnessInstance.MON.SLOFreshnessLayout.Columns = 12
+	for _, freshnessSLOdefiniton := range deployment.Core.SolutionSettings.Hosting.FreshnessSLODefinitions {
+		setSLOFreshnessInstance.MON.SLOFreshnessLayout.Origin = freshnessSLOdefiniton.Origin
+		switch setSLOFreshnessInstance.MON.SLOFreshnessLayout.Origin {
+		case "batch-export":
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Scope = "GCP"
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Flow = "batch"
+		case "real-time":
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Scope = "GCP"
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Flow = "real-time"
+		case "batch-listgroups":
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Scope = "Groups"
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Flow = "batch"
+		case "real-time-log-export":
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Scope = "Groups"
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Flow = "real-time"
+		}
+		setSLOFreshnessInstance.MON.SLOFreshnessLayout.SLO = freshnessSLOdefiniton.SLO
+		setSLOFreshnessInstance.MON.SLOFreshnessLayout.CutOffBucketNumber = freshnessSLOdefiniton.CutOffBucketNumber
+		setSLOFreshnessInstance.MON.DisplayName = fmt.Sprintf("SLO freshness %s %s",
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Scope,
+			setSLOFreshnessInstance.MON.SLOFreshnessLayout.Flow)
+		n := strings.ToLower(strings.Replace(setSLOFreshnessInstance.MON.DisplayName, " ", "_", -1))
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_%s",
+			serviceName,
+			n))
+
+		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
+			os.Mkdir(instanceFolderPath, 0755)
+		}
+		if err = ffo.MarshalYAMLWrite(fmt.Sprintf("%s/%s",
+			instanceFolderPath,
+			solution.InstanceSettingsFileName),
+			setSLOFreshnessInstance); err != nil {
+			return err
+		}
+		log.Printf("done %s", instanceFolderPath)
+	}
+
+	var setDashboardsInstanceDeployment setdashboards.InstanceDeployment
+	setDashboardsInstance := setDashboardsInstanceDeployment.Settings.Instance
 
 	type dboard struct {
 		columns              int64
@@ -70,11 +105,6 @@ func (deployment *Deployment) configureSetDashboards() (err error) {
 	dashboard.microServiceNameList = []string{"convertlog2feed", "listgroups", "getgroupsettings", "listgroupmembers"}
 	dashboards["RAM groups microservices"] = dashboard
 
-	// dashboard.columns = 3
-	// dashboard.widgetTypeList = []string{"widgetRAMe2eLatency", "widgetRAMLatency", "widgetRAMTriggerAge"}
-	// dashboard.microServiceNameList = []string{"stream2bq", "monitor", "upload2gcs", "publish2fs", "splitdump", "dumpinventory", "listgroupmembers", "getgroupsettings", "listgroups", "convertlog2feed"}
-	// dashboards["RAM latency"] = dashboard
-
 	dashboard.columns = 3
 	dashboard.widgetTypeList = []string{"widgetRAMe2eLatency", "widgetRAMLatency", "widgetRAMTriggerAge", "widgetSubOldestUnackedMsg", "widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"}
 	for _, microServiceName := range []string{"stream2bq", "monitor", "upload2gcs", "publish2fs", "splitdump", "dumpinventory", "listgroupmembers", "getgroupsettings", "listgroups", "convertlog2feed"} {
@@ -84,9 +114,9 @@ func (deployment *Deployment) configureSetDashboards() (err error) {
 
 	for displayName, dashboard := range dashboards {
 		setDashboardsInstance.MON.DisplayName = displayName
-		setDashboardsInstance.MON.Columns = dashboard.columns
-		setDashboardsInstance.MON.WidgetTypeList = dashboard.widgetTypeList
-		setDashboardsInstance.MON.MicroServiceNameList = dashboard.microServiceNameList
+		setDashboardsInstance.MON.GridLayout.Columns = dashboard.columns
+		setDashboardsInstance.MON.GridLayout.WidgetTypeList = dashboard.widgetTypeList
+		setDashboardsInstance.MON.GridLayout.MicroServiceNameList = dashboard.microServiceNameList
 		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_%s",
 			serviceName,
 			strings.ToLower(strings.Replace(displayName, " ", "_", -1))))
@@ -101,5 +131,6 @@ func (deployment *Deployment) configureSetDashboards() (err error) {
 		}
 		log.Printf("done %s", instanceFolderPath)
 	}
+
 	return nil
 }
