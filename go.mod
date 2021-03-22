@@ -11,8 +11,8 @@ require (
 	cloud.google.com/go/storage v1.14.0
 	github.com/google/uuid v1.2.0
 	github.com/open-policy-agent/opa v0.27.1
-	golang.org/x/oauth2 v0.0.0-20210220000619-9bb904979d93
-	google.golang.org/api v0.41.0
-	google.golang.org/genproto v0.0.0-20210310155132-4ce2db91004e
+	golang.org/x/oauth2 v0.0.0-20210313182246-cd4f82c27b84
+	google.golang.org/api v0.42.0
+	google.golang.org/genproto v0.0.0-20210312152112-fc591d9ea70f
 	gopkg.in/yaml.v2 v2.4.0
 )
