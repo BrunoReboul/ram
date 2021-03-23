@@ -39,6 +39,8 @@ import (
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
+const waitSecOnQuotaExceeded = 70
+
 // Global variable to deal with GroupsListCall Pages constraint: no possible to pass variable to the function in pages()
 // https://pkg.go.dev/google.golang.org/api/admin/directory/v1?tab=doc#GroupsListCall.Pages
 var ctx context.Context
@@ -340,6 +342,19 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 			err = queryDirectory(settings.Domain, settings.EmailPrefix, global)
 			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "quota") {
+					log.Println(glo.Entry{
+						MicroserviceName:   global.microserviceName,
+						InstanceName:       global.instanceName,
+						Environment:        global.environment,
+						Severity:           "WARNING",
+						Message:            fmt.Sprintf("waiting_on_quota_exceeded"),
+						Description:        fmt.Sprintf("ListGroup quota is gone, wait for %d seconds then retry", waitSecOnQuotaExceeded),
+						TriggeringPubsubID: global.PubSubID,
+					})
+					time.Sleep(waitSecOnQuotaExceeded * time.Second)
+					return err
+				}
 				log.Println(glo.Entry{
 					MicroserviceName:   global.microserviceName,
 					InstanceName:       global.instanceName,

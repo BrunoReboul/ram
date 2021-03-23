@@ -168,10 +168,9 @@ func (deployment *Deployment) configureSetLogMetrics() (err error) {
 	}
 
 	for _, logMetric := range logMetricList {
-		instanceFolderPath := fmt.Sprintf("%s/%s_%s",
-			instancesFolderPath,
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_%s",
 			serviceName,
-			strings.ToLower(strings.Replace(logMetric.GLO.MetricID, " ", "_", -1)))
+			strings.ToLower(logMetric.GLO.MetricID)))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}

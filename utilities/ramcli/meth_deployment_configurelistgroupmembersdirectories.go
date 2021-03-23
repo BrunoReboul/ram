@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/BrunoReboul/ram/services/listgroupmembers"
 	"github.com/BrunoReboul/ram/utilities/ffo"
@@ -44,11 +43,9 @@ func (deployment *Deployment) configureListGroupMembersDirectories() (err error)
 		listgroupmembersInstance.GCI.SuperAdminEmail = directorySettings.SuperAdminEmail
 		listgroupmembersInstance.GCF.TriggerTopic = fmt.Sprintf("gci-groups-%s", directoryCustomerID)
 
-		instanceFolderPath := strings.Replace(
-			fmt.Sprintf("%s/%s_directory_%s",
-				instancesFolderPath,
-				serviceName,
-				directoryCustomerID), "-", "_", -1)
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_directory_%s",
+			serviceName,
+			directoryCustomerID))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}

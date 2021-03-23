@@ -78,6 +78,11 @@ type Settings struct {
 				Assets string `valid:"isNotZeroValue"`
 			} `yaml:"collectionIDs"`
 		}
+		FreshnessSLODefinitions []struct {
+			Origin             string
+			SLO                float64
+			CutOffBucketNumber int64 `yaml:"cutOffBucketNumber"`
+		} `yaml:"freshnessSLODefinitions"`
 	}
 	Monitoring struct {
 		OrganizationIDs []string `yaml:"organizationIDs"`

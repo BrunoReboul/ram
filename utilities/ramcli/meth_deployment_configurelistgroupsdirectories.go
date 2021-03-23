@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/BrunoReboul/ram/services/listgroups"
 	"github.com/BrunoReboul/ram/utilities/ffo"
@@ -45,11 +44,9 @@ func (deployment *Deployment) configureListGroupsDirectories() (err error) {
 		listgroupsInstance.GCI.SuperAdminEmail = directorySettings.SuperAdminEmail
 		listgroupsInstance.SCH.Schedulers = deployment.Core.SolutionSettings.Monitoring.ListGroupsDefaultSchedulers
 
-		instanceFolderPath := strings.Replace(
-			fmt.Sprintf("%s/%s_directory_%s",
-				instancesFolderPath,
-				serviceName,
-				directoryCustomerID), "-", "_", -1)
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_directory_%s",
+			serviceName,
+			directoryCustomerID))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}

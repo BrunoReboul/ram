@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/BrunoReboul/ram/services/publish2fs"
 	"github.com/BrunoReboul/ram/utilities/ffo"
@@ -41,10 +40,8 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 	}
 
 	publish2fsInstance.GCF.TriggerTopic = "cai-rces-cloudresourcemanager-Organization"
-	instanceFolderPath := strings.Replace(
-		fmt.Sprintf("%s/%s_cloudresourcemanager_Organization",
-			instancesFolderPath,
-			serviceName), "-", "_", -1)
+	instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_cloudresourcemanager_Organization",
+		serviceName))
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
@@ -54,10 +51,8 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 	log.Printf("done %s", instanceFolderPath)
 
 	publish2fsInstance.GCF.TriggerTopic = "cai-rces-cloudresourcemanager-Folder"
-	instanceFolderPath = strings.Replace(
-		fmt.Sprintf("%s/%s_cloudresourcemanager_Folder",
-			instancesFolderPath,
-			serviceName), "-", "_", -1)
+	instanceFolderPath = makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_cloudresourcemanager_Folder",
+		serviceName))
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
@@ -67,10 +62,8 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 	log.Printf("done %s", instanceFolderPath)
 
 	publish2fsInstance.GCF.TriggerTopic = "cai-rces-cloudresourcemanager-Project"
-	instanceFolderPath = strings.Replace(
-		fmt.Sprintf("%s/%s_cloudresourcemanager_Project",
-			instancesFolderPath,
-			serviceName), "-", "_", -1)
+	instanceFolderPath = makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_cloudresourcemanager_Project",
+		serviceName))
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
@@ -80,10 +73,8 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 	log.Printf("done %s", instanceFolderPath)
 
 	publish2fsInstance.GCF.TriggerTopic = "gci-groupMembers"
-	instanceFolderPath = strings.Replace(
-		fmt.Sprintf("%s/%s_gci_groupMembers",
-			instancesFolderPath,
-			serviceName), "-", "_", -1)
+	instanceFolderPath = makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_gci_groupMembers",
+		serviceName))
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}
@@ -94,11 +85,9 @@ func (deployment *Deployment) configurePublish2fsInstances() (err error) {
 
 	for directoryCustomerID := range deployment.Core.SolutionSettings.Monitoring.DirectoryCustomerIDs {
 		publish2fsInstance.GCF.TriggerTopic = fmt.Sprintf("gci-groups-%s", directoryCustomerID)
-		instanceFolderPath = strings.Replace(
-			fmt.Sprintf("%s/%s_gci_groups_%s",
-				instancesFolderPath,
-				serviceName,
-				directoryCustomerID), "-", "_", -1)
+		instanceFolderPath = makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_gci_groups_%s",
+			serviceName,
+			directoryCustomerID))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}

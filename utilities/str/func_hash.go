@@ -12,28 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mon
+package str
 
 import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
-	"google.golang.org/api/monitoring/v1"
+	"crypto/sha1"
+	"encoding/base64"
 )
 
-// DashboardDeployment struct
-type DashboardDeployment struct {
-	Artifacts struct {
-		Widgets []*monitoring.Widget
-		Tiles   []*monitoring.Tile
-	}
-	Core     *deploy.Core
-	Settings struct {
-		Instance struct {
-			MON DashboardParameters
-		}
-	}
-}
-
-// NewDashboardDeployment create deployment structure
-func NewDashboardDeployment() *DashboardDeployment {
-	return &DashboardDeployment{}
+// Hash used sha1 to hash a string to a shorter one
+func Hash(s string) string {
+	hasher := sha1.New()
+	hasher.Write([]byte(s))
+	return base64.URLEncoding.EncodeToString(hasher.Sum(nil))
 }

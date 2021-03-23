@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/BrunoReboul/ram/services/stream2bq"
 	"github.com/BrunoReboul/ram/utilities/cai"
@@ -45,10 +44,9 @@ func (deployment *Deployment) configureStream2bqAssetTypes() (err error) {
 	for _, tableName := range []string{"violations", "complianceStatus"} {
 		stream2bqInstance.Bigquery.TableName = tableName
 		stream2bqInstance.GCF.TriggerTopic = fmt.Sprintf("ram-%s", tableName)
-		instanceFolderPath := fmt.Sprintf("%s/%s_%s",
-			instancesFolderPath,
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_%s",
 			serviceName,
-			tableName)
+			tableName))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
@@ -63,11 +61,9 @@ func (deployment *Deployment) configureStream2bqAssetTypes() (err error) {
 		stream2bqInstance.Bigquery.TableName = "assets"
 		assetShortName := cai.GetAssetShortTypeName(assetType)
 		stream2bqInstance.GCF.TriggerTopic = fmt.Sprintf("cai-rces-%s", assetShortName)
-		instanceFolderPath := strings.Replace(
-			fmt.Sprintf("%s/%s_rces_%s",
-				instancesFolderPath,
-				serviceName,
-				cai.GetAssetShortTypeName(assetType)), "-", "_", -1)
+		instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_rces_%s",
+			serviceName,
+			cai.GetAssetShortTypeName(assetType)))
 		if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 			os.Mkdir(instanceFolderPath, 0755)
 		}
@@ -79,10 +75,8 @@ func (deployment *Deployment) configureStream2bqAssetTypes() (err error) {
 	// iam policies related assets
 	stream2bqInstance.Bigquery.TableName = "assets"
 	stream2bqInstance.GCF.TriggerTopic = deployment.Core.SolutionSettings.Hosting.Pubsub.TopicNames.IAMPolicies
-	instanceFolderPath := strings.Replace(
-		fmt.Sprintf("%s/%s_iam_assets",
-			instancesFolderPath,
-			serviceName), "-", "_", -1)
+	instanceFolderPath := makeInstanceFolderPath(instancesFolderPath, fmt.Sprintf("%s_iam_assets",
+		serviceName))
 	if _, err := os.Stat(instanceFolderPath); os.IsNotExist(err) {
 		os.Mkdir(instanceFolderPath, 0755)
 	}

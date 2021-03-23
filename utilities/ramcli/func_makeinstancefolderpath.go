@@ -12,28 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mon
+package ramcli
 
 import (
-	"github.com/BrunoReboul/ram/utilities/deploy"
-	"google.golang.org/api/monitoring/v1"
+	"fmt"
+	"strings"
 )
 
-// DashboardDeployment struct
-type DashboardDeployment struct {
-	Artifacts struct {
-		Widgets []*monitoring.Widget
-		Tiles   []*monitoring.Tile
+func makeInstanceFolderPath(instancesFolderPath, instanceName string) (instanceFolderPath string) {
+	r := []rune(instanceName)
+	if len(r) > 63 {
+		instanceName = string(r[0:63])
 	}
-	Core     *deploy.Core
-	Settings struct {
-		Instance struct {
-			MON DashboardParameters
-		}
-	}
-}
-
-// NewDashboardDeployment create deployment structure
-func NewDashboardDeployment() *DashboardDeployment {
-	return &DashboardDeployment{}
+	instanceName = strings.Replace(instanceName, "-", "_", -1)
+	return fmt.Sprintf("%s/%s", instancesFolderPath, instanceName)
 }

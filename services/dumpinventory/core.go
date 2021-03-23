@@ -35,6 +35,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// Quota ExportAssets Requests per minute
+const waitSecOnQuotaExceeded = 70
+
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
 	assetClient         *asset.Client
@@ -213,6 +216,19 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 
 	operation, err := global.assetClient.ExportAssets(global.ctx, global.request)
 	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "quota") {
+			log.Println(glo.Entry{
+				MicroserviceName:   global.microserviceName,
+				InstanceName:       global.instanceName,
+				Environment:        global.environment,
+				Severity:           "WARNING",
+				Message:            fmt.Sprintf("waiting_on_quota_exceeded"),
+				Description:        fmt.Sprintf("ExportAssets quota is gone, wait for %d seconds then retry", waitSecOnQuotaExceeded),
+				TriggeringPubsubID: global.PubSubID,
+			})
+			time.Sleep(waitSecOnQuotaExceeded * time.Second)
+			return err
+		}
 		log.Println(glo.Entry{
 			MicroserviceName:   global.microserviceName,
 			InstanceName:       global.instanceName,

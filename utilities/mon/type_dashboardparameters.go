@@ -16,8 +16,18 @@ package mon
 
 // DashboardParameters structure
 type DashboardParameters struct {
-	DisplayName          string
-	Columns              int64
-	MicroServiceNameList []string `yaml:"microServiceNameList"`
-	WidgetTypeList       []string `yaml:"widgetTypeList"`
+	DisplayName string
+	GridLayout  struct {
+		Columns              int64
+		MicroServiceNameList []string `yaml:"microServiceNameList,omitempty"`
+		WidgetTypeList       []string `yaml:"widgetTypeList,omitempty"`
+	} `yaml:"gridLayout,omitempty"`
+	SLOFreshnessLayout struct {
+		Columns            int64
+		Origin             string
+		Scope              string
+		Flow               string
+		SLO                float64 `yaml:"slo,omitempty"`
+		CutOffBucketNumber int64   `yaml:"cutOffBucketNumber,omitempty"`
+	} `yaml:"sloFreshnessLayout,omitempty"`
 }

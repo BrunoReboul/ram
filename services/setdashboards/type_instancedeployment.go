@@ -31,6 +31,7 @@ type InstanceDeployment struct {
 	DumpTimestamp time.Time `yaml:"dumpTimestamp"`
 	Artifacts     struct {
 		Widgets []*monitoring.Widget
+		Tiles   []*monitoring.Tile
 	}
 	Core     *deploy.Core
 	Settings struct {
