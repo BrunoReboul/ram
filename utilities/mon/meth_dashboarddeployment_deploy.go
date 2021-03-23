@@ -38,16 +38,13 @@ func (dashboardDeployment DashboardDeployment) Deploy() (err error) {
 		}
 	}
 	var gridLayout monitoring.GridLayout
-	gridLayout.Columns = dashboardDeployment.Settings.Instance.MON.Columns
-	gridLayout.Widgets = dashboardDeployment.Artifacts.Widgets
+	var mosaicLayout monitoring.MosaicLayout
 	var dashboard monitoring.Dashboard
-	dashboard.DisplayName = dashboardDeployment.Settings.Instance.MON.DisplayName
-	dashboard.GridLayout = &gridLayout
-
 	var dashboardName string
 	var retreivedDashboard *monitoring.Dashboard
-	needToUpdateWidgets := false
-	needToUpdateColumns := false
+	needToUpdate := false
+	dashboard.DisplayName = dashboardDeployment.Settings.Instance.MON.DisplayName
+
 	if dashboardID != "" {
 		dashboardName = fmt.Sprintf("projects/%s/dashboards/%s",
 			dashboardDeployment.Core.SolutionSettings.Hosting.Stackdriver.ProjectID,
@@ -56,32 +53,81 @@ func (dashboardDeployment DashboardDeployment) Deploy() (err error) {
 		if err != nil {
 			return err
 		}
-		if !reflect.DeepEqual(dashboardDeployment.Artifacts.Widgets, retreivedDashboard.GridLayout.Widgets) {
-			needToUpdateWidgets = true
-		}
-		// fmt.Printf("%d / %d", dashboardDeployment.Settings.Instance.MON.Columns, retreivedDashboard.GridLayout.Columns)
-		if dashboardDeployment.Settings.Instance.MON.Columns != retreivedDashboard.GridLayout.Columns {
-			needToUpdateColumns = true
+		if dashboardDeployment.Core.Commands.Check {
+			return fmt.Errorf("%s mon dashboard NOT found for this instance", dashboardDeployment.Core.InstanceName)
 		}
 	}
 
-	if dashboardDeployment.Core.Commands.Check {
-		if dashboardID == "" {
-			return fmt.Errorf("%s mon dashboard NOT found for this instance", dashboardDeployment.Core.InstanceName)
+	if dashboardDeployment.Settings.Instance.MON.GridLayout.Columns != 0 {
+		// Gridlayout report
+		gridLayout.Columns = dashboardDeployment.Settings.Instance.MON.GridLayout.Columns
+		gridLayout.Widgets = dashboardDeployment.Artifacts.Widgets
+		dashboard.GridLayout = &gridLayout
+		needToUpdateWidgets := false
+		needToUpdateColumns := false
+		if dashboardID != "" {
+			if !reflect.DeepEqual(dashboardDeployment.Artifacts.Widgets, retreivedDashboard.GridLayout.Widgets) {
+				needToUpdateWidgets = true
+				needToUpdate = true
+			}
+			if dashboardDeployment.Settings.Instance.MON.GridLayout.Columns != retreivedDashboard.GridLayout.Columns {
+				needToUpdateColumns = true
+				needToUpdate = true
+			}
 		}
-		var s string
-		if needToUpdateWidgets {
-			s = fmt.Sprintf("%shave a different array of widgets\n", s)
+
+		if dashboardDeployment.Core.Commands.Check {
+			var s string
+			if needToUpdateWidgets {
+				s = fmt.Sprintf("%shave a different array of widgets\n", s)
+			}
+			if needToUpdateColumns {
+				s = fmt.Sprintf("%scolumns\nwant %d\nhave %d\n", s,
+					dashboardDeployment.Settings.Instance.MON.GridLayout.Columns,
+					retreivedDashboard.GridLayout.Columns)
+			}
+			if len(s) > 0 {
+				return fmt.Errorf("%s mon invalid dashboard configuration:\n%s", dashboardDeployment.Core.InstanceName, s)
+			}
+			return nil
 		}
-		if needToUpdateColumns {
-			s = fmt.Sprintf("%scolumns\nwant %d\nhave %d\n", s,
-				dashboardDeployment.Settings.Instance.MON.Columns,
-				retreivedDashboard.GridLayout.Columns)
+	} else {
+		if dashboardDeployment.Settings.Instance.MON.SLOFreshnessLayout.SLO != 0 {
+			// SLO freshness mosaic report
+			mosaicLayout.Columns = dashboardDeployment.Settings.Instance.MON.SLOFreshnessLayout.Columns
+			mosaicLayout.Tiles = dashboardDeployment.Artifacts.Tiles
+			dashboard.MosaicLayout = &mosaicLayout
+			needToUpdateTiles := false
+			needToUpdateColumns := false
+			if dashboardID != "" {
+				if !reflect.DeepEqual(dashboardDeployment.Artifacts.Tiles, retreivedDashboard.MosaicLayout.Tiles) {
+					needToUpdateTiles = true
+					needToUpdate = true
+				}
+				if dashboardDeployment.Settings.Instance.MON.SLOFreshnessLayout.Columns != retreivedDashboard.MosaicLayout.Columns {
+					needToUpdateColumns = true
+					needToUpdate = true
+				}
+			}
+			if dashboardDeployment.Core.Commands.Check {
+				var s string
+				if needToUpdateTiles {
+					s = fmt.Sprintf("%shave a different array of tiles\n", s)
+				}
+				if needToUpdateColumns {
+					s = fmt.Sprintf("%scolumns\nwant %d\nhave %d\n", s,
+						dashboardDeployment.Settings.Instance.MON.SLOFreshnessLayout.Columns,
+						retreivedDashboard.MosaicLayout.Columns)
+				}
+				if len(s) > 0 {
+					return fmt.Errorf("%s mon invalid dashboard configuration:\n%s", dashboardDeployment.Core.InstanceName, s)
+				}
+				return nil
+			}
+
+		} else {
+			return fmt.Errorf("unmanged dashboard type")
 		}
-		if len(s) > 0 {
-			return fmt.Errorf("%s mon invalid dashboard configuration:\n%s", dashboardDeployment.Core.InstanceName, s)
-		}
-		return nil
 	}
 
 	if dashboardID == "" {
@@ -93,7 +139,7 @@ func (dashboardDeployment DashboardDeployment) Deploy() (err error) {
 		log.Printf("mon dashboard created '%s' %s", retreivedDashboard.DisplayName, retreivedDashboard.Name)
 	} else {
 		// Patch dashboard
-		if needToUpdateWidgets || needToUpdateColumns {
+		if needToUpdate {
 			dashboard.Etag = retreivedDashboard.Etag
 			retreivedDashboard, err = dashboardService.Patch(dashboardName, &dashboard).Context(dashboardDeployment.Core.Ctx).Do()
 			if err != nil {

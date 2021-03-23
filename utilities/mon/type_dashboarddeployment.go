@@ -23,6 +23,7 @@ import (
 type DashboardDeployment struct {
 	Artifacts struct {
 		Widgets []*monitoring.Widget
+		Tiles   []*monitoring.Tile
 	}
 	Core     *deploy.Core
 	Settings struct {
