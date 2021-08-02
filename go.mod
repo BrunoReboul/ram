@@ -12,7 +12,7 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/open-policy-agent/opa v0.27.1
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
-	google.golang.org/api v0.51.0
-	google.golang.org/genproto v0.0.0-20210721163202-f1cecdd8b78a
+	google.golang.org/api v0.52.0
+	google.golang.org/genproto v0.0.0-20210722135532-667f2b7c528f
 	gopkg.in/yaml.v2 v2.4.0
 )
