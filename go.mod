@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	cloud.google.com/go v0.88.0
-	cloud.google.com/go/bigquery v1.19.0
+	cloud.google.com/go/bigquery v1.20.0
 	cloud.google.com/go/firestore v1.5.0
 	cloud.google.com/go/logging v1.4.2
 	cloud.google.com/go/pubsub v1.13.0
@@ -13,6 +13,6 @@ require (
 	github.com/open-policy-agent/opa v0.27.1
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	google.golang.org/api v0.51.0
-	google.golang.org/genproto v0.0.0-20210721163202-f1cecdd8b78a
+	google.golang.org/genproto v0.0.0-20210726200206-e7812ac95cc0
 	gopkg.in/yaml.v2 v2.4.0
 )
