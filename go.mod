@@ -5,7 +5,7 @@ go 1.13
 require (
 	cloud.google.com/go v0.97.0
 	cloud.google.com/go/asset v1.0.1
-	cloud.google.com/go/bigquery v1.23.0
+	cloud.google.com/go/bigquery v1.24.0
 	cloud.google.com/go/firestore v1.5.0
 	cloud.google.com/go/functions v1.0.0
 	cloud.google.com/go/kms v1.0.0 // indirect
