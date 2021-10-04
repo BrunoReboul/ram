@@ -3,7 +3,7 @@ module github.com/BrunoReboul/ram
 go 1.13
 
 require (
-	cloud.google.com/go v0.94.1
+	cloud.google.com/go v0.97.0
 	cloud.google.com/go/asset v1.0.1
 	cloud.google.com/go/bigquery v1.23.0
 	cloud.google.com/go/firestore v1.5.0
