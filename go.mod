@@ -10,7 +10,7 @@ require (
 	cloud.google.com/go/functions v1.0.0
 	cloud.google.com/go/kms v1.0.0 // indirect
 	cloud.google.com/go/logging v1.4.2
-	cloud.google.com/go/pubsub v1.13.0
+	cloud.google.com/go/pubsub v1.17.0
 	cloud.google.com/go/scheduler v1.0.0
 	cloud.google.com/go/storage v1.16.0
 	github.com/google/uuid v1.2.0
