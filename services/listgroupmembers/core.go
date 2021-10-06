@@ -60,7 +60,6 @@ var pubSubErrNumber uint64
 var pubSubID string
 var pubSubMsgNumber uint64
 var stepStack glo.Steps
-var timestamp time.Time
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
@@ -258,7 +257,6 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	logEventEveryXPubSubMsg = global.logEventEveryXPubSubMsg
 	pubSubClient = global.pubSubClient
 	outputTopicName = global.outputTopicName
-	timestamp = metadata.Timestamp
 	pubSubID = global.PubSubID
 	microserviceName = global.microserviceName
 	instanceName = global.instanceName
@@ -420,7 +418,7 @@ func browseFeedMessageGroupMembersFromCache(global *Global) (err error) {
 					})
 				} else {
 					feedMessageMember.Deleted = true
-					feedMessageMember.Window.StartTime = timestamp
+					feedMessageMember.Window.StartTime = time.Now()
 					feedMessageMember.Origin = origin
 					feedMessageMemberJSON, err := json.Marshal(feedMessageMember)
 					if err != nil {
@@ -478,7 +476,7 @@ func browseMembers(members *admin.Members) error {
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, member := range members.Members {
 		var feedMessageMember cai.FeedMessageMember
-		feedMessageMember.Window.StartTime = timestamp
+		feedMessageMember.Window.StartTime = time.Now()
 		feedMessageMember.Origin = origin
 		feedMessageMember.Asset.Ancestors = ancestors
 		feedMessageMember.Asset.AncestryPath = ancestryPath

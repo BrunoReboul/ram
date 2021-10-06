@@ -248,7 +248,6 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	}
 
 	var feedMessageGroupSettings cai.FeedMessageGroupSettings
-	feedMessageGroupSettings.Window.StartTime = metadata.Timestamp
 	feedMessageGroupSettings.Origin = feedMessageGroup.Origin
 	feedMessageGroupSettings.Asset.Ancestors = feedMessageGroup.Asset.Ancestors
 	feedMessageGroupSettings.Asset.AncestryPath = feedMessageGroup.Asset.AncestryPath
@@ -283,6 +282,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			return err
 		}
 		feedMessageGroupSettings.Asset.Resource = groupSettings
+		feedMessageGroupSettings.Window.StartTime = time.Now()
 	}
 	feedMessageGroupSettings.StepStack = global.stepStack
 
