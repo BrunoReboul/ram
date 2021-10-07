@@ -402,8 +402,8 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 			complianceStatus.Compliant = true
 		} else {
 			complianceStatus.Compliant = false
+			countViolations = len(violations)
 			for i, violation := range violations {
-				countViolations = i
 				violation.StepStack = global.stepStack
 				violationJSON, err := json.Marshal(violation)
 				if err != nil {

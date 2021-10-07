@@ -38,8 +38,7 @@ func (deployment *Deployment) initialize() (err error) {
 	}
 	log.Println("")
 	log.Println("manual setup task 1: console / firestore / select native mode")
-	log.Println("manual setup task 2: console / monitoring / add your project to a workspace")
-	log.Println("manual setup task 3 OPTIONAL: console / source repo / add a repo CONNECTED to external repo")
+	log.Println("manual setup task 2: OPTIONAL: console / source repo / add a repo CONNECTED to external repo")
 	log.Println("")
 	return nil
 }

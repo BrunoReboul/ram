@@ -34,8 +34,11 @@ type Entry struct {
 	Component                  string     `json:"component,omitempty"`
 	InitID                     string     `json:"init_id,omitempty"`
 	TriggeringPubsubID         string     `json:"triggering_pubsub_id,omitempty"`
+	TriggeringEventID          string     `json:"triggering_event_id,omitempty"`
 	TriggeringPubsubTimestamp  *time.Time `json:"triggering_pubsub_timestamp,omitempty"`
+	TriggeringEventTimestamp   *time.Time `json:"triggering_event_timestamp,omitempty"`
 	TriggeringPubsubAgeSeconds float64    `json:"triggering_pubsub_age_seconds,omitempty"`
+	TriggeringEventAgeSeconds  float64    `json:"triggering_event_age_seconds,omitempty"`
 	OriginEventID              string     `json:"origin_event_id,omitempty"`
 	OriginEventTimestamp       *time.Time `json:"origin_event_timestamp,omitempty"`
 	LatencySeconds             float64    `json:"latency_seconds,omitempty"`

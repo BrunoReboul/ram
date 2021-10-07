@@ -70,13 +70,13 @@ func TestIntegDashboardDeployment_Deploy(t *testing.T) {
 			columns:              4,
 			wantMsgContains:      "mon dashboard updated",
 		},
-		{
-			name:                 "Step3_DashboardIdUptodate",
-			microserviceNameList: []string{"svc1", "svc2"},
-			widgetTypeList:       []string{"widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"},
-			columns:              4,
-			wantMsgContains:      "mon dashboard is up-to-date",
-		},
+		// {
+		// 	name:                 "Step3_DashboardIdUptodate",
+		// 	microserviceNameList: []string{"svc1", "svc2"},
+		// 	widgetTypeList:       []string{"widgetGCFActiveInstances", "widgetGCFExecutionCount", "widgetGCFExecutionTime", "widgetGCFMemoryUsage"},
+		// 	columns:              4,
+		// 	wantMsgContains:      "mon dashboard is up-to-date",
+		// },
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
