@@ -12,11 +12,11 @@ require (
 	cloud.google.com/go/logging v1.4.2
 	cloud.google.com/go/pubsub v1.17.0
 	cloud.google.com/go/scheduler v1.0.0
-	cloud.google.com/go/storage v1.17.0
+	cloud.google.com/go/storage v1.18.2
 	github.com/google/uuid v1.3.0
 	github.com/open-policy-agent/opa v0.34.2
-	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
+	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
 	google.golang.org/api v0.58.0
-	google.golang.org/genproto v0.0.0-20210924002016-3dee208752a0
+	google.golang.org/genproto v0.0.0-20211016002631-37fc39342514
 	gopkg.in/yaml.v2 v2.4.0
 )
