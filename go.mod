@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/open-policy-agent/opa v0.34.2
 	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
-	google.golang.org/api v0.59.0
+	google.golang.org/api v0.60.0
 	google.golang.org/genproto v0.0.0-20211028162531-8db9c33dc351
 	gopkg.in/yaml.v2 v2.4.0
 )
