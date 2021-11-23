@@ -57,6 +57,7 @@ var pubSubErrNumber uint64
 var pubSubID string
 var pubSubMsgNumber uint64
 var stepStack glo.Steps
+var timestamp time.Time
 
 // Global structure for global variables to optimize the cloud function performances
 type Global struct {
@@ -264,6 +265,7 @@ func EntryPoint(ctxEvent context.Context, PubSubMessage gps.PubSubMessage, globa
 	logEventEveryXPubSubMsg = global.logEventEveryXPubSubMsg
 	pubSubClient = global.pubSubClient
 	outputTopicName = global.outputTopicName
+	timestamp = metadata.Timestamp
 	pubSubID = global.PubSubID
 	microserviceName = global.microserviceName
 	instanceName = global.instanceName
@@ -538,7 +540,7 @@ func browseGroups(groups *admin.Groups) error {
 	topic := pubSubClient.Topic(outputTopicName)
 	for _, group := range groups.Groups {
 		var feedMessage cai.FeedMessageGroup
-		feedMessage.Window.StartTime = time.Now()
+		feedMessage.Window.StartTime = timestamp
 		feedMessage.Origin = "batch-listgroups"
 		feedMessage.Deleted = false
 		feedMessage.Asset.Ancestors = []string{fmt.Sprintf("directories/%s", directoryCustomerID)}
