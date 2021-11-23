@@ -8,9 +8,8 @@ require (
 	cloud.google.com/go/bigquery v1.24.0
 	cloud.google.com/go/firestore v1.6.1
 	cloud.google.com/go/functions v1.0.0
-	cloud.google.com/go/kms v1.0.0 // indirect
 	cloud.google.com/go/logging v1.4.2
-	cloud.google.com/go/pubsub v1.17.0
+	cloud.google.com/go/pubsub v1.17.1
 	cloud.google.com/go/scheduler v1.0.0
 	cloud.google.com/go/storage v1.18.2
 	github.com/google/uuid v1.3.0
