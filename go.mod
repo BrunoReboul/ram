@@ -13,7 +13,7 @@ require (
 	cloud.google.com/go/scheduler v1.0.0
 	cloud.google.com/go/storage v1.18.2
 	github.com/google/uuid v1.3.0
-	github.com/open-policy-agent/opa v0.34.2
+	github.com/open-policy-agent/opa v0.35.0
 	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
 	google.golang.org/api v0.60.0
 	google.golang.org/genproto v0.0.0-20211028162531-8db9c33dc351
