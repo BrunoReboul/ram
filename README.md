@@ -1,4 +1,6 @@
-# RAM Real-time Asset Monitor
+# RAM v1 is now deprecated, please use [RAMv2](https://gitlab.com/realtime-asset-monitor/setup)
+
+=> [go to RAMv2](https://gitlab.com/realtime-asset-monitor/setup)
 
 [Product overview](https://github.com/BrunoReboul/ram-config-template/blob/master/docs/product_overview.md)
 
