@@ -5,7 +5,7 @@ go 1.13
 require (
 	cloud.google.com/go v0.103.0 // indirect
 	cloud.google.com/go/asset v1.3.0
-	cloud.google.com/go/bigquery v1.36.0
+	cloud.google.com/go/bigquery v1.37.0
 	cloud.google.com/go/firestore v1.6.1
 	cloud.google.com/go/functions v1.5.0
 	cloud.google.com/go/iam v0.3.0
@@ -23,7 +23,7 @@ require (
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.0.0-20220731174439-a90be440212d // indirect
 	google.golang.org/api v0.90.0
-	google.golang.org/genproto v0.0.0-20220728213248-dd149ef739b9
+	google.golang.org/genproto v0.0.0-20220802133213-ce4fa296bf78
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
