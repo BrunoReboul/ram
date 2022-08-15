@@ -12,7 +12,7 @@ require (
 	cloud.google.com/go/logging v1.5.0
 	cloud.google.com/go/pubsub v1.24.0
 	cloud.google.com/go/scheduler v1.3.0
-	cloud.google.com/go/storage v1.24.0
+	cloud.google.com/go/storage v1.25.0
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/open-policy-agent/opa v0.43.0
