@@ -15,7 +15,7 @@ require (
 	cloud.google.com/go/storage v1.24.0
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/google/uuid v1.3.0
-	github.com/open-policy-agent/opa v0.43.0
+	github.com/open-policy-agent/opa v0.43.1
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/vektah/gqlparser/v2 v2.4.7 // indirect
 	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462 // indirect
