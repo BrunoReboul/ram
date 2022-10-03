@@ -18,11 +18,10 @@ require (
 	github.com/open-policy-agent/opa v0.43.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/vektah/gqlparser/v2 v2.4.7 // indirect
-	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462 // indirect
-	golang.org/x/oauth2 v0.0.0-20220722155238-128564f6959c
+	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.0.0-20220731174439-a90be440212d // indirect
-	google.golang.org/api v0.90.0
+	google.golang.org/api v0.98.0
 	google.golang.org/genproto v0.0.0-20220728213248-dd149ef739b9
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0
